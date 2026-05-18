@@ -163,8 +163,8 @@ st.markdown(f"""
 </div>
 """, unsafe_allow_html=True)
 
-# MODIFICACIÓN: Ruta flexible para aceptar nombres como "Arbeit_1.mp3" o "A1.mp3"
-ruta_audio = f"audios/{audio_id}.mp3"
+# CORRECCIÓN AQUÍ: Ruta cambiada a "Audios" con A mayúscula para enlazar con tu GitHub
+ruta_audio = f"Audios/{audio_id}.mp3"
 if os.path.exists(ruta_audio):
     st.write("")
     st.write("🎧 **Escucha el audio para hacer Shadowing:**")
