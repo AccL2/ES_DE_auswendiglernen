@@ -7,7 +7,7 @@ import random
 # Configuración de la página
 st.set_page_config(page_title="Entrenador de Idiomas por Islas", page_icon="🇩🇪", layout="centered")
 
-# Inyectar la tipografía Montserrat y estilos adaptables
+# Inyectar la tipografía Montserrat y estilos adaptables (¡Actualizados con tarjetas de estadísticas!)
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght=400;600&display=swap');
@@ -48,10 +48,37 @@ st.markdown("""
         border-radius: 0.5rem;
         margin-bottom: 1rem;
     }
+
+    /* Tarjetas de Estadísticas con Vida */
+    .contenedor-stats {
+        display: flex;
+        gap: 10px;
+        margin-bottom: 20px;
+    }
+    .tarjeta-stat {
+        flex: 1;
+        padding: 12px;
+        border-radius: 12px;
+        text-align: center;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+        border: 1px solid rgba(255,255,255,0.1);
+    }
+    .stat-numero {
+        font-size: 24px;
+        font-weight: 600;
+        font-family: 'Montserrat', sans-serif;
+        margin-top: 5px;
+    }
+    .stat-label {
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: #a0aec0;
+    }
     </style>
 """, unsafe_allow_html=True)
 
-# Cargar la base de datos de Excel (Desactivamos el ttl para que refresque al reescribir)
+# Cargar la base de datos de Excel
 def cargar_datos():
     df = pd.read_excel("frases.xlsx")
     df.columns = df.columns.str.strip()
@@ -68,7 +95,7 @@ st.sidebar.title("Configuración")
 islas_disponibles = df_total['Isla'].unique()
 isla_seleccionada = st.sidebar.selectbox("🏝️ Selecciona la Isla:", islas_disponibles)
 
-# Mapeamos los índices originales para no perder el orden del Excel al usar modo aleatorio
+# Mapeamos los índices originales
 df_total['Index_Original'] = df_total.index
 df_isla_original = df_total[df_total['Isla'] == isla_seleccionada].reset_index(drop=True)
 total_frases = len(df_isla_original)
@@ -99,7 +126,6 @@ else:
         st.session_state.ver_solucion = False
     df_isla = df_isla_original
 
-# Asegurar límites del índice
 if st.session_state.indice_actual >= total_frases:
     st.session_state.indice_actual = total_frases - 1 if total_frases > 0 else 0
 
@@ -108,14 +134,10 @@ if st.session_state.indice_actual >= total_frases:
 st.sidebar.write("---")
 st.sidebar.subheader("📊 Zona de Datos")
 if st.sidebar.button("🗑️ Resetear notas de esta Isla", type="primary", use_container_width=True):
-    # Ponemos en 0 la columna Dominio para las frases de esta isla específica
     indices_a_resetear = df_isla_original['Index_Original'].tolist()
     df_total.loc[indices_a_resetear, 'Dominio'] = 0
-    
-    # Limpiamos columna de control y guardamos en el archivo físico
     df_guardar = df_total.drop(columns=['Index_Original']) if 'Index_Original' in df_total.columns else df_total
     df_guardar.to_excel("frases.xlsx", index=False)
-    
     st.session_state.indice_actual = 0
     st.session_state.ver_solucion = False
     st.sidebar.success("¡Progreso de la isla borrado en el Excel!")
@@ -125,26 +147,50 @@ if st.sidebar.button("🗑️ Resetear notas de esta Isla", type="primary", use_
 # --- CONTENIDO PRINCIPAL ---
 st.title("🇩🇪 Método de Chunks & Islas")
 
-# Calcular estadísticas de la isla leyendo los datos reales del Excel
+# Calcular estadísticas reales
 valores_dominio = df_isla_original['Dominio'].fillna(0).tolist()
 malas = valores_dominio.count(1)
 regulares = valores_dominio.count(2)
 buenas = valores_dominio.count(3)
 nuevas = valores_dominio.count(0)
 
-# Marcador visual de estadísticas superior
+# Calcular porcentajes para las barras de progreso internas
+pct_bien = (buenas / total_frases) * 100 if total_frases > 0 else 0
+
+# --- NUEVO DISEÑO DE ESTADÍSTICAS CON EMOCIÓN ---
 st.markdown(f"""
-<div style="background-color: rgba(255,255,255,0.05); padding: 10px; border-radius: 8px; margin-bottom: 15px; display: flex; justify-content: space-around; text-align: center;">
-    <div><span style="font-size:20px;">🔴</span><br><b>{malas}</b> Mal</div>
-    <div><span style="font-size:20px;">🟡</span><br><b>{regulares}</b> Regular</div>
-    <div><span style="font-size:20px;">🟢</span><br><b>{buenas}</b> Bien</div>
-    <div><span style="font-size:20px;">🆕</span><br><b>{nuevas}</b> Nuevas</div>
+<div class="contenedor-stats">
+    <div class="tarjeta-stat" style="background-color: rgba(239, 68, 68, 0.1); border-color: rgba(239, 68, 68, 0.3);">
+        <div class="stat-label">🔴 Falladas</div>
+        <div class="stat-numero" style="color: #ef4444;">{malas}</div>
+    </div>
+    <div class="tarjeta-stat" style="background-color: rgba(245, 158, 11, 0.1); border-color: rgba(245, 158, 11, 0.3);">
+        <div class="stat-label">🟡 Regular</div>
+        <div class="stat-numero" style="color: #f59e0b;">{regulares}</div>
+    </div>
+    <div class="tarjeta-stat" style="background-color: rgba(16, 185, 129, 0.1); border-color: rgba(16, 185, 129, 0.3);">
+        <div class="stat-label">🟢 Dominadas</div>
+        <div class="stat-numero" style="color: #10b981;">{buenas}</div>
+    </div>
+    <div class="tarjeta-stat" style="background-color: rgba(113, 128, 150, 0.1); border-color: rgba(113, 128, 150, 0.2);">
+        <div class="stat-label">🆕 Nuevas</div>
+        <div class="stat-numero" style="color: #a0aec0;">{nuevas}</div>
+    </div>
 </div>
 """, unsafe_allow_html=True)
 
+# Barra de Dominio de la Isla Completa
+st.write(f"🏆 **Nivel de maestría en esta Isla:** {pct_bien:.0f}%")
+st.progress(pct_bien / 100)
+
 
 if st.session_state.indice_actual >= total_frases - 1 and st.session_state.get('completado', False):
-    st.success("🎉 ¡Enhorabuena! Has completado todas las frases de esta isla.")
+    if buenas == total_frases:
+        st.balloons() # ¡Efecto fiesta total si todo está en verde!
+        st.success("👑 ¡BRUTAL! Has completado la isla y dominas absolutamente todas las frases. ¡Eres un crack!")
+    else:
+        st.success("🎉 ¡Enhorabuena! Has llegado al final de esta vuelta por la isla.")
+        
     if st.button("Repetir Isla (Volver a empezar)", use_container_width=True):
         st.session_state.indice_actual = 0
         st.session_state.ver_solucion = False
@@ -154,7 +200,7 @@ if st.session_state.indice_actual >= total_frases - 1 and st.session_state.get('
         st.rerun()
     st.stop()
 
-# Cargar la fila actual basada en el dataframe activo
+# Cargar fila actual
 fila_actual = df_isla.iloc[st.session_state.indice_actual]
 castellano_texto = str(fila_actual['Castellano'])
 aleman_texto = str(fila_actual['Aleman'])
@@ -173,13 +219,12 @@ def formatear_lineas(texto):
     frases = re.split(r'(?<=[.!?])\s+', texto.strip())
     return "<br>".join(frases)
 
-# Leer el estado de la frase actual desde la base de datos
+# Leer estado actual de la frase
 nota_num = df_total.loc[index_real_excel, 'Dominio']
 mapa_notas = {0: "🆕 Nueva", 1: "🔴 Mal", 2: "🟡 Regular", 3: "🟢 Bien"}
 nota_actual_texto = mapa_notas.get(int(nota_num) if pd.notna(nota_num) else 0, "🆕 Nueva")
 
-st.subheader(f"Progreso: Frase {st.session_state.indice_actual + 1} de {total_frases} ({nota_actual_texto})")
-st.progress((st.session_state.indice_actual + 1) / total_frases)
+st.subheader(f"Frase {st.session_state.indice_actual + 1} de {total_frases} ({nota_actual_texto})")
 
 if situacion_texto:
     st.markdown(f'<div class="titulo-situacion">📍 Situación: {situacion_texto}</div>', unsafe_allow_html=True)
@@ -200,19 +245,15 @@ if os.path.exists(ruta_audio):
 else:
     st.warning(f"⚠️ Audio no encontrado.")
 
-# --- BOTONES DE CALIFICACIÓN CON ESCRITURA EN EXCEL ---
+# --- BOTONES DE CALIFICACIÓN ---
 st.write("¿Cómo te ha salido?")
 st_col1, st_col2, st_col3 = st.columns(3)
 
 def calificar_y_guardar(valor_numerico):
-    # Escribimos el cambio en el DataFrame principal
     df_total.loc[index_real_excel, 'Dominio'] = valor_numerico
-    
-    # Eliminamos la columna temporal antes de volcar al archivo físico
     df_escribir = df_total.drop(columns=['Index_Original']) if 'Index_Original' in df_total.columns else df_total
     df_escribir.to_excel("frases.xlsx", index=False)
     
-    # Avanzamos de tarjeta
     if st.session_state.indice_actual < total_frases - 1:
         st.session_state.indice_actual += 1
         st.session_state.ver_solucion = False
