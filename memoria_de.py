@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import os
 import re
+import random
 
 # Configuración de la página
 st.set_page_config(page_title="Entrenador de Idiomas por Islas", page_icon="🇩🇪", layout="centered")
@@ -68,18 +69,48 @@ st.sidebar.title("Configuración")
 islas_disponibles = df_total['Isla'].unique()
 isla_seleccionada = st.sidebar.selectbox("🏝️ Selecciona la Isla:", islas_disponibles)
 
-df_isla = df_total[df_total['Isla'] == isla_seleccionada].reset_index(drop=True)
-total_frases = len(df_isla)
+# Filtrar las frases de la isla seleccionada de forma ordenada
+df_isla_original = df_total[df_total['Isla'] == isla_seleccionada].reset_index(drop=True)
+total_frases = len(df_isla_original)
 
-if 'indice_actual' not in st.session_state or st.session_state.get('isla_anterior') != isla_seleccionada:
+# CONTROL DE CAMBIO DE ISLA O INICIALIZACIÓN
+if 'isla_anterior' not in st.session_state or st.session_state.isla_anterior != isla_seleccionada:
     st.session_state.indice_actual = 0
     st.session_state.isla_anterior = isla_seleccionada
     st.session_state.ver_solucion = False
+    st.session_state.completado = False
+    # Si cambiamos de isla, eliminamos cualquier orden aleatorio guardado previo
+    if 'orden_aleatorio' in st.session_state:
+        del st.session_state.orden_aleatorio
 
-opciones_frases = [f"Frase {i+1}" for i in range(total_frases)]
+# --- NUEVO INTERRUPTOR DE MODO ALEATORIO ---
+modo_aleatorio = st.sidebar.toggle("🔀 Activar orden aleatorio")
+
+if modo_aleatorio:
+    # Si se activa el modo aleatorio y no hemos creado su orden mezclado para ESTA isla, lo creamos
+    if 'orden_aleatorio' not in st.session_state:
+        indices_mezclados = list(range(total_frases))
+        random.shuffle(indices_mezclados)
+        st.session_state.orden_aleatorio = indices_mezclados
+        st.session_state.indice_actual = 0  # Empezamos desde la primera de la lista mezclada
+        st.session_state.ver_solucion = False
+    
+    # Creamos el dataframe con el orden mezclado
+    df_isla = df_isla_original.iloc[st.session_state.orden_aleatorio].reset_index(drop=True)
+else:
+    # Si el modo aleatorio está apagado, nos aseguramos de borrar el mapa de mezcla
+    if 'orden_aleatorio' in st.session_state:
+        del st.session_state.orden_aleatorio
+        st.session_state.indice_actual = 0  # Volvemos al inicio del orden normal
+        st.session_state.ver_solucion = False
+    df_isla = df_isla_original
+
+# Asegurar que el índice está dentro de los límites válidos
 if st.session_state.indice_actual >= total_frases:
     st.session_state.indice_actual = total_frases - 1 if total_frases > 0 else 0
 
+# Selector para saltar a una frase específica
+opciones_frases = [f"Frase {i+1}" for i in range(total_frases)]
 frase_seleccionada_nav = st.sidebar.selectbox(
     "🎯 Ir a frase específica:", 
     options=opciones_frases, 
@@ -102,9 +133,13 @@ if st.session_state.indice_actual >= total_frases - 1 and st.session_state.get('
         st.session_state.indice_actual = 0
         st.session_state.ver_solucion = False
         st.session_state.completado = False
+        # Si estaba en aleatorio, volvemos a mezclar para la siguiente vuelta
+        if 'orden_aleatorio' in st.session_state:
+            del st.session_state.orden_aleatorio
         st.rerun()
     st.stop()
 
+# Cargar la fila actual basada en el dataframe activo (mezclado o normal)
 fila_actual = df_isla.iloc[st.session_state.indice_actual]
 castellano_texto = str(fila_actual['Castellano'])
 aleman_texto = str(fila_actual['Aleman'])
