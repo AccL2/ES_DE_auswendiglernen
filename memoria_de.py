@@ -1,189 +1,124 @@
 import streamlit as st
-import pandas as pd
-import os
-import re
+import random
 
-# Configuración de la página
-st.set_page_config(page_title="Entrenador de Idiomas por Islas", page_icon="🇩🇪", layout="centered")
+# CONFIGURACIÓN DE LA PÁGINA
+st.set_page_config(page_title="Entrenador de Alemán", page_icon="🇩🇪", layout="centered")
 
-# Inyectar la tipografía Montserrat y estilos adaptables
-st.markdown("""
-    <style>
-    @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght=400;600&display=swap');
-    
-    .texto-isla {
-        font-family: 'Montserrat', sans-serif !important;
-        font-weight: 400 !important;
-        line-height: 1.6;
-        font-size: 1.15rem;
-        margin: 0;
-        padding: 0;
-    }
-    
-    .titulo-situacion {
-        font-family: 'Montserrat', sans-serif !important;
-        font-weight: 600 !important;
-        font-size: 1rem;
-        text-transform: uppercase;
-        letter-spacing: 1px;
-        color: #718096;
-        margin-bottom: 0.5rem;
-    }
-    
-    /* Bloque Azul (Castellano) */
-    .bloque-azul {
-        background-color: rgba(28, 131, 225, 0.15);
-        border-left: 5px solid rgb(28, 131, 225);
-        padding: 1.2rem 1.5rem;
-        border-radius: 0.5rem;
-        margin-bottom: 1rem;
-    }
-    
-    /* Bloque Verde (Alemán) */
-    .bloque-verde {
-        background-color: rgba(33, 195, 84, 0.15);
-        border-left: 5px solid rgb(33, 195, 84);
-        padding: 1.2rem 1.5rem;
-        border-radius: 0.5rem;
-        margin-bottom: 1rem;
-    }
-    </style>
-""", unsafe_allow_html=True)
+# 1. BASE DE DATOS DE TUS ISLAS DE VOCABULARIO
+# (Aquí están todas tus frases organizadas)
+ISLAS = {
+    "Isla 1: Saludos básicos": [
+        {"de": "Guten Morgen", "es": "Buenos días"},
+        {"de": "Wie geht es dir?", "es": "¿Cómo estás?"},
+        {"de": "Hallo", "es": "Hola"},
+        {"de": "Tschüss", "es": "Adiós"},
+        {"de": "Vielen Dank", "es": "Muchas gracias"}
+    ],
+    "Isla 2: En la cafetería": [
+        {"de": "Ich möchte einen Kaffee", "es": "Quiero un café"},
+        {"de": "Ein Bier, bitte", "es": "Una cerveza, por favor"},
+        {"de": "Die Rechnung, bitte", "es": "La cuenta, por favor"},
+        {"de": "Es schmeckt gut", "es": "Está rico / Sabe bien"}
+    ],
+    "Isla 3: Frases útiles": [
+        {"de": "Ich verstehe nicht", "es": "No entiendo"},
+        {"de": "Sprechen Sie Spanisch?", "es": "¿Habla usted español?"},
+        {"de": "Wo ist die Toilette?", "es": "¿Dónde está el baño?"},
+        {"de": "Es tut mir leid", "es": "Lo siento"}
+    ]
+}
 
-# Cargar la base de datos de Excel
-@st.cache_data(ttl=10)
-def cargar_datos():
-    df = pd.read_excel("frases.xlsx")
-    df.columns = df.columns.str.strip()
-    return df
+# 2. INICIALIZACIÓN DE LA MEMORIA DE LA APP (Session State)
+if "isla_actual" not in st.session_state:
+    st.session_state.isla_actual = list(ISLAS.keys())[0]
 
-try:
-    df_total = cargar_datos()
-except Exception as e:
-    st.error(f"No se pudo cargar el archivo 'frases.xlsx'. Error: {e}")
-    st.stop()
+# Si cambiamos de isla, necesitamos resetear el orden y la posición
+if "isla_previa" not in st.session_state:
+    st.session_state.isla_previa = st.session_state.isla_actual
 
-# --- BARRA LATERAL ---
-st.sidebar.title("Configuración")
-islas_disponibles = df_total['Isla'].unique()
-isla_seleccionada = st.sidebar.selectbox("🏝️ Selecciona la Isla:", islas_disponibles)
+if st.session_state.isla_actual != st.session_state.isla_previa:
+    st.session_state.indice = 0
+    st.session_state.mostrar_aleman = True
+    if "lista_mezclada" in st.session_state:
+        del st.session_state.lista_mezclada
+    st.session_state.isla_previa = st.session_state.isla_actual
 
-df_isla = df_total[df_total['Isla'] == isla_seleccionada].reset_index(drop=True)
-total_frases = len(df_isla)
+# Cargamos las preguntas de la isla seleccionada
+preguntas_originales = ISLAS[st.session_state.isla_actual]
 
-if 'indice_actual' not in st.session_state or st.session_state.get('isla_anterior') != isla_seleccionada:
-    st.session_state.indice_actual = 0
-    st.session_state.isla_anterior = isla_seleccionada
-    st.session_state.ver_solucion = False
+if "indice" not in st.session_state:
+    st.session_state.indice = 0
 
-opciones_frases = [f"Frase {i+1}" for i in range(total_frases)]
-if st.session_state.indice_actual >= total_frases:
-    st.session_state.indice_actual = total_frases - 1 if total_frases > 0 else 0
+if "mostrar_aleman" not in st.session_state:
+    st.session_state.mostrar_aleman = True
 
-frase_seleccionada_nav = st.sidebar.selectbox(
-    "🎯 Ir a frase específica:", 
-    options=opciones_frases, 
-    index=int(st.session_state.indice_actual),
-    key=f"nav_selector_{st.session_state.indice_actual}"
-)
 
-nuevo_indice = opciones_frases.index(frase_seleccionada_nav)
-if nuevo_indice != st.session_state.indice_actual:
-    st.session_state.indice_actual = nuevo_indice
-    st.session_state.ver_solucion = False
-    st.rerun()
-
-# --- CONTENIDO PRINCIPAL ---
-st.title("🇩🇪 Método de Chunks & Islas")
-
-if st.session_state.indice_actual >= total_frases - 1 and st.session_state.get('completado', False):
-    st.success("🎉 ¡Enhorabuena! Has completado todas las frases de esta isla.")
-    if st.button("Repetir Isla (Volver a empezar)", use_container_width=True):
-        st.session_state.indice_actual = 0
-        st.session_state.ver_solucion = False
-        st.session_state.completado = False
-        st.rerun()
-    st.stop()
-
-fila_actual = df_isla.iloc[st.session_state.indice_actual]
-castellano_texto = str(fila_actual['Castellano'])
-aleman_texto = str(fila_actual['Aleman'])
-
-audio_id_raw = fila_actual['Audio_ID']
-if pd.isna(audio_id_raw):
-    audio_id = "sin_audio"
-elif isinstance(audio_id_raw, float):
-    audio_id = str(int(audio_id_raw))
-else:
-    audio_id = str(audio_id_raw).strip()
-
-situacion_texto = ""
-if 'Situacion' in fila_actual and pd.notna(fila_actual['Situacion']):
-    situacion_texto = str(fila_actual['Situacion']).strip()
-
-def formatear_lineas(texto):
-    frases = re.split(r'(?<=[.!?])\s+', texto.strip())
-    return "<br>".join(frases)
-
-st.subheader(f"Progreso: Frase {st.session_state.indice_actual + 1} de {total_frases}")
-st.progress((st.session_state.indice_actual + 1) / total_frases)
-
-if situacion_texto:
-    st.markdown(f'<div class="titulo-situacion">📍 Situación: {situacion_texto}</div>', unsafe_allow_html=True)
-
-# --- BLOQUE DINÁMICO (INTERRUPTOR CAS/ALE) ---
-if not st.session_state.ver_solucion:
-    # Mostrar Castellano
-    castellano_formateado = formatear_lineas(castellano_texto)
-    st.markdown(f"""
-    <div class="bloque-azul">
-        <div class="texto-isla">
-            <b>Castellano (Lee y piensa tu traducción):</b><br><br>
-            {castellano_formateado}
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
-else:
-    # Mostrar Alemán encima (Sustituye al castellano)
-    aleman_formateado = formatear_lineas(aleman_texto)
-    st.markdown(f"""
-    <div class="bloque-verde">
-        <div class="texto-isla">
-            <b>Solución en Alemán:</b><br><br>
-            {aleman_formateado}
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
-
-# Reproductor de Audio (Siempre fijo abajo del bloque)
-ruta_audio = f"Audios/{audio_id}.mp3"
-if os.path.exists(ruta_audio):
-    st.write("🎧 **Escucha el audio para hacer Shadowing:**")
-    st.audio(ruta_audio, format="audio/mp3")
-else:
-    st.warning(f"⚠️ Audio no encontrado en la ruta: `{ruta_audio}`")
+# INTERFAZ VISUAL: Selector de Isla
+st.title("🏝️ Tus Islas de Alemán")
+isla_seleccionada = st.selectbox("Elige la isla que quieres repasar:", list(ISLAS.keys()), key="isla_actual")
 
 st.write("---")
 
-# --- BOTONES DE NAVEGACIÓN ---
+# --- CONTROL DEL MODO ALEATORIO ---
+# Ponemos el interruptor arriba para que decidas antes de empezar a pasar tarjetas
+modo_aleatorio = st.toggle("🔀 Activar orden aleatorio (Mezclar isla)")
+
+if modo_aleatorio:
+    # Si se activa y no hemos creado una lista mezclada todavía, la creamos
+    if "lista_mezclada" not in st.session_state:
+        lista_copia = preguntas_originales.copy()
+        random.shuffle(lista_copia)
+        st.session_state.lista_mezclada = lista_copia
+        st.session_state.indice = 0  # Empezamos desde la primera de la mezcla
+    preguntas_activas = st.session_state.lista_mezclada
+else:
+    # Si está apagado, nos aseguramos de borrar la mezcla para la próxima vez
+    if "lista_mezclada" in st.session_state:
+        del st.session_state.lista_mezclada
+        st.session_state.indice = 0  # Volvemos al inicio del orden normal
+    preguntas_activas = preguntas_originales
+
+# Conseguimos la frase que toca mostrar según el orden activo
+frase_actual = preguntas_activas[st.session_state.indice]
+
+
+# 3. EL BLOQUE CONMUTADOR (Visualización de la tarjeta)
+# Si es True muestra Alemán, si es False muestra Español
+texto_a_mostrar = frase_actual["de"] if st.session_state.mostrar_aleman else frase_actual["es"]
+color_bloque = "alert-info" if st.session_state.mostrar_aleman else "alert-success"
+idioma_etiqueta = "🇩🇪 ALEMÁN" if st.session_state.mostrar_aleman else "🇪🇸 ESPAÑOL"
+
+# Diseño HTML del bloque que cambia
+st.markdown(f"""
+    <div class="stAlert" style="padding: 25px; border-radius: 10px; background-color: rgba(28, 133, 235, 0.1) if '{color_bloque}' == 'alert-info' else rgba(40, 167, 69, 0.1); border-left: 5px solid {'#1c85eb' if color_bloque == 'alert-info' else '#28a745'}; text-align: center; margin-bottom: 20px;">
+        <p style="margin: 0; font-size: 14px; font-weight: bold; color: gray;">{idioma_etiqueta}</p>
+        <h2 style="margin: 10px 0 0 0; font-size: 28px;">{texto_a_mostrar}</h2>
+    </div>
+""", unsafe_allowed_items=True)
+
+
+# BUTTONS: Controles de la app en línea
 col1, col2 = st.columns(2)
 
 with col1:
-    # El botón cambia de texto y función dinámicamente
-    if not st.session_state.ver_solucion:
-        if st.button("👁️ Mostrar solución alemán", use_container_width=True):
-            st.session_state.ver_solucion = True
-            st.rerun()
-    else:
-        if st.button("🔄 Volver a Castellano", use_container_width=True):
-            st.session_state.ver_solucion = False
-            st.rerun()
+    if st.button("🔄 Voltear Tarjeta", use_container_width=True):
+        st.session_state.mostrar_aleman = not st.session_state.mostrar_aleman
+        st.rerun()
 
 with col2:
-    if st.button("Siguiente Frase ➡️", use_container_width=True):
-        if st.session_state.indice_actual < total_frases - 1:
-            st.session_state.indice_actual += 1
-            st.session_state.ver_solucion = False
+    if st.button("➡️ Siguiente", use_container_width=True):
+        # Avanzamos al siguiente índice si no es el final
+        if st.session_state.indice < len(preguntas_activas) - 1:
+            st.session_state.indice += 1
         else:
-            st.session_state.completado = True
+            st.balloons()  # ¡Efecto fiesta al terminar la isla!
+            st.session_state.indice = 0
+        
+        # Siempre que pasamos de tarjeta, queremos ver primero el Alemán
+        st.session_state.mostrar_aleman = True
         st.rerun()
+
+# Barra de progreso para saber cuánto te queda
+progreso = (st.session_state.indice + 1) / len(preguntas_activas)
+st.progress(progreso)
+st.caption(f"Frase {st.session_state.indice + 1} de {len(preguntas_activas)}")
