@@ -79,33 +79,39 @@ if 'isla_anterior' not in st.session_state or st.session_state.isla_anterior != 
     st.session_state.isla_anterior = isla_seleccionada
     st.session_state.ver_solucion = False
     st.session_state.completado = False
-    # Si cambiamos de isla, eliminamos cualquier orden aleatorio guardado previo
     if 'orden_aleatorio' in st.session_state:
         del st.session_state.orden_aleatorio
 
-# --- NUEVO INTERRUPTOR DE MODO ALEATORIO ---
+# --- NUEVO INTERRUPTOR DE MODO ALEATORIO (CORREGIDO) ---
 modo_aleatorio = st.sidebar.toggle("🔀 Activar orden aleatorio")
 
 if modo_aleatorio:
-    # Si se activa el modo aleatorio y no hemos creado su orden mezclado para ESTA isla, lo creamos
+    # Si se activa, creamos la mezcla UNA SOLA VEZ y la dejamos fija en memoria
     if 'orden_aleatorio' not in st.session_state:
         indices_mezclados = list(range(total_frases))
         random.shuffle(indices_mezclados)
         st.session_state.orden_aleatorio = indices_mezclados
-        st.session_state.indice_actual = 0  # Empezamos desde la primera de la lista mezclada
+        st.session_state.indice_actual = 0  
         st.session_state.ver_solucion = False
     
-    # Creamos el dataframe con el orden mezclado
+    # Construimos el orden usando el mapa que guardamos en memoria (así no cambia al dar Siguiente)
     df_isla = df_isla_original.iloc[st.session_state.orden_aleatorio].reset_index(drop=True)
 else:
-    # Si el modo aleatorio está apagado, nos aseguramos de borrar el mapa de mezcla
+    # Si se apaga, borramos la mezcla para que la próxima vez sea distinta
     if 'orden_aleatorio' in st.session_state:
         del st.session_state.orden_aleatorio
-        st.session_state.indice_actual = 0  # Volvemos al inicio del orden normal
+        st.session_state.indice_actual = 0  
         st.session_state.ver_solucion = False
     df_isla = df_isla_original
 
-# Asegurar que el índice está dentro de los límites válidos
+# Asegurar inicialización básica del índice
+if 'indice_actual' not in st.session_state:
+    st.session_state.indice_actual = 0
+
+if 'ver_solucion' not in st.session_state:
+    st.session_state.ver_solucion = False
+
+# Asegurar que el índice esté dentro de los límites válidos
 if st.session_state.indice_actual >= total_frases:
     st.session_state.indice_actual = total_frases - 1 if total_frases > 0 else 0
 
@@ -133,13 +139,12 @@ if st.session_state.indice_actual >= total_frases - 1 and st.session_state.get('
         st.session_state.indice_actual = 0
         st.session_state.ver_solucion = False
         st.session_state.completado = False
-        # Si estaba en aleatorio, volvemos a mezclar para la siguiente vuelta
         if 'orden_aleatorio' in st.session_state:
             del st.session_state.orden_aleatorio
         st.rerun()
     st.stop()
 
-# Cargar la fila actual basada en el dataframe activo (mezclado o normal)
+# Cargar la fila actual basada en el dataframe activo
 fila_actual = df_isla.iloc[st.session_state.indice_actual]
 castellano_texto = str(fila_actual['Castellano'])
 aleman_texto = str(fila_actual['Aleman'])
@@ -168,7 +173,6 @@ if situacion_texto:
 
 # --- BLOQUE DINÁMICO (INTERRUPTOR CAS/ALE) ---
 if not st.session_state.ver_solucion:
-    # Mostrar Castellano
     castellano_formateado = formatear_lineas(castellano_texto)
     st.markdown(f"""
     <div class="bloque-azul">
@@ -179,7 +183,6 @@ if not st.session_state.ver_solucion:
     </div>
     """, unsafe_allow_html=True)
 else:
-    # Mostrar Alemán encima (Sustituye al castellano)
     aleman_formateado = formatear_lineas(aleman_texto)
     st.markdown(f"""
     <div class="bloque-verde">
@@ -190,7 +193,7 @@ else:
     </div>
     """, unsafe_allow_html=True)
 
-# Reproductor de Audio (Siempre fijo abajo del bloque)
+# Reproductor de Audio
 ruta_audio = f"Audios/{audio_id}.mp3"
 if os.path.exists(ruta_audio):
     st.write("🎧 **Escucha el audio para hacer Shadowing:**")
@@ -204,7 +207,6 @@ st.write("---")
 col1, col2 = st.columns(2)
 
 with col1:
-    # El botón cambia de texto y función dinámicamente
     if not st.session_state.ver_solucion:
         if st.button("👁️ Mostrar solución alemán", use_container_width=True):
             st.session_state.ver_solucion = True
