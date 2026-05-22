@@ -64,15 +64,40 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# Función para calcular la similitud (ignora mayúsculas, espacios y signos de puntuación)
-def calcular_similitud(texto1, texto2):
-    t1 = texto1.strip().lower()
-    t2 = texto2.strip().lower()
-    t1 = re.sub(r'[.,!?¿¡"\'\s]', '', t1)
-    t2 = re.sub(r'[.,!?¿¡"\'\s]', '', t2)
-    if not t1 or not t2:
+# 🎯 NUEVA FUNCIÓN: Evalúa solo la porción que el usuario ha escrito
+def calcular_similitud_parcial(texto_usuario, texto_original):
+    # Limpieza estándar: minúsculas y quitar espacios/puntuación
+    def limpiar(t):
+        t = t.strip().lower()
+        return re.sub(r'[.,!?¿¡"\'\s]', '', t)
+    
+    u_limpio = limpiar(texto_usuario)
+    o_limpio = limpiar(texto_original)
+    
+    if not u_limpio or not o_limpio:
         return 0
-    return SequenceMatcher(None, t1, t2).ratio() * 100
+    
+    # Si lo escrito por el usuario es más corto o igual que el original (lo normal en dictados parciales)
+    if len(u_limpio) <= len(o_limpio):
+        matcher = SequenceMatcher(None, u_limpio, o_limpio)
+        # Buscamos el bloque coincidente más largo
+        match = matcher.find_longest_match(0, len(u_limpio), 0, len(o_limpio))
+        if match.size == 0:
+            return 0
+        
+        # Extraemos la sección del texto original donde el usuario intentó escribir
+        subcadena_original = o_limpio[match.b : match.b + len(u_limpio)]
+        
+        # Si la subcadena extraída queda más corta por los márgenes, ajustamos al tamaño de lo escrito
+        if len(subcadena_original) < len(u_limpio):
+            inicio = max(0, match.b - (len(u_limpio) - match.size))
+            subcadena_original = o_limpio[inicio : inicio + len(u_limpio)]
+            
+        # Comparamos lo escrito con esa sección específica del original
+        return SequenceMatcher(None, u_limpio, subcadena_original).ratio() * 100
+    else:
+        # Si por alguna razón escribe más que el original, comparamos de forma normal
+        return SequenceMatcher(None, u_limpio, o_limpio).ratio() * 100
 
 # Cargar la base de datos de Excel
 @st.cache_data(ttl=10)
@@ -90,7 +115,7 @@ except Exception as e:
 # --- BARRA LATERAL ---
 st.sidebar.title("Configuración")
 islas_disponibles = df_total['Isla'].unique()
-isla_seleccionada = st.sidebar.selectbox("🏝️ Selecciona la Isla:", islas_disponibles)
+isla_seleccionada = st.sidebar.selectbox("🏝️ Selecciona la Isla:", islas_disvisibles) if 'Isla' in df_total.columns else st.sidebar.selectbox("🏝️ Selecciona la Isla:", df_total['Isla'].unique())
 
 # Filtrar las frases de la isla seleccionada de forma ordenada
 df_isla_original = df_total[df_total['Isla'] == isla_seleccionada].reset_index(drop=True)
@@ -221,19 +246,18 @@ else:
     st.warning(f"⚠️ Audio no encontrado en la ruta: `{ruta_audio}`")
 
 
-# --- 🎯 DESPLEGABLE DE DICTADO ADAPTABLE CON BOTÓN COMPROBAR ---
+# --- 🎯 DESPLEGABLE DE DICTADO ADAPTABLE CON COMPROBACIÓN PARCIAL ---
 with st.expander("📝 Modo Dictado: Haz clic aquí para escribir lo que oyes"):
-    # st.text_area permite múltiples líneas (Shift+Enter para saltar línea) y se estira automáticamente
     texto_usuario = st.text_area(
         "Escribe el texto en alemán:", 
         key=f"input_dictado_{st.session_state.indice_actual}",
         height=100
     )
     
-    # Botón exclusivo para ejecutar la comprobación cuando tú decidas
     if st.button("🔍 Comprobar Dictado", use_container_width=True):
         if texto_usuario:
-            porcentaje_acierto = calcular_similitud(texto_usuario, aleman_texto)
+            # Usamos el nuevo algoritmo de coincidencia parcial
+            porcentaje_acierto = calcular_similitud_parcial(texto_usuario, aleman_texto)
             
             if porcentaje_acierto >= 90:
                 color_fondo, color_texto = "rgba(16, 185, 129, 0.15)", "#10b981"  # Verde
@@ -244,7 +268,7 @@ with st.expander("📝 Modo Dictado: Haz clic aquí para escribir lo que oyes"):
                 
             st.markdown(f"""
             <div class="resultado-porcentaje" style="background-color: {color_fondo}; color: {color_texto}; border: 1px solid {color_texto};">
-                Coincidencia: {porcentaje_acierto:.0f}% bien
+                De lo que has escrito: {porcentaje_acierto:.0f}% bien
             </div>
             """, unsafe_allow_html=True)
         else:
