@@ -64,11 +64,10 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# 🎯 FUNCIÓN CORREGIDA: Comparación por ventanas de igual longitud
+# FUNCIÓN: Comparación por ventanas de igual longitud (Ajustada y precisa)
 def calcular_similitud_parcial(texto_usuario, texto_original):
     def limpiar(t):
         t = t.strip().lower()
-        # Quitamos puntuación, saltos de línea, tabulaciones y espacios
         return re.sub(r'[.,!?¿¡"\'\s\n\r\t]', '', t)
     
     u_limpio = limpiar(texto_usuario)
@@ -80,10 +79,8 @@ def calcular_similitud_parcial(texto_usuario, texto_original):
     len_u = len(u_limpio)
     len_o = len(o_limpio)
     
-    # Si el usuario escribió menos o igual que el total del original
     if len_u <= len_o:
         mejor_ratio = 0.0
-        # Desplazamos una "ventana" del tamaño de lo escrito por todo el texto original
         for i in range(len_o - len_u + 1):
             subcadena_original = o_limpio[i : i + len_u]
             ratio_actual = SequenceMatcher(None, u_limpio, subcadena_original).ratio()
@@ -91,7 +88,6 @@ def calcular_similitud_parcial(texto_usuario, texto_original):
                 mejor_ratio = ratio_actual
         return mejor_ratio * 100
     else:
-        # Si escribió más texto que el original por error, comparamos de forma global
         return SequenceMatcher(None, u_limpio, o_limpio).ratio() * 100
 
 # Cargar la base de datos de Excel
@@ -241,12 +237,13 @@ else:
     st.warning(f"⚠️ Audio no encontrado en la ruta: `{ruta_audio}`")
 
 
-# --- DESPLEGABLE DE DICTADO ADAPTABLE ---
+# --- 🎯 DESPLEGABLE DE DICTADO MULTILÍNEA ADAPTABLE ---
 with st.expander("📝 Modo Dictado: Haz clic aquí para escribir lo que oyes"):
+    # Cambiado a st.text_area para permitir múltiples líneas cómodamente
     texto_usuario = st.text_area(
         "Escribe el texto en alemán:", 
         key=f"input_dictado_{st.session_state.indice_actual}",
-        height=100
+        height=120  # Un tamaño inicial generoso para ver los saltos de línea
     )
     
     if st.button("🔍 Comprobar Dictado", use_container_width=True):
