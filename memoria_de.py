@@ -8,7 +8,7 @@ from difflib import SequenceMatcher
 # Configuración de la página
 st.set_page_config(page_title="Entrenador de Idiomas por Islas", page_icon="🇩🇪", layout="centered")
 
-# Inyectar la tipografía Montserrat y estilos adaptables
+# Inyectar la tipografía Montserrat y estilos adaptables (¡CSS ACTUALIZADO PARA AUTO-AJUSTE!)
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght=400;600&display=swap');
@@ -61,10 +61,17 @@ st.markdown("""
         margin-top: 10px;
         margin-bottom: 10px;
     }
+
+    /* 🔥 TRUCO CSS: Hace que el cuadro de texto crezca solo y no oculte líneas */
+    div[data-testid="stTextArea"] textarea {
+        height: auto !important;
+        min-height: 100px !important;
+        overflow-y: hidden !important;
+    }
     </style>
 """, unsafe_allow_html=True)
 
-# FUNCIÓN: Comparación por ventanas de igual longitud (Ajustada y precisa)
+# FUNCIÓN: Comparación por ventanas de igual longitud
 def calcular_similitud_parcial(texto_usuario, texto_original):
     def limpiar(t):
         t = t.strip().lower()
@@ -237,13 +244,12 @@ else:
     st.warning(f"⚠️ Audio no encontrado en la ruta: `{ruta_audio}`")
 
 
-# --- 🎯 DESPLEGABLE DE DICTADO MULTILÍNEA ADAPTABLE ---
+# --- DESPLEGABLE DE DICTADO MULTILÍNEA ELÁSTICO ---
 with st.expander("📝 Modo Dictado: Haz clic aquí para escribir lo que oyes"):
-    # Cambiado a st.text_area para permitir múltiples líneas cómodamente
     texto_usuario = st.text_area(
         "Escribe el texto en alemán:", 
         key=f"input_dictado_{st.session_state.indice_actual}",
-        height=120  # Un tamaño inicial generoso para ver los saltos de línea
+        height=100
     )
     
     if st.button("🔍 Comprobar Dictado", use_container_width=True):
