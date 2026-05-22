@@ -257,4 +257,20 @@ st.write("---")
 col1, col2 = st.columns(2)
 
 with col1:
-    if not st.session_state.ver
+    if not st.session_state.ver_solucion:
+        if st.button("👁️ Mostrar solución alemán", use_container_width=True):
+            st.session_state.ver_solucion = True
+            st.rerun()
+    else:
+        if st.button("🔄 Volver a Castellano", use_container_width=True):
+            st.session_state.ver_solucion = False
+            st.rerun()
+
+with col2:
+    if st.button("Siguiente Frase ➡️", use_container_width=True):
+        if st.session_state.indice_actual < total_frases - 1:
+            st.session_state.indice_actual += 1
+            st.session_state.ver_solucion = False
+        else:
+            st.session_state.completado = True
+        st.rerun()
