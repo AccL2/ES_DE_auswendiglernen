@@ -64,9 +64,8 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# 🎯 NUEVA FUNCIÓN: Evalúa solo la porción que el usuario ha escrito
+# FUNCIÓN: Evalúa solo la porción que el usuario ha escrito
 def calcular_similitud_parcial(texto_usuario, texto_original):
-    # Limpieza estándar: minúsculas y quitar espacios/puntuación
     def limpiar(t):
         t = t.strip().lower()
         return re.sub(r'[.,!?¿¡"\'\s]', '', t)
@@ -77,26 +76,20 @@ def calcular_similitud_parcial(texto_usuario, texto_original):
     if not u_limpio or not o_limpio:
         return 0
     
-    # Si lo escrito por el usuario es más corto o igual que el original (lo normal en dictados parciales)
     if len(u_limpio) <= len(o_limpio):
         matcher = SequenceMatcher(None, u_limpio, o_limpio)
-        # Buscamos el bloque coincidente más largo
         match = matcher.find_longest_match(0, len(u_limpio), 0, len(o_limpio))
         if match.size == 0:
             return 0
         
-        # Extraemos la sección del texto original donde el usuario intentó escribir
         subcadena_original = o_limpio[match.b : match.b + len(u_limpio)]
         
-        # Si la subcadena extraída queda más corta por los márgenes, ajustamos al tamaño de lo escrito
         if len(subcadena_original) < len(u_limpio):
             inicio = max(0, match.b - (len(u_limpio) - match.size))
             subcadena_original = o_limpio[inicio : inicio + len(u_limpio)]
             
-        # Comparamos lo escrito con esa sección específica del original
         return SequenceMatcher(None, u_limpio, subcadena_original).ratio() * 100
     else:
-        # Si por alguna razón escribe más que el original, comparamos de forma normal
         return SequenceMatcher(None, u_limpio, o_limpio).ratio() * 100
 
 # Cargar la base de datos de Excel
@@ -115,7 +108,9 @@ except Exception as e:
 # --- BARRA LATERAL ---
 st.sidebar.title("Configuración")
 islas_disponibles = df_total['Isla'].unique()
-isla_seleccionada = st.sidebar.selectbox("🏝️ Selecciona la Isla:", islas_disvisibles) if 'Isla' in df_total.columns else st.sidebar.selectbox("🏝️ Selecciona la Isla:", df_total['Isla'].unique())
+
+# 🎯 LÍNEA CORREGIDA AQUÍ (Cambiado 'islas_disvisibles' por 'islas_disponibles')
+isla_seleccionada = st.sidebar.selectbox("🏝️ Selecciona la Isla:", islas_disponibles)
 
 # Filtrar las frases de la isla seleccionada de forma ordenada
 df_isla_original = df_total[df_total['Isla'] == isla_seleccionada].reset_index(drop=True)
@@ -246,7 +241,7 @@ else:
     st.warning(f"⚠️ Audio no encontrado en la ruta: `{ruta_audio}`")
 
 
-# --- 🎯 DESPLEGABLE DE DICTADO ADAPTABLE CON COMPROBACIÓN PARCIAL ---
+# --- DESPLEGABLE DE DICTADO ADAPTABLE ---
 with st.expander("📝 Modo Dictado: Haz clic aquí para escribir lo que oyes"):
     texto_usuario = st.text_area(
         "Escribe el texto en alemán:", 
@@ -256,7 +251,6 @@ with st.expander("📝 Modo Dictado: Haz clic aquí para escribir lo que oyes"):
     
     if st.button("🔍 Comprobar Dictado", use_container_width=True):
         if texto_usuario:
-            # Usamos el nuevo algoritmo de coincidencia parcial
             porcentaje_acierto = calcular_similitud_parcial(texto_usuario, aleman_texto)
             
             if porcentaje_acierto >= 90:
