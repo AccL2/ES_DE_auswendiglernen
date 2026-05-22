@@ -68,7 +68,6 @@ st.markdown("""
 def calcular_similitud(texto1, texto2):
     t1 = texto1.strip().lower()
     t2 = texto2.strip().lower()
-    # Eliminamos comas, puntos, exclamaciones y espacios para comparar solo las palabras
     t1 = re.sub(r'[.,!?¿¡"\'\s]', '', t1)
     t2 = re.sub(r'[.,!?¿¡"\'\s]', '', t2)
     if not t1 or not t2:
@@ -106,7 +105,7 @@ if 'isla_anterior' not in st.session_state or st.session_state.isla_anterior != 
     if 'orden_aleatorio' in st.session_state:
         del st.session_state.orden_aleatorio
 
-# --- NUEVO INTERRUPTOR DE MODO ALEATORIO (CORREGIDO) ---
+# --- INTERRUPTOR DE MODO ALEATORIO ---
 modo_aleatorio = st.sidebar.toggle("🔀 Activar orden aleatorio")
 
 if modo_aleatorio:
@@ -222,27 +221,34 @@ else:
     st.warning(f"⚠️ Audio no encontrado en la ruta: `{ruta_audio}`")
 
 
-# --- 🎯 DESPLEGABLE DE DICTADO INTELIGENTE (AÑADIDO) ---
-# Usamos el índice actual en la clave del input para que se vacíe al cambiar de frase
+# --- 🎯 DESPLEGABLE DE DICTADO ADAPTABLE CON BOTÓN COMPROBAR ---
 with st.expander("📝 Modo Dictado: Haz clic aquí para escribir lo que oyes"):
-    texto_usuario = st.text_input("Escribe el texto en alemán:", key=f"input_dictado_{st.session_state.indice_actual}")
+    # st.text_area permite múltiples líneas (Shift+Enter para saltar línea) y se estira automáticamente
+    texto_usuario = st.text_area(
+        "Escribe el texto en alemán:", 
+        key=f"input_dictado_{st.session_state.indice_actual}",
+        height=100
+    )
     
-    if texto_usuario:
-        porcentaje_acierto = calcular_similitud(texto_usuario, aleman_texto)
-        
-        # Ajustamos los colores del cartel de porcentaje según la precisión
-        if porcentaje_acierto >= 90:
-            color_fondo, color_texto = "rgba(16, 185, 129, 0.15)", "#10b981"  # Verde
-        elif porcentaje_acierto >= 50:
-            color_fondo, color_texto = "rgba(245, 158, 11, 0.15)", "#f59e0b"  # Amarillo/Naranja
-        else:
-            color_fondo, color_texto = "rgba(239, 68, 68, 0.15)", "#ef4444"   # Rojo
+    # Botón exclusivo para ejecutar la comprobación cuando tú decidas
+    if st.button("🔍 Comprobar Dictado", use_container_width=True):
+        if texto_usuario:
+            porcentaje_acierto = calcular_similitud(texto_usuario, aleman_texto)
             
-        st.markdown(f"""
-        <div class="resultado-porcentaje" style="background-color: {color_fondo}; color: {color_texto}; border: 1px solid {color_texto};">
-            Coincidencia: {porcentaje_acierto:.0f}% bien
-        </div>
-        """, unsafe_allow_html=True)
+            if porcentaje_acierto >= 90:
+                color_fondo, color_texto = "rgba(16, 185, 129, 0.15)", "#10b981"  # Verde
+            elif porcentaje_acierto >= 50:
+                color_fondo, color_texto = "rgba(245, 158, 11, 0.15)", "#f59e0b"  # Amarillo
+            else:
+                color_fondo, color_texto = "rgba(239, 68, 68, 0.15)", "#ef4444"   # Rojo
+                
+            st.markdown(f"""
+            <div class="resultado-porcentaje" style="background-color: {color_fondo}; color: {color_texto}; border: 1px solid {color_texto};">
+                Coincidencia: {porcentaje_acierto:.0f}% bien
+            </div>
+            """, unsafe_allow_html=True)
+        else:
+            st.warning("Escribe algo en el cuadro antes de comprobar.")
 
 
 st.write("---")
@@ -251,20 +257,4 @@ st.write("---")
 col1, col2 = st.columns(2)
 
 with col1:
-    if not st.session_state.ver_solucion:
-        if st.button("👁️ Mostrar solución alemán", use_container_width=True):
-            st.session_state.ver_solucion = True
-            st.rerun()
-    else:
-        if st.button("🔄 Volver a Castellano", use_container_width=True):
-            st.session_state.ver_solucion = False
-            st.rerun()
-
-with col2:
-    if st.button("Siguiente Frase ➡️", use_container_width=True):
-        if st.session_state.indice_actual < total_frases - 1:
-            st.session_state.indice_actual += 1
-            st.session_state.ver_solucion = False
-        else:
-            st.session_state.completado = True
-        st.rerun()
+    if not st.session_state.ver
