@@ -3,6 +3,7 @@ import pandas as pd
 import os
 import re
 import random
+from difflib import SequenceMatcher
 
 # Configuración de la página
 st.set_page_config(page_title="Entrenador de Idiomas por Islas", page_icon="🇩🇪", layout="centered")
@@ -48,8 +49,31 @@ st.markdown("""
         border-radius: 0.5rem;
         margin-bottom: 1rem;
     }
+    
+    /* Nota de porcentaje de coincidencia */
+    .resultado-porcentaje {
+        font-family: 'Montserrat', sans-serif;
+        font-size: 1.3rem;
+        font-weight: 600;
+        text-align: center;
+        padding: 12px;
+        border-radius: 8px;
+        margin-top: 10px;
+        margin-bottom: 10px;
+    }
     </style>
 """, unsafe_allow_html=True)
+
+# Función para calcular la similitud (ignora mayúsculas, espacios y signos de puntuación)
+def calcular_similitud(texto1, texto2):
+    t1 = texto1.strip().lower()
+    t2 = texto2.strip().lower()
+    # Eliminamos comas, puntos, exclamaciones y espacios para comparar solo las palabras
+    t1 = re.sub(r'[.,!?¿¡"\'\s]', '', t1)
+    t2 = re.sub(r'[.,!?¿¡"\'\s]', '', t2)
+    if not t1 or not t2:
+        return 0
+    return SequenceMatcher(None, t1, t2).ratio() * 100
 
 # Cargar la base de datos de Excel
 @st.cache_data(ttl=10)
@@ -86,18 +110,14 @@ if 'isla_anterior' not in st.session_state or st.session_state.isla_anterior != 
 modo_aleatorio = st.sidebar.toggle("🔀 Activar orden aleatorio")
 
 if modo_aleatorio:
-    # Si se activa, creamos la mezcla UNA SOLA VEZ y la dejamos fija en memoria
     if 'orden_aleatorio' not in st.session_state:
         indices_mezclados = list(range(total_frases))
         random.shuffle(indices_mezclados)
         st.session_state.orden_aleatorio = indices_mezclados
         st.session_state.indice_actual = 0  
         st.session_state.ver_solucion = False
-    
-    # Construimos el orden usando el mapa que guardamos en memoria (así no cambia al dar Siguiente)
     df_isla = df_isla_original.iloc[st.session_state.orden_aleatorio].reset_index(drop=True)
 else:
-    # Si se apaga, borramos la mezcla para que la próxima vez sea distinta
     if 'orden_aleatorio' in st.session_state:
         del st.session_state.orden_aleatorio
         st.session_state.indice_actual = 0  
@@ -200,6 +220,30 @@ if os.path.exists(ruta_audio):
     st.audio(ruta_audio, format="audio/mp3")
 else:
     st.warning(f"⚠️ Audio no encontrado en la ruta: `{ruta_audio}`")
+
+
+# --- 🎯 DESPLEGABLE DE DICTADO INTELIGENTE (AÑADIDO) ---
+# Usamos el índice actual en la clave del input para que se vacíe al cambiar de frase
+with st.expander("📝 Modo Dictado: Haz clic aquí para escribir lo que oyes"):
+    texto_usuario = st.text_input("Escribe el texto en alemán:", key=f"input_dictado_{st.session_state.indice_actual}")
+    
+    if texto_usuario:
+        porcentaje_acierto = calcular_similitud(texto_usuario, aleman_texto)
+        
+        # Ajustamos los colores del cartel de porcentaje según la precisión
+        if porcentaje_acierto >= 90:
+            color_fondo, color_texto = "rgba(16, 185, 129, 0.15)", "#10b981"  # Verde
+        elif porcentaje_acierto >= 50:
+            color_fondo, color_texto = "rgba(245, 158, 11, 0.15)", "#f59e0b"  # Amarillo/Naranja
+        else:
+            color_fondo, color_texto = "rgba(239, 68, 68, 0.15)", "#ef4444"   # Rojo
+            
+        st.markdown(f"""
+        <div class="resultado-porcentaje" style="background-color: {color_fondo}; color: {color_texto}; border: 1px solid {color_texto};">
+            Coincidencia: {porcentaje_acierto:.0f}% bien
+        </div>
+        """, unsafe_allow_html=True)
+
 
 st.write("---")
 
