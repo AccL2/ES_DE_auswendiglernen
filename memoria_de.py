@@ -42,35 +42,13 @@ st.markdown("""
         margin-bottom: 1rem;
     }
     
-    /* Bloque Verde (Alemán - Estética Original Restaurada) */
+    /* Bloque Verde (Alemán) */
     .bloque-verde {
         background-color: rgba(33, 195, 84, 0.15);
         border-left: 5px solid rgb(33, 195, 84);
         padding: 1.2rem 1.5rem;
         border-radius: 0.5rem;
         margin-bottom: 1rem;
-    }
-    
-    /* Contenedor de pares de frases */
-    .contenedor-pares {
-        display: flex;
-        flex-direction: column;
-        gap: 1.2rem;
-    }
-    
-    .linea-par {
-        margin: 0;
-        padding: 0;
-    }
-    
-    /* Estilos de texto idénticos a la versión original */
-    .txt-original-es {
-        font-weight: 400;
-        margin-bottom: 0.2rem;
-    }
-    
-    .txt-original-de {
-        font-weight: 400;
     }
     
     /* Nota de porcentaje de coincidencia */
@@ -212,49 +190,28 @@ situacion_texto = ""
 if 'Situacion' in fila_actual and pd.notna(fila_actual['Situacion']):
     situacion_texto = str(fila_actual['Situacion']).strip()
 
-# AUXILIAR: Segmenta el texto respetando los puntos finales de las frases (CORREGIDO)
-def segmentar_frases(texto):
-    frases = re.split(r'(?<=[.!?])\s+', texto.strip())
-    return [f.strip() for f in frases if f.strip()]
-
 st.subheader(f"Progreso: Frase {st.session_state.indice_actual + 1} de {total_frases}")
 st.progress((st.session_state.indice_actual + 1) / total_frases)
 
 if situacion_texto:
     st.markdown(f'<div class="titulo-situacion">📍 Situación: {situacion_texto}</div>', unsafe_allow_html=True)
 
-# --- PANEL VISUAL INTEGRADO CON COLORES ORIGINALES ---
+# --- PANEL VISUAL ORIGINAL RESTAURADO ---
 if not st.session_state.ver_solucion:
-    listado_cas = segmentar_frases(castellano_texto)
-    castellano_html = "<br>".join(listado_cas)
     st.markdown(f"""
     <div class="bloque-azul">
         <div class="texto-isla">
-            <b>Castellano (Lee y piensa tu traducción):</b><br><br>
-            {castellano_html}
+            <b>Castellano:</b><br><br>
+            {castellano_texto}
         </div>
     </div>
     """, unsafe_allow_html=True)
 else:
-    lista_cas = segmentar_frases(castellano_texto)
-    lista_ale = segmentar_frases(aleman_texto)
-    
-    html_pares = ""
-    max_lineas = max(len(lista_cas), len(lista_ale))
-    
-    for idx in range(max_lineas):
-        f_cas = lista_cas[idx] if idx < len(lista_cas) else ""
-        f_ale = lista_ale[idx] if idx < len(lista_ale) else ""
-        
-        html_pares += f'<div class="linea-par"><div class="txt-original-es">{f_cas}</div><div class="txt-original-de"><b>{f_ale}</b></div></div>'
-        
     st.markdown(f"""
     <div class="bloque-verde">
         <div class="texto-isla">
-            <b>Solución:</b><br><br>
-            <div class="contenedor-pares">
-                {html_pares}
-            </div>
+            <b>Aleman:</b><br><br>
+            {aleman_texto}
         </div>
     </div>
     """, unsafe_allow_html=True)
