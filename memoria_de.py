@@ -107,8 +107,6 @@ except Exception as e:
 # --- BARRA LATERAL ---
 st.sidebar.title("Configuración")
 islas_disponibles = df_total['Isla'].unique()
-
-# Línea corregida definitivamente sin rastro de inglés ni condicionales raros
 isla_seleccionada = st.sidebar.selectbox("🏝️ Selecciona la Isla:", islas_disponibles)
 
 df_isla_original = df_total[df_total['Isla'] == isla_seleccionada].reset_index(drop=True)
@@ -203,42 +201,39 @@ if situacion_texto:
     st.markdown(f'<div class="titulo-situacion">📍 Situación: {situacion_texto}</div>', unsafe_allow_html=True)
 
 
-# --- 🔄 DISPOSICIÓN: TARJETA CON BOTÓN INTEGRADO ARRIBA A LA DERECHA ---
-col_texto, col_btn_idioma = st.columns([0.78, 0.22], vertical_alignment="bottom")
+# --- 🔄 NUEVA UBICACIÓN: BOTÓN DISCRETO ENCIMA DE LA TARJETA (ANCHO COMPLETO RECUPERADO) ---
+col_vacia, col_cambio = st.columns([0.75, 0.25])
 
 if not st.session_state.ver_solucion:
-    with col_texto:
-        castellano_formateado = formatear_lineas(castellano_texto)
-        st.markdown(f"""
-        <div class="bloque-azul" style="margin-bottom: 0px;">
-            <div class="texto-isla">
-                <b>Castellano (Lee y piensa):</b><br><br>
-                {castellano_formateado}
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
-    with col_btn_idioma:
-        if st.button("👁️ Solución", use_container_width=True, key="btn_ver_aleman"):
+    with col_cambio:
+        if st.button("👁️ Ver Solución", use_container_width=True, key="btn_ver_aleman"):
             st.session_state.ver_solucion = True
             st.rerun()
-else:
-    with col_texto:
-        aleman_formateado = formatear_lineas(aleman_texto)
-        st.markdown(f"""
-        <div class="bloque-verde" style="margin-bottom: 0px;">
-            <div class="texto-isla">
-                <b>Solución en Alemán:</b><br><br>
-                {aleman_formateado}
-            </div>
+            
+    castellano_formateado = formatear_lineas(castellano_texto)
+    st.markdown(f"""
+    <div class="bloque-azul">
+        <div class="texto-isla">
+            <b>Castellano (Lee y piensa):</b><br><br>
+            {castellano_formateado}
         </div>
-        """, unsafe_allow_html=True)
-    with col_btn_idioma:
+    </div>
+    """, unsafe_allow_html=True)
+else:
+    with col_cambio:
         if st.button("🔄 Ocultar", use_container_width=True, key="btn_ver_castellano"):
             st.session_state.ver_solucion = False
             st.rerun()
-
-# Espaciado sutil tras la tarjeta
-st.write("")
+            
+    aleman_formateado = formatear_lineas(aleman_texto)
+    st.markdown(f"""
+    <div class="bloque-verde">
+        <div class="texto-isla">
+            <b>Solución en Alemán:</b><br><br>
+            {aleman_formateado}
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
 
 
 # --- 🎧 REPRODUCTOR CON ONDA + VELOCIDAD POR DÉCIMAS 🎧 ---
