@@ -191,7 +191,7 @@ if 'Situacion' in fila_actual and pd.notna(fila_actual['Situacion']):
     situacion_texto = str(fila_actual['Situacion']).strip()
 
 def formatear_lineas(texto):
-    frases = re.split(r'(?<=[.!?])\s+', text.strip())
+    frases = re.split(r'(?<=[.!?])\s+', texto.strip())
     return "<br>".join(frases)
 
 st.subheader(f"Progreso: Frase {st.session_state.indice_actual + 1} de {total_frases}")
@@ -222,7 +222,7 @@ else:
     """, unsafe_allow_html=True)
 
 
-# --- 🎧 REPRODUCTOR CON ONDA ACTUALIZADO (BORRADO DE SELECCIÓN CONTROLADO) 🎧 ---
+# --- 🎧 REPRODUCTOR CON ONDA CON SINTAXIS REPARADA 🎧 ---
 ruta_audio = f"Audios/{audio_id}.mp3"
 if os.path.exists(ruta_audio):
     st.write("🎧 **Arrastra sobre la onda para bucle. Haz un clic normal fuera de la selección o pulsa el botón Reset para volver a escuchar todo:**")
@@ -264,14 +264,12 @@ if os.path.exists(ruta_audio):
             color: 'rgba(59, 130, 246, 0.3)'
         }});
 
-        // Eliminar cualquier bucle previo al crear uno nuevo
         wsRegions.on('region-created', (region) => {{
             wsRegions.getRegions().forEach(r => {{
                 if (r !== region) r.remove();
             }});
         }});
 
-        // Forzar la repetición infinita únicamente dentro de la región
         wavesurfer.on('timeupdate', (currentTime) => {{
             const regions = wsRegions.getRegions();
             if (regions.length > 0) {{
@@ -282,28 +280,23 @@ if os.path.exists(ruta_audio):
             }}
         }});
 
-        // SOLUCIÓN MEJORADA 1: Si haces un clic normal en cualquier parte vacía, limpiamos el bucle por completo
         wavesurfer.on('interaction', () => {{
-            // Dejamos pasar un brevísimo instante para comprobar si hay región activa
             setTimeout(() => {{
                 const regions = wsRegions.getRegions();
                 if (regions.length > 0) {{
-                    // Si el usuario hace clic fuera de los límites de la región creada, la borramos
                     const currentTime = wavesurfer.getCurrentTime();
                     const activeRegion = regions[0];
                     if (currentTime < activeRegion.start || currentTime > activeRegion.end) {{
                         wsRegions.clearRegions();
                     }}
                 }}
-            }, 50);
+            }}, 50); // 🔥 Corregido: Llave doble para escapar de la f-string
         }});
 
-        // SOLUCIÓN MEJORADA 2: Botón físico para borrar la selección y liberar el audio completo
         document.getElementById('btnResetRegion').addEventListener('click', () => {{
             wsRegions.clearRegions();
         }});
 
-        // Controles estándar de reproducción
         const btnPlay = document.getElementById('btnPlay');
         btnPlay.addEventListener('click', () => {{
             wavesurfer.playPause();
