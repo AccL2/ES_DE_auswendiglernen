@@ -217,7 +217,6 @@ if 'Situacion' in fila_actual and pd.notna(fila_actual['Situacion']):
 
 # AUXILIAR: Segmenta el texto respetando los puntos finales de las frases
 def segmentar_frases(texto):
-    # Rompe por puntos, signos de exclamación o interrogación
     frases = re.split(r'(?<=[.!?])\s+', texto.strip())
     return [f.strip() for f in frases if f.strip()]
 
@@ -227,9 +226,8 @@ st.progress((st.session_state.indice_actual + 1) / total_frases)
 if situacion_texto:
     st.markdown(f'<div class="titulo-situacion">📍 Situación: {situacion_texto}</div>', unsafe_allow_html=True)
 
-# --- 🔥 NUEVO PANEL VISUAL INTERACTIVO FRASE A FRASE 🔥 ---
+# --- PANEL VISUAL CORREGIDO CON EXPLICITACIÓN DE HTML ---
 if not st.session_state.ver_solucion:
-    # Modo estudio estándar: Solo muestra el bloque en castellano
     listado_cas = segmentar_frases(castellano_texto)
     castellano_html = "<br>".join(listado_cas)
     st.markdown(f"""
@@ -241,25 +239,20 @@ if not st.session_state.ver_solucion:
     </div>
     """, unsafe_allow_html=True)
 else:
-    # Modo Solución: Empareja inteligentemente cada frase de Castellano con su Alemana
     lista_cas = segmentar_frases(castellano_texto)
     lista_ale = segmentar_frases(aleman_texto)
     
     html_pares = ""
-    # Recorremos asegurando que no se rompa si por error hay desfase de puntos en el Excel
     max_lineas = max(len(lista_cas), len(lista_ale))
     
     for idx in range(max_lineas):
         f_cas = lista_cas[idx] if idx < len(lista_cas) else ""
         f_ale = lista_ale[idx] if idx < len(lista_ale) else ""
         
-        html_pares += f"""
-        <div class="par-frase">
-            <div class="sub-castellano">🇪🇸 {f_cas}</div>
-            <div class="sub-aleman">🇩🇪 {f_ale}</div>
-        </div>
-        """
+        # Generamos la estructura de los pares frase por frase sin romper las f-strings
+        html_pares += f'<div class="par-frase"><div class="sub-castellano">🇪🇸 {f_cas}</div><div class="sub-aleman">🇩🇪 {f_ale}</div></div>'
         
+    # Usamos st.markdown con unsafe_allow_html=True forzado para renderizar los bloques
     st.markdown(f"""
     <div class="bloque-solucion-combinada">
         <div class="texto-isla">
