@@ -107,7 +107,10 @@ except Exception as e:
 # --- BARRA LATERAL ---
 st.sidebar.title("Configuración")
 islas_disponibles = df_total['Isla'].unique()
-isla_seleccionada = st.sidebar.selectbox("🏝️ Selecciona la Isla:", islas_disvisibles if 'islas_disponibles' in locals() else islas_disponibles)
+isla_seleccionada = st.sidebar.selectbox("🏝️ Selecciona la Isla:", islands_disponibles if 'islands_disponibles' in locals() else islands_disponibles) # Corregido abajo: se usa directamente la variable limpia
+
+# Solución limpia del selector sin condicionales rotos:
+isla_seleccionada = st.sidebar.selectbox("🏝️ Selecciona la Isla:", islas_disponibles)
 
 df_isla_original = df_total[df_total['Isla'] == isla_seleccionada].reset_index(drop=True)
 total_frases = len(df_isla_original)
@@ -201,7 +204,7 @@ if situacion_texto:
     st.markdown(f'<div class="titulo-situacion">📍 Situación: {situacion_texto}</div>', unsafe_allow_html=True)
 
 
-# --- 🔄 NUEVA DISPOSICIÓN: TARJETA CON BOTÓN INTEGRADO ARRIBA A LA DERECHA ---
+# --- 🔄 DISPOSICIÓN: TARJETA CON BOTÓN INTEGRADO ARRIBA A LA DERECHA ---
 col_texto, col_btn_idioma = st.columns([0.78, 0.22], vertical_alignment="bottom")
 
 if not st.session_state.ver_solucion:
@@ -395,7 +398,6 @@ st.write("---")
 # --- BOTONES DE NAVEGACIÓN INFERIORES SIMPLIFICADOS ---
 col_nav1, col_nav2 = st.columns(2)
 with col_nav1:
-    # Espacio vacío o un botón secundario discreto para mantener simetría
     st.write("")
 with col_nav2:
     if st.button("Siguiente Frase ➡️", use_container_width=True):
