@@ -117,7 +117,6 @@ if 'isla_anterior' not in st.session_state or st.session_state.isla_anterior != 
     st.session_state.isla_anterior = isla_seleccionada
     st.session_state.ver_solucion = False
     st.session_state.completado = False
-    st.session_state.audio_reproduciendo = False  # Resetear audio al cambiar isla
     if 'orden_aleatorio' in st.session_state:
         del st.session_state.orden_aleatorio
 
@@ -130,14 +129,12 @@ if modo_aleatorio:
         st.session_state.orden_aleatorio = indices_mezclados
         st.session_state.indice_actual = 0  
         st.session_state.ver_solucion = False
-        st.session_state.audio_reproduciendo = False
     df_isla = df_isla_original.iloc[st.session_state.orden_aleatorio].reset_index(drop=True)
 else:
     if 'orden_aleatorio' in st.session_state:
         del st.session_state.orden_aleatorio
         st.session_state.indice_actual = 0  
         st.session_state.ver_solucion = False
-        st.session_state.audio_reproduciendo = False
     df_isla = df_isla_original
 
 if 'indice_actual' not in st.session_state:
@@ -145,9 +142,6 @@ if 'indice_actual' not in st.session_state:
 
 if 'ver_solucion' not in st.session_state:
     st.session_state.ver_solucion = False
-
-if 'audio_reproduciendo' not in st.session_state:
-    st.session_state.audio_reproduciendo = False
 
 if st.session_state.indice_actual >= total_frases:
     st.session_state.indice_actual = total_frases - 1 if total_frases > 0 else 0
@@ -164,7 +158,6 @@ nuevo_indice = opciones_frases.index(frase_seleccionada_nav)
 if nuevo_indice != st.session_state.indice_actual:
     st.session_state.indice_actual = nuevo_indice
     st.session_state.ver_solucion = False
-    st.session_state.audio_reproduciendo = False  # Resetear audio
     st.rerun()
 
 # --- CONTENIDO PRINCIPAL ---
@@ -176,7 +169,6 @@ if st.session_state.indice_actual >= total_frases - 1 and st.session_state.get('
         st.session_state.indice_actual = 0
         st.session_state.ver_solucion = False
         st.session_state.completado = False
-        st.session_state.audio_reproduciendo = False
         if 'orden_aleatorio' in st.session_state:
             del st.session_state.orden_aleatorio
         st.rerun()
@@ -209,17 +201,19 @@ if situacion_texto:
     st.markdown(f'<div class="titulo-situacion">📍 Situación: {situacion_texto}</div>', unsafe_allow_html=True)
 
 
-# --- 🔄 BARRA DE CONTROL ---
+# --- 🔄 BARRA DE CONTROL INTEGRADA (Inyección directa mediante HTML/JS) ---
 col_nav_play, col_nav_sol, col_nav_ant, col_nav_sig, col_vacio = st.columns([0.20, 0.20, 0.20, 0.20, 0.20])
 
-# 1. Botón de Audio (Conmuta el estado de reproducción)
+# 1. Botón de Audio (Lanza clic directo en el reproductor de abajo sin recargar página)
 with col_nav_play:
-    etiqueta_audio = "⏸️ Pausar" if st.session_state.audio_reproduciendo else "▶️ Audio"
-    if st.button(etiqueta_audio, use_container_width=True, key="btn_play_arriba"):
-        st.session_state.audio_reproduciendo = not st.session_state.audio_reproduciendo
-        st.rerun()
+    st.markdown("""
+        <button onclick="document.getElementById('reproductor-iframe').contentWindow.document.getElementById('btnPlay').click();" 
+                style="width:100%; padding:6px 0px; background-color:#262730; color:white; border:1px solid rgba(49, 51, 63, 0.2); border-radius:4px; cursor:pointer; font-size:14px; font-family:inherit; text-align:center;">
+            ▶️/⏸️ Audio
+        </button>
+    """, unsafe_allow_html=True)
 
-# 2. Botón de Solución / Traducción (Conserva el estado del audio)
+# 2. Botón de Solución / Traducción
 with col_nav_sol:
     if not st.session_state.ver_solucion:
         if st.button("👁️ Solución", use_container_width=True, key="btn_ver_aleman"):
@@ -236,7 +230,6 @@ with col_nav_ant:
         if st.session_state.indice_actual > 0:
             st.session_state.indice_actual -= 1
             st.session_state.ver_solucion = False
-            st.session_state.audio_reproduciendo = False  # Para la música al cambiar de frase
             st.rerun()
 
 # 4. Botón Siguiente
@@ -245,10 +238,12 @@ with col_nav_sig:
         if st.session_state.indice_actual < total_frases - 1:
             st.session_state.indice_actual += 1
             st.session_state.ver_solucion = False
-            st.session_state.audio_reproduciendo = False  # Para la música al cambiar de frase
         else:
             st.session_state.completado = True
         st.rerun()
+
+# Espaciador estético corto
+st.write("")
 
 # Renderizado de la Tarjeta a Ancho Completo
 if not st.session_state.ver_solucion:
@@ -281,9 +276,6 @@ if os.path.exists(ruta_audio):
     with open(ruta_audio, "rb") as f:
         audio_bytes = f.read()
     b64_audio = base64.b64encode(audio_bytes).decode()
-    
-    # Pasamos de Python a Javascript la orden directa basada en la persistencia de Streamlit
-    debe_reproducir_js = "true" if st.session_state.audio_reproduciendo else "false"
     
     html_reproductor = f"""
     <div style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.15); padding: 12px; border-radius: 12px; color: #ffffff; box-sizing: border-box;">
@@ -391,17 +383,11 @@ if os.path.exists(ruta_audio):
         
         wavesurfer.on('ready', () => {{
             wavesurfer.setPlaybackRate(parseFloat(speedSlider.value));
-            
-            // Evaluamos la memoria de la app al cargar el componente html
-            if ({debe_reproducir_js}) {{
-                wavesurfer.play();
-            }} else {{
-                wavesurfer.pause();
-            }}
         }});
     </script>
     """
-    st.components.v1.html(html_reproductor, height=215)
+    # Le asignamos un ID estático al componente iframe de Streamlit para poder comunicarnos desde arriba
+    st.components.v1.html(html_reproductor, height=215, id="reproductor-iframe")
 else:
     st.warning(f"⚠️ Audio no encontrado en la ruta: `{ruta_audio}`")
 
