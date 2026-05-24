@@ -212,10 +212,10 @@ situacion_texto = ""
 if 'Situacion' in fila_actual and pd.notna(fila_actual['Situacion']):
     situacion_texto = str(fila_actual['Situacion']).strip()
 
-# AUXILIAR: Segmenta el texto respetando los puntos finales de las frases
+# AUXILIAR: Segmenta el texto respetando los puntos finales de las frases (CORREGIDO)
 def segmentar_frases(texto):
     frases = re.split(r'(?<=[.!?])\s+', texto.strip())
-    return [f.strip() for f in phrases if f.strip()]
+    return [f.strip() for f in frases if f.strip()]
 
 st.subheader(f"Progreso: Frase {st.session_state.indice_actual + 1} de {total_frases}")
 st.progress((st.session_state.indice_actual + 1) / total_frases)
@@ -246,7 +246,6 @@ else:
         f_cas = lista_cas[idx] if idx < len(lista_cas) else ""
         f_ale = lista_ale[idx] if idx < len(lista_ale) else ""
         
-        # Muestra la frase en castellano y abajo la de alemán, con el color de letra original
         html_pares += f'<div class="linea-par"><div class="txt-original-es">{f_cas}</div><div class="txt-original-de"><b>{f_ale}</b></div></div>'
         
     st.markdown(f"""
