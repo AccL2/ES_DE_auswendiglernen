@@ -112,25 +112,6 @@ isla_seleccionada = st.sidebar.selectbox("🏝️ Selecciona la Isla:", islas_di
 df_isla_original = df_total[df_total['Isla'] == isla_seleccionada].reset_index(drop=True)
 total_frases = len(df_isla_original)
 
-# Control de cambios de estado enviados desde la botonera HTML integrada
-query_params = st.query_transform() if hasattr(st, 'query_transform') else None
-# Recibir comandos del iframe mediante trucos de session_state alternativos
-if "acción_pendiente" in st.session_state:
-    acc = st.session_state.acción_pendiente
-    del st.session_state.acción_pendiente
-    if acc == "solucion":
-        st.session_state.ver_solucion = not st.session_state.ver_solucion
-    elif acc == "anterior" and st.session_state.indice_actual > 0:
-        st.session_state.indice_actual -= 1
-        st.session_state.ver_solucion = False
-    elif acc == "siguiente":
-        if st.session_state.indice_actual < total_frases - 1:
-            st.session_state.indice_actual += 1
-            st.session_state.ver_solucion = False
-        else:
-            st.session_state.completado = True
-    st.rerun()
-
 if 'isla_anterior' not in st.session_state or st.session_state.isla_anterior != isla_seleccionada:
     st.session_state.indice_actual = 0
     st.session_state.isla_anterior = isla_seleccionada
@@ -220,31 +201,39 @@ if situacion_texto:
     st.markdown(f'<div class="titulo-situacion">📍 Situación: {situacion_texto}</div>', unsafe_allow_html=True)
 
 
-# --- Capturadores ocultos para recibir clicks de los botones HTML nativos ---
-if st.button("🔄 Ocultar", key="hidden_solucion", help="hidden"):
-    st.session_state.ver_solucion = not st.session_state.ver_solucion
-    st.rerun()
-if st.button("⬅️ Anterior", key="hidden_anterior", help="hidden"):
-    if st.session_state.indice_actual > 0:
-        st.session_state.indice_actual -= 1
-        st.session_state.ver_solucion = False
-    st.rerun()
-if st.button("Siguiente ➡️", key="hidden_siguiente", help="hidden"):
-    if st.session_state.indice_actual < total_frases - 1:
-        st.session_state.indice_actual += 1
-        st.session_state.ver_solucion = False
+# --- 🔄 BARRA DE CONTROL ORIGINAL DE STREAMLIT (Sin botón Play arriba) ---
+col_nav_sol, col_nav_ant, col_nav_sig, col_vacio = st.columns([0.25, 0.25, 0.25, 0.25])
+
+# 1. Botón de Solución / Traducción
+with col_nav_sol:
+    if not st.session_state.ver_solucion:
+        if st.button("👁️ Solución", use_container_width=True, key="btn_ver_aleman"):
+            st.session_state.ver_solucion = True
+            st.rerun()
     else:
-        st.session_state.completado = True
-    st.rerun()
+        if st.button("🔄 Ocultar", use_container_width=True, key="btn_ver_castellano"):
+            st.session_state.ver_solucion = False
+            st.rerun()
 
-# Esconder los botones feos de control mediante CSS inyectado
-st.markdown("""
-    <style>
-    div[data-testid="stActionButton"] {display: none;}
-    button[key^="hidden_"] { display: none !important; }
-    </style>
-""", unsafe_allow_html=True)
+# 2. Botón Anterior
+with col_nav_ant:
+    if st.button("⬅️ Anterior", use_container_width=True, key="btn_anterior_arriba"):
+        if st.session_state.indice_actual > 0:
+            st.session_state.indice_actual -= 1
+            st.session_state.ver_solucion = False
+            st.rerun()
 
+# 3. Botón Siguiente
+with col_nav_sig:
+    if st.button("Siguiente ➡️", use_container_width=True, key="btn_siguiente_arriba"):
+        if st.session_state.indice_actual < total_frases - 1:
+            st.session_state.indice_actual += 1
+            st.session_state.ver_solucion = False
+        else:
+            st.session_state.completado = True
+        st.rerun()
+
+st.write("")
 
 # Renderizado de la Tarjeta
 if not st.session_state.ver_solucion:
@@ -269,43 +258,30 @@ else:
     """, unsafe_allow_html=True)
 
 
-# --- 🎧 CONTROL SUPERIOR + AUDIO UNIFICADO COMPLETAMENTE EN HTML 🎧 ---
+# --- 🎧 REPRODUCTOR CON ONDA + VELOCIDAD POR DÉCIMAS 🎧 ---
 ruta_audio = f"Audios/{audio_id}.mp3"
 if os.path.exists(ruta_audio):
-    st.write("🎧 **Controles de reproducción y ondas de audio:**")
+    st.write("🎧 **Arrastra sobre la onda para bucle. Haz un clic normal fuera de la selección o pulsa el botón Reset para volver a escuchar todo:**")
     
     with open(ruta_audio, "rb") as f:
         audio_bytes = f.read()
     b64_audio = base64.b64encode(audio_bytes).decode()
     
-    label_solucion = "🔄 Ocultar" if st.session_state.ver_solucion else "👁️ Solución"
-    
     html_reproductor = f"""
-    <div style="font-family: 'Montserrat', sans-serif; box-sizing: border-box;">
+    <div style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.15); padding: 12px; border-radius: 12px; color: #ffffff; box-sizing: border-box;">
+        <div id="waveform" style="margin-bottom: 12px; background: rgba(0, 0, 0, 0.2); border-radius: 6px; padding: 4px; cursor: pointer;"></div>
         
-        <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin-bottom: 20px;">
-            <button id="btnTopPlay" style="width:100%; height:38px; background-color:#262730; color:white; border:1px solid rgba(255,255,255,0.1); border-radius:4px; cursor:pointer; font-size:14px; text-align:center;">▶️ Play</button>
-            <button onclick="window.parent.document.querySelector('button[key=\\'hidden_solucion\\']').click();" style="width:100%; height:38px; background-color:#262730; color:white; border:1px solid rgba(255,255,255,0.1); border-radius:4px; cursor:pointer; font-size:14px; text-align:center;">{label_solucion}</button>
-            <button onclick="window.parent.document.querySelector('button[key=\\'hidden_anterior\\']').click();" style="width:100%; height:38px; background-color:#262730; color:white; border:1px solid rgba(255,255,255,0.1); border-radius:4px; cursor:pointer; font-size:14px; text-align:center;">⬅️ Anterior</button>
-            <button onclick="window.parent.document.querySelector('button[key=\\'hidden_siguiente\\']').click();" style="width:100%; height:38px; background-color:#262730; color:white; border:1px solid rgba(255,255,255,0.1); border-radius:4px; cursor:pointer; font-size:14px; text-align:center;">Siguiente ➡️</button>
-            <div></div>
+        <div style="display: flex; justify-content: center; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 12px;">
+            <button id="btnBack" style="padding: 6px 12px; background: #475569; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 0.85rem;">⏮️ -5s</button>
+            <button id="btnPlay" style="padding: 8px 20px; background: #1c83e1; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 0.95rem; min-width: 90px;">▶️ Play</button>
+            <button id="btnForward" style="padding: 6px 12px; background: #475569; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 0.85rem;">+5s ⏭️</button>
+            <button id="btnResetRegion" style="padding: 6px 12px; background: #dc2626; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 0.85rem;">Reset 🔄</button>
         </div>
 
-        <div style="background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.15); padding: 12px; border-radius: 12px; color: #ffffff;">
-            <div id="waveform" style="margin-bottom: 12px; background: rgba(0, 0, 0, 0.2); border-radius: 6px; padding: 4px; cursor: pointer;"></div>
-            
-            <div style="display: flex; justify-content: center; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 12px;">
-                <button id="btnBack" style="padding: 6px 12px; background: #475569; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 0.85rem;">⏮️ -5s</button>
-                <button id="btnPlay" style="padding: 8px 20px; background: #1c83e1; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 0.95rem; min-width: 90px;">▶️ Play</button>
-                <button id="btnForward" style="padding: 6px 12px; background: #475569; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 0.85rem;">+5s ⏭️</button>
-                <button id="btnResetRegion" style="padding: 6px 12px; background: #dc2626; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 0.85rem;">Reset 🔄</button>
-            </div>
-
-            <div style="display: flex; align-items: center; justify-content: center; gap: 12px; background: rgba(0,0,0,0.15); padding: 6px 12px; border-radius: 8px;">
-                <label for="speedSlider" style="font-size: 0.8rem; font-weight: bold; color: #cbd5e1; min-width: 120px;">⚡ Velocidad de audio:</label>
-                <input type="range" id="speedSlider" min="0.5" max="2.0" step="0.1" value="1.0" style="flex-grow: 1; cursor: pointer; accent-color: #1c83e1; margin: 0;">
-                <span id="speedValue" style="font-size: 0.85rem; font-weight: bold; color: #3b82f6; min-width: 40px; text-align: right;">1.0x</span>
-            </div>
+        <div style="display: flex; align-items: center; justify-content: center; gap: 12px; background: rgba(0,0,0,0.15); padding: 6px 12px; border-radius: 8px;">
+            <label for="speedSlider" style="font-size: 0.8rem; font-weight: bold; color: #cbd5e1; min-width: 120px;">⚡ Velocidad de audio:</label>
+            <input type="range" id="speedSlider" min="0.5" max="2.0" step="0.1" value="1.0" style="flex-grow: 1; cursor: pointer; accent-color: #1c83e1; margin: 0;">
+            <span id="speedValue" style="font-size: 0.85rem; font-weight: bold; color: #3b82f6; min-width: 40px; text-align: right;">1.0x</span>
         </div>
     </div>
 
@@ -325,10 +301,15 @@ if os.path.exists(ruta_audio):
         }});
 
         const wsRegions = wavesurfer.registerPlugin(WaveSurfer.Regions.create());
-        wsRegions.enableDragSelection({{ color: 'rgba(59, 130, 246, 0.3)' }});
+
+        wsRegions.enableDragSelection({{
+            color: 'rgba(59, 130, 246, 0.3)'
+        }});
 
         wsRegions.on('region-created', (region) => {{
-            wsRegions.getRegions().forEach(r => {{ if (r !== region) r.remove(); }});
+            wsRegions.getRegions().forEach(r => {{
+                if (r !== region) r.remove();
+            }});
         }});
 
         wavesurfer.on('timeupdate', (currentTime) => {{
@@ -341,44 +322,62 @@ if os.path.exists(ruta_audio):
             }}
         }});
 
+        wavesurfer.on('interaction', () => {{
+            setTimeout(() => {{
+                const regions = wsRegions.getRegions();
+                if (regions.length > 0) {{
+                    const currentTime = wavesurfer.getCurrentTime();
+                    const activeRegion = regions[0];
+                    if (currentTime < activeRegion.start || currentTime > activeRegion.end) {{
+                        wsRegions.clearRegions();
+                    }}
+                }}
+            }}, 50);
+        }});
+
+        document.getElementById('btnResetRegion').addEventListener('click', () => {{
+            wsRegions.clearRegions();
+        }});
+
         const btnPlay = document.getElementById('btnPlay');
-        const btnTopPlay = document.getElementById('btnTopPlay');
-
-        function toggleAudio() {{
+        btnPlay.addEventListener('click', () => {{
             wavesurfer.playPause();
-        }}
-
-        btnPlay.addEventListener('click', toggleAudio);
-        btnTopPlay.addEventListener('click', toggleAudio);
+        }});
 
         wavesurfer.on('play', () => {{
             btnPlay.innerHTML = "⏸️ Pausa";
-            btnPlay.style.background = "#22c55e";
-            btnTopPlay.innerHTML = "⏸️ Pausa";
-            btnTopPlay.style.backgroundColor = "#22c55e";
+            btnPlay.style.background = "#22c55e"; 
         }});
 
         wavesurfer.on('pause', () => {{
             btnPlay.innerHTML = "▶️ Play";
-            btnPlay.style.background = "#1c83e1";
-            btnTopPlay.innerHTML = "▶️ Play";
-            btnTopPlay.style.backgroundColor = "#262730";
+            btnPlay.style.background = "#1c83e1"; 
         }});
 
-        document.getElementById('btnResetRegion').addEventListener('click', () => {{ wsRegions.clearRegions(); }});
-        document.getElementById('btnBack').addEventListener('click', () => {{ wavesurfer.skip(-5); }});
-        document.getElementById('btnForward').addEventListener('click', () => {{ wavesurfer.skip(5); }});
+        document.getElementById('btnBack').addEventListener('click', () => {{
+            wavesurfer.skip(-5);
+        }});
+
+        document.getElementById('btnForward').addEventListener('click', () => {{
+            wavesurfer.skip(5);
+        }});
 
         const speedSlider = document.getElementById('speedSlider');
         const speedValue = document.getElementById('speedValue');
+
         speedSlider.addEventListener('input', (e) => {{
             const currentSpeed = parseFloat(e.target.value);
             wavesurfer.setPlaybackRate(currentSpeed);
             speedValue.innerHTML = currentSpeed.toFixed(1) + "x";
         }});
+        
+        wavesurfer.on('ready', () => {{
+            wavesurfer.setPlaybackRate(parseFloat(speedSlider.value));
+        }});
     </script>
     """
-    st.components.v1.html(html_reproductor, height=280)
+    # Cargamos el HTML sin el argumento ID ilegal para evitar el TypeError
+    st.components.v1.html(html_reproductor, height=215)
 else:
     st.warning(f"⚠️ Audio no encontrado en la ruta: `{ruta_audio}`")
 
