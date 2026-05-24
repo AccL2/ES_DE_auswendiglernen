@@ -201,19 +201,13 @@ if situacion_texto:
     st.markdown(f'<div class="titulo-situacion">📍 Situación: {situacion_texto}</div>', unsafe_allow_html=True)
 
 
-# --- 🔄 BARRA DE CONTROL INTEGRADA (Inyección directa mediante HTML/JS) ---
+# --- 🔄 FILA COMPARTIDA DE BOTONES INTERNOS (Para Streamlit) ---
+# Creamos únicamente las columnas de solución, anterior y siguiente para Streamlit, dejando el espacio para el audio síncrono.
 col_nav_play, col_nav_sol, col_nav_ant, col_nav_sig, col_vacio = st.columns([0.20, 0.20, 0.20, 0.20, 0.20])
 
-# 1. Botón de Audio (Lanza clic directo en el reproductor de abajo sin recargar página)
-with col_nav_play:
-    st.markdown("""
-        <button onclick="document.getElementById('reproductor-iframe').contentWindow.document.getElementById('btnPlay').click();" 
-                style="width:100%; padding:6px 0px; background-color:#262730; color:white; border:1px solid rgba(49, 51, 63, 0.2); border-radius:4px; cursor:pointer; font-size:14px; font-family:inherit; text-align:center;">
-            ▶️/⏸️ Audio
-        </button>
-    """, unsafe_allow_html=True)
+# El botón de play físico real de Streamlit se omite arriba y se inyecta nativamente abajo
+# para que no refresque la app al pausar y reanudar.
 
-# 2. Botón de Solución / Traducción
 with col_nav_sol:
     if not st.session_state.ver_solucion:
         if st.button("👁️ Solución", use_container_width=True, key="btn_ver_aleman"):
@@ -224,7 +218,6 @@ with col_nav_sol:
             st.session_state.ver_solucion = False
             st.rerun()
 
-# 3. Botón Anterior
 with col_nav_ant:
     if st.button("⬅️ Anterior", use_container_width=True, key="btn_anterior_arriba"):
         if st.session_state.indice_actual > 0:
@@ -232,7 +225,6 @@ with col_nav_ant:
             st.session_state.ver_solucion = False
             st.rerun()
 
-# 4. Botón Siguiente
 with col_nav_sig:
     if st.button("Siguiente ➡️", use_container_width=True, key="btn_siguiente_arriba"):
         if st.session_state.indice_actual < total_frases - 1:
@@ -242,10 +234,9 @@ with col_nav_sig:
             st.session_state.completado = True
         st.rerun()
 
-# Espaciador estético corto
 st.write("")
 
-# Renderizado de la Tarjeta a Ancho Completo
+# Renderizado de la Tarjeta de texto
 if not st.session_state.ver_solucion:
     castellano_formateado = formatear_lineas(castellano_texto)
     st.markdown(f"""
@@ -268,7 +259,7 @@ else:
     """, unsafe_allow_html=True)
 
 
-# --- 🎧 REPRODUCTOR CON ONDA + VELOCIDAD POR DÉCIMAS 🎧 ---
+# --- 🎧 REPRODUCTOR AVANZADO CON INTEGRACIÓN DE BOTÓN SUPERIOR FLUIDO 🎧 ---
 ruta_audio = f"Audios/{audio_id}.mp3"
 if os.path.exists(ruta_audio):
     st.write("🎧 **Arrastra sobre la onda para bucle. Haz un clic normal fuera de la selección o pulsa el botón Reset para volver a escuchar todo:**")
@@ -277,7 +268,45 @@ if os.path.exists(ruta_audio):
         audio_bytes = f.read()
     b64_audio = base64.b64encode(audio_bytes).decode()
     
+    # Inyectamos mediante JavaScript un espejo del botón en la parte superior exacta donde estaba
     html_reproductor = f"""
+    <div id="control-superior-audio" style="position: fixed; top: -1000px;"></div>
+    
+    <script>
+        // Clonamos dinámicamente el botón de Play/Pause en la barra superior de Streamlit en tiempo real
+        window.addEventListener('DOMContentLoaded', () => {{
+            setTimeout(() => {{
+                // Buscamos la columna vacía que Streamlit preparó arriba para el audio (la primera columna)
+                const colBotones = window.parent.document.querySelectorAll('[data-testid="stHorizontalBlock"] button');
+                // Encontramos el contenedor del primer botón para inyectar nuestro disparador síncrono justo ahí
+                const primerColumna = window.parent.document.querySelector('[data-testid="stHorizontalBlock"] [data-testid="column"]');
+                
+                if (primerColumna && !window.parent.document.getElementById('btn-play-nativo-arriba')) {{
+                    const btnArriba = window.parent.document.createElement('button');
+                    btnArriba.id = 'btn-play-nativo-arriba';
+                    btnArriba.innerHTML = '▶️/⏸️ Audio';
+                    btnArriba.style.width = '100%';
+                    btnArriba.style.padding = '6px 0px';
+                    btnArriba.style.backgroundColor = '#262730';
+                    btnArriba.style.color = 'white';
+                    btnArriba.style.border = '1px solid rgba(49, 51, 63, 0.2)';
+                    btnArriba.style.borderRadius = '4px';
+                    btnArriba.style.cursor = 'pointer';
+                    btnArriba.style.fontSize = '14px';
+                    btnArriba.style.height = '38px';
+                    btnArriba.style.boxSizing = 'border-box';
+                    
+                    btnArriba.onclick = () => {{
+                        document.getElementById('btnPlay').click();
+                    }};
+                    
+                    // Reemplazamos visualmente o añadimos en la primera posición
+                    primerColumna.insertBefore(btnArriba, primerColumna.firstChild);
+                }}
+            }}, 150);
+        }});
+    </script>
+
     <div style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.15); padding: 12px; border-radius: 12px; color: #ffffff; box-sizing: border-box;">
         <div id="waveform" style="margin-bottom: 12px; background: rgba(0, 0, 0, 0.2); border-radius: 6px; padding: 4px; cursor: pointer;"></div>
         
@@ -357,11 +386,17 @@ if os.path.exists(ruta_audio):
         wavesurfer.on('play', () => {{
             btnPlay.innerHTML = "⏸️ Pausa";
             btnPlay.style.background = "#22c55e"; 
+            // Sincronizamos el botón espejo de arriba si existe
+            const btnSup = window.parent.document.getElementById('btn-play-nativo-arriba');
+            if (btnSup) btnSup.innerHTML = "⏸️ Pausa";
         }});
 
         wavesurfer.on('pause', () => {{
             btnPlay.innerHTML = "▶️ Play";
             btnPlay.style.background = "#1c83e1"; 
+            // Sincronizamos el botón espejo de arriba si existe
+            const btnSup = window.parent.document.getElementById('btn-play-nativo-arriba');
+            if (btnSup) btnSup.innerHTML = "▶️/⏸️ Audio";
         }});
 
         document.getElementById('btnBack').addEventListener('click', () => {{
@@ -386,8 +421,7 @@ if os.path.exists(ruta_audio):
         }});
     </script>
     """
-    # Le asignamos un ID estático al componente iframe de Streamlit para poder comunicarnos desde arriba
-    st.components.v1.html(html_reproductor, height=215, id="reproductor-iframe")
+    st.components.v1.html(html_reproductor, height=215)
 else:
     st.warning(f"⚠️ Audio no encontrado en la ruta: `{ruta_audio}`")
 
