@@ -204,20 +204,15 @@ if situacion_texto:
     st.markdown(f'<div class="titulo-situacion">📍 Situación: {situacion_texto}</div>', unsafe_allow_html=True)
 
 
-# --- 🔄 NUEVA BARRA DE CONTROL INTEGRADA (4 BOTONES ALINEADOS A LA IZQUIERDA) ---
-col_nav_ant, col_nav_play, col_nav_sol, col_nav_sig, col_vacio = st.columns([0.16, 0.16, 0.20, 0.16, 0.32])
+# --- 🔄 BARRA DE CONTROL ORDENADA Y SIMÉTRICA (Mismo tamaño, alargaditos) ---
+col_nav_play, col_nav_sol, col_nav_ant, col_nav_sig, col_vacio = st.columns([0.20, 0.20, 0.20, 0.20, 0.20])
 
-with col_nav_ant:
-    if st.button("⬅️ Anterior", use_container_width=True, key="btn_anterior_arriba"):
-        if st.session_state.indice_actual > 0:
-            st.session_state.indice_actual -= 1
-            st.session_state.ver_solucion = False
-            st.rerun()
-
+# 1. Botón de Audio
 with col_nav_play:
     if st.button("▶️/⏸️ Audio", use_container_width=True, key="btn_play_arriba"):
         st.session_state.ejecutar_play_desde_arriba = True
 
+# 2. Botón de Solución / Traducción
 with col_nav_sol:
     if not st.session_state.ver_solucion:
         if st.button("👁️ Solución", use_container_width=True, key="btn_ver_aleman"):
@@ -228,6 +223,15 @@ with col_nav_sol:
             st.session_state.ver_solucion = False
             st.rerun()
 
+# 3. Botón Anterior
+with col_nav_ant:
+    if st.button("⬅️ Anterior", use_container_width=True, key="btn_anterior_arriba"):
+        if st.session_state.indice_actual > 0:
+            st.session_state.indice_actual -= 1
+            st.session_state.ver_solucion = False
+            st.rerun()
+
+# 4. Botón Siguiente
 with col_nav_sig:
     if st.button("Siguiente ➡️", use_container_width=True, key="btn_siguiente_arriba"):
         if st.session_state.indice_actual < total_frases - 1:
@@ -269,7 +273,6 @@ if os.path.exists(ruta_audio):
         audio_bytes = f.read()
     b64_audio = base64.b64encode(audio_bytes).decode()
     
-    # Comprobamos si se ha pulsado el botón de la barra de control de arriba
     disparar_play_js = "false"
     if st.session_state.ejecutar_play_desde_arriba:
         disparar_play_js = "true"
@@ -287,135 +290,4 @@ if os.path.exists(ruta_audio):
         </div>
 
         <div style="display: flex; align-items: center; justify-content: center; gap: 12px; background: rgba(0,0,0,0.15); padding: 6px 12px; border-radius: 8px;">
-            <label for="speedSlider" style="font-size: 0.8rem; font-weight: bold; color: #cbd5e1; min-width: 120px;">⚡ Velocidad de audio:</label>
-            <input type="range" id="speedSlider" min="0.5" max="2.0" step="0.1" value="1.0" style="flex-grow: 1; cursor: pointer; accent-color: #1c83e1; margin: 0;">
-            <span id="speedValue" style="font-size: 0.85rem; font-weight: bold; color: #3b82f6; min-width: 40px; text-align: right;">1.0x</span>
-        </div>
-    </div>
-
-    <script src="https://unpkg.com/wavesurfer.js@7"></script>
-    <script src="https://unpkg.com/wavesurfer.js@7/dist/plugins/regions.min.js"></script>
-    <script>
-        const wavesurfer = WaveSurfer.create({{
-            container: '#waveform',
-            waveColor: '#64748b',
-            progressColor: '#3b82f6',
-            cursorColor: '#f43f5e',
-            barWidth: 2,
-            barGap: 2,
-            barRadius: 2,
-            height: 65,
-            url: 'data:audio/mp3;base64,{b64_audio}'
-        }});
-
-        const wsRegions = wavesurfer.registerPlugin(WaveSurfer.Regions.create());
-
-        wsRegions.enableDragSelection({{
-            color: 'rgba(59, 130, 246, 0.3)'
-        }});
-
-        wsRegions.on('region-created', (region) => {{
-            wsRegions.getRegions().forEach(r => {{
-                if (r !== region) r.remove();
-            }});
-        }});
-
-        wavesurfer.on('timeupdate', (currentTime) => {{
-            const regions = wsRegions.getRegions();
-            if (regions.length > 0) {{
-                const activeRegion = regions[0];
-                if (currentTime >= activeRegion.end || currentTime < activeRegion.start) {{
-                    wavesurfer.setTime(activeRegion.start);
-                }}
-            }}
-        }});
-
-        wavesurfer.on('interaction', () => {{
-            setTimeout(() => {{
-                const regions = wsRegions.getRegions();
-                if (regions.length > 0) {{
-                    const currentTime = wavesurfer.getCurrentTime();
-                    const activeRegion = regions[0];
-                    if (currentTime < activeRegion.start || currentTime > activeRegion.end) {{
-                        wsRegions.clearRegions();
-                    }}
-                }}
-            }}, 50);
-        }});
-
-        document.getElementById('btnResetRegion').addEventListener('click', () => {{
-            wsRegions.clearRegions();
-        }});
-
-        const btnPlay = document.getElementById('btnPlay');
-        btnPlay.addEventListener('click', () => {{
-            wavesurfer.playPause();
-        }});
-
-        wavesurfer.on('play', () => {{
-            btnPlay.innerHTML = "⏸️ Pausa";
-            btnPlay.style.background = "#22c55e"; 
-        }});
-
-        wavesurfer.on('pause', () => {{
-            btnPlay.innerHTML = "▶️ Play";
-            btnPlay.style.background = "#1c83e1"; 
-        }});
-
-        document.getElementById('btnBack').addEventListener('click', () => {{
-            wavesurfer.skip(-5);
-        }});
-
-        document.getElementById('btnForward').addEventListener('click', () => {{
-            wavesurfer.skip(5);
-        }});
-
-        const speedSlider = document.getElementById('speedSlider');
-        const speedValue = document.getElementById('speedValue');
-
-        speedSlider.addEventListener('input', (e) => {{
-            const currentSpeed = parseFloat(e.target.value);
-            wavesurfer.setPlaybackRate(currentSpeed);
-            speedValue.innerHTML = currentSpeed.toFixed(1) + "x";
-        }});
-        
-        wavesurfer.on('ready', () => {{
-            wavesurfer.setPlaybackRate(parseFloat(speedSlider.value));
-            // Si se activó desde el botón superior, ejecutamos play/pause al cargar
-            if ({disparar_play_js}) {{
-                wavesurfer.playPause();
-            }}
-        }});
-    </script>
-    """
-    st.components.v1.html(html_reproductor, height=215)
-else:
-    st.warning(f"⚠️ Audio no encontrado en la ruta: `{ruta_audio}`")
-
-
-# --- DESPLEGABLE DE DICTADO ---
-with st.expander("📝 Modo Dictado: Haz clic aquí para escribir lo que oyes"):
-    texto_usuario = st.text_area(
-        "Escribe el texto en alemán:", 
-        key=f"input_dictado_{st.session_state.indice_actual}",
-        height=250
-    )
-    
-    if st.button("🔍 Comprobar Dictado", use_container_width=True):
-        if texto_usuario:
-            porcentaje_acierto = calcular_similitud_parcial(texto_usuario, aleman_texto)
-            
-            if porcentaje_acierto >= 90:
-                color_fondo, color_texto = "rgba(16, 185, 129, 0.15)", "#10b981"
-            elif porcentaje_acierto >= 50:
-                color_fondo, color_texto = "rgba(245, 158, 11, 0.15)", "#f59e0b"
-            else:
-                color_fondo, color_texto = "rgba(239, 68, 68, 0.15)", "#ef4444"
-                
-            st.markdown(f"""
-            <div class="resultado-porcentaje" style="background-color: {color_fondo}; color: {color_texto}; border: 1px solid {color_texto};">
-                De lo que has escrito: {porcentaje_acierto:.0f}% bien
-            </div>
-            """, unsafe_allow_html=True)
-        else:
-            st.warning("Escribe algo en el cuadro antes de comprobar.")
+            <label for="speedSlider" style="font-size: 0.
