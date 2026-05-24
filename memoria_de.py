@@ -222,7 +222,7 @@ else:
     """, unsafe_allow_html=True)
 
 
-# --- 🎧 REPRODUCTOR CON ONDA CON SINTAXIS REPARADA 🎧 ---
+# --- 🎧 REPRODUCTOR CON ONDA + VELOCIDAD POR DÉCIMAS 🎧 ---
 ruta_audio = f"Audios/{audio_id}.mp3"
 if os.path.exists(ruta_audio):
     st.write("🎧 **Arrastra sobre la onda para bucle. Haz un clic normal fuera de la selección o pulsa el botón Reset para volver a escuchar todo:**")
@@ -235,11 +235,17 @@ if os.path.exists(ruta_audio):
     <div style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.15); padding: 15px; border-radius: 12px; color: #ffffff;">
         <div id="waveform" style="margin-bottom: 15px; background: rgba(0, 0, 0, 0.2); border-radius: 6px; padding: 4px; cursor: pointer;"></div>
         
-        <div style="display: flex; justify-content: center; align-items: center; gap: 10px; flex-wrap: wrap;">
+        <div style="display: flex; justify-content: center; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 15px;">
             <button id="btnBack" style="padding: 8px 14px; background: #475569; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 0.9rem;">⏮️ -5s</button>
             <button id="btnPlay" style="padding: 10px 22px; background: #1c83e1; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 1rem; min-width: 90px;">▶️ Play</button>
             <button id="btnForward" style="padding: 8px 14px; background: #475569; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 0.9rem;">+5s ⏭️</button>
             <button id="btnResetRegion" style="padding: 8px 14px; background: #dc2626; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 0.9rem;">Reset 🔄</button>
+        </div>
+
+        <div style="display: flex; align-items: center; justify-content: center; gap: 12px; background: rgba(0,0,0,0.15); padding: 8px 15px; border-radius: 8px;">
+            <label for="speedSlider" style="font-size: 0.85rem; font-weight: bold; color: #cbd5e1; min-width: 130px;">⚡ Velocidad de audio:</label>
+            <input type="range" id="speedSlider" min="0.5" max="2.0" step="0.1" value="1.0" style="flex-grow: 1; cursor: pointer; accent-color: #1c83e1;">
+            <span id="speedValue" style="font-size: 0.9rem; font-weight: bold; color: #3b82f6; min-width: 45px; text-align: right;">1.0x</span>
         </div>
     </div>
 
@@ -290,7 +296,7 @@ if os.path.exists(ruta_audio):
                         wsRegions.clearRegions();
                     }}
                 }}
-            }}, 50); // 🔥 Corregido: Llave doble para escapar de la f-string
+            }}, 50);
         }});
 
         document.getElementById('btnResetRegion').addEventListener('click', () => {{
@@ -319,9 +325,27 @@ if os.path.exists(ruta_audio):
         document.getElementById('btnForward').addEventListener('click', () => {{
             wavesurfer.skip(5);
         }});
+
+        // --- LÓGICA DE CONTROL DE VELOCIDAD POR DÉCIMAS ---
+        const speedSlider = document.getElementById('speedSlider');
+        const speedValue = document.getElementById('speedValue');
+
+        speedSlider.addEventListener('input', (e) => {{
+            const currentSpeed = parseFloat(e.target.value);
+            // Cambiar velocidad en Wavesurfer
+            wavesurfer.setPlaybackRate(currentSpeed);
+            // Actualizar etiqueta de texto (ej: 0.9x, 1.1x)
+            speedValue.innerHTML = currentSpeed.toFixed(1) + "x";
+        }});
+        
+        // Asegurar que mantenga la velocidad elegida al cambiar o recargar pistas internamente
+        wavesurfer.on('ready', () => {{
+            wavesurfer.setPlaybackRate(parseFloat(speedSlider.value));
+        }});
     </script>
     """
-    st.components.v1.html(html_reproductor, height=155)
+    # Aumentamos ligeramente la altura total del contenedor HTML para acomodar el slider sin recortar
+    st.components.v1.html(html_reproductor, height=195)
 else:
     st.warning(f"⚠️ Audio no encontrado en la ruta: `{ruta_audio}`")
 
