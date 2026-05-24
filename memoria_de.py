@@ -143,6 +143,9 @@ if 'indice_actual' not in st.session_state:
 if 'ver_solucion' not in st.session_state:
     st.session_state.ver_solucion = False
 
+if 'ejecutar_play_desde_arriba' not in st.session_state:
+    st.session_state.ejecutar_play_desde_arriba = False
+
 if st.session_state.indice_actual >= total_frases:
     st.session_state.indice_actual = total_frases - 1 if total_frases > 0 else 0
 
@@ -201,10 +204,21 @@ if situacion_texto:
     st.markdown(f'<div class="titulo-situacion">📍 Situación: {situacion_texto}</div>', unsafe_allow_html=True)
 
 
-# --- 🔄 FILA ÚNICA DE BOTONES ALINEADOS A LA IZQUIERDA ENCIMA DEL TEXTO ---
-col_nav1, col_nav2, col_vacio = st.columns([0.25, 0.25, 0.50])
+# --- 🔄 NUEVA BARRA DE CONTROL INTEGRADA (4 BOTONES ALINEADOS A LA IZQUIERDA) ---
+col_nav_ant, col_nav_play, col_nav_sol, col_nav_sig, col_vacio = st.columns([0.16, 0.16, 0.20, 0.16, 0.32])
 
-with col_nav1:
+with col_nav_ant:
+    if st.button("⬅️ Anterior", use_container_width=True, key="btn_anterior_arriba"):
+        if st.session_state.indice_actual > 0:
+            st.session_state.indice_actual -= 1
+            st.session_state.ver_solucion = False
+            st.rerun()
+
+with col_nav_play:
+    if st.button("▶️/⏸️ Audio", use_container_width=True, key="btn_play_arriba"):
+        st.session_state.ejecutar_play_desde_arriba = True
+
+with col_nav_sol:
     if not st.session_state.ver_solucion:
         if st.button("👁️ Solución", use_container_width=True, key="btn_ver_aleman"):
             st.session_state.ver_solucion = True
@@ -214,7 +228,7 @@ with col_nav1:
             st.session_state.ver_solucion = False
             st.rerun()
 
-with col_nav2:
+with col_nav_sig:
     if st.button("Siguiente ➡️", use_container_width=True, key="btn_siguiente_arriba"):
         if st.session_state.indice_actual < total_frases - 1:
             st.session_state.indice_actual += 1
@@ -254,6 +268,12 @@ if os.path.exists(ruta_audio):
     with open(ruta_audio, "rb") as f:
         audio_bytes = f.read()
     b64_audio = base64.b64encode(audio_bytes).decode()
+    
+    # Comprobamos si se ha pulsado el botón de la barra de control de arriba
+    disparar_play_js = "false"
+    if st.session_state.ejecutar_play_desde_arriba:
+        disparar_play_js = "true"
+        st.session_state.ejecutar_play_desde_arriba = False  # Resetear estado
     
     html_reproductor = f"""
     <div style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.15); padding: 12px; border-radius: 12px; color: #ffffff; box-sizing: border-box;">
@@ -361,6 +381,10 @@ if os.path.exists(ruta_audio):
         
         wavesurfer.on('ready', () => {{
             wavesurfer.setPlaybackRate(parseFloat(speedSlider.value));
+            // Si se activó desde el botón superior, ejecutamos play/pause al cargar
+            if ({disparar_play_js}) {{
+                wavesurfer.playPause();
+            }}
         }});
     </script>
     """
