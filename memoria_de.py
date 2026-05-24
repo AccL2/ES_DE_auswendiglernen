@@ -107,9 +107,8 @@ except Exception as e:
 # --- BARRA LATERAL ---
 st.sidebar.title("Configuración")
 islas_disponibles = df_total['Isla'].unique()
-isla_seleccionada = st.sidebar.selectbox("🏝️ Selecciona la Isla:", islands_disponibles if 'islands_disponibles' in locals() else islands_disponibles) # Corregido abajo: se usa directamente la variable limpia
 
-# Solución limpia del selector sin condicionales rotos:
+# Línea corregida definitivamente sin rastro de inglés ni condicionales raros
 isla_seleccionada = st.sidebar.selectbox("🏝️ Selecciona la Isla:", islas_disponibles)
 
 df_isla_original = df_total[df_total['Isla'] == isla_seleccionada].reset_index(drop=True)
