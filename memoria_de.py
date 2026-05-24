@@ -107,7 +107,7 @@ except Exception as e:
 # --- BARRA LATERAL ---
 st.sidebar.title("Configuración")
 islas_disponibles = df_total['Isla'].unique()
-isla_seleccionada = st.sidebar.selectbox("🏝️ Selecciona la Isla:", islas_disponibles)
+isla_seleccionada = st.sidebar.selectbox("🏝️ Selecciona la Isla:", islas_disvisibles if 'islas_disponibles' in locals() else islas_disponibles)
 
 df_isla_original = df_total[df_total['Isla'] == isla_seleccionada].reset_index(drop=True)
 total_frases = len(df_isla_original)
@@ -200,29 +200,46 @@ st.progress((st.session_state.indice_actual + 1) / total_frases)
 if situacion_texto:
     st.markdown(f'<div class="titulo-situacion">📍 Situación: {situacion_texto}</div>', unsafe_allow_html=True)
 
+
+# --- 🔄 NUEVA DISPOSICIÓN: TARJETA CON BOTÓN INTEGRADO ARRIBA A LA DERECHA ---
+col_texto, col_btn_idioma = st.columns([0.78, 0.22], vertical_alignment="bottom")
+
 if not st.session_state.ver_solucion:
-    castellano_formateado = formatear_lineas(castellano_texto)
-    st.markdown(f"""
-    <div class="bloque-azul">
-        <div class="texto-isla">
-            <b>Castellano (Lee y piensa tu traducción):</b><br><br>
-            {castellano_formateado}
+    with col_texto:
+        castellano_formateado = formatear_lineas(castellano_texto)
+        st.markdown(f"""
+        <div class="bloque-azul" style="margin-bottom: 0px;">
+            <div class="texto-isla">
+                <b>Castellano (Lee y piensa):</b><br><br>
+                {castellano_formateado}
+            </div>
         </div>
-    </div>
-    """, unsafe_allow_html=True)
+        """, unsafe_allow_html=True)
+    with col_btn_idioma:
+        if st.button("👁️ Solución", use_container_width=True, key="btn_ver_aleman"):
+            st.session_state.ver_solucion = True
+            st.rerun()
 else:
-    aleman_formateado = formatear_lineas(aleman_texto)
-    st.markdown(f"""
-    <div class="bloque-verde">
-        <div class="texto-isla">
-            <b>Solución en Alemán:</b><br><br>
-            {aleman_formateado}
+    with col_texto:
+        aleman_formateado = formatear_lineas(aleman_texto)
+        st.markdown(f"""
+        <div class="bloque-verde" style="margin-bottom: 0px;">
+            <div class="texto-isla">
+                <b>Solución en Alemán:</b><br><br>
+                {aleman_formateado}
+            </div>
         </div>
-    </div>
-    """, unsafe_allow_html=True)
+        """, unsafe_allow_html=True)
+    with col_btn_idioma:
+        if st.button("🔄 Ocultar", use_container_width=True, key="btn_ver_castellano"):
+            st.session_state.ver_solucion = False
+            st.rerun()
+
+# Espaciado sutil tras la tarjeta
+st.write("")
 
 
-# --- 🎧 REPRODUCTOR CON ONDA + VELOCIDAD POR DÉCIMAS (ALTURA AJUSTADA) 🎧 ---
+# --- 🎧 REPRODUCTOR CON ONDA + VELOCIDAD POR DÉCIMAS 🎧 ---
 ruta_audio = f"Audios/{audio_id}.mp3"
 if os.path.exists(ruta_audio):
     st.write("🎧 **Arrastra sobre la onda para bucle. Haz un clic normal fuera de la selección o pulsa el botón Reset para volver a escuchar todo:**")
@@ -326,7 +343,6 @@ if os.path.exists(ruta_audio):
             wavesurfer.skip(5);
         }});
 
-        // --- LÓGICA DE CONTROL DE VELOCIDAD POR DÉCIMAS ---
         const speedSlider = document.getElementById('speedSlider');
         const speedValue = document.getElementById('speedValue');
 
@@ -341,7 +357,6 @@ if os.path.exists(ruta_audio):
         }});
     </script>
     """
-    # Altura ampliada intencionadamente a 215 para asegurar que no colisione con el expander inferior
     st.components.v1.html(html_reproductor, height=215)
 else:
     st.warning(f"⚠️ Audio no encontrado en la ruta: `{ruta_audio}`")
@@ -377,20 +392,12 @@ with st.expander("📝 Modo Dictado: Haz clic aquí para escribir lo que oyes"):
 
 st.write("---")
 
-# --- BOTONES DE NAVEGACIÓN ---
-col1, col2 = st.columns(2)
-
-with col1:
-    if not st.session_state.ver_solucion:
-        if st.button("👁️ Mostrar solución alemán", use_container_width=True):
-            st.session_state.ver_solucion = True
-            st.rerun()
-    else:
-        if st.button("🔄 Volver a Castellano", use_container_width=True):
-            st.session_state.ver_solucion = False
-            st.rerun()
-
-with col2:
+# --- BOTONES DE NAVEGACIÓN INFERIORES SIMPLIFICADOS ---
+col_nav1, col_nav2 = st.columns(2)
+with col_nav1:
+    # Espacio vacío o un botón secundario discreto para mantener simetría
+    st.write("")
+with col_nav2:
     if st.button("Siguiente Frase ➡️", use_container_width=True):
         if st.session_state.indice_actual < total_frases - 1:
             st.session_state.indice_actual += 1
