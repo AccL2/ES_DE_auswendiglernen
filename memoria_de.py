@@ -201,15 +201,30 @@ if situacion_texto:
     st.markdown(f'<div class="titulo-situacion">📍 Situación: {situacion_texto}</div>', unsafe_allow_html=True)
 
 
-# --- 🔄 NUEVA UBICACIÓN: BOTÓN DISCRETO ENCIMA DE LA TARJETA (ANCHO COMPLETO RECUPERADO) ---
-col_vacia, col_cambio = st.columns([0.75, 0.25])
+# --- 🔄 FILA ÚNICA DE BOTONES ALINEADOS A LA IZQUIERDA ENCIMA DEL TEXTO ---
+col_nav1, col_nav2, col_vacio = st.columns([0.25, 0.25, 0.50])
 
-if not st.session_state.ver_solucion:
-    with col_cambio:
-        if st.button("👁️ Ver Solución", use_container_width=True, key="btn_ver_aleman"):
+with col_nav1:
+    if not st.session_state.ver_solucion:
+        if st.button("👁️ Solución", use_container_width=True, key="btn_ver_aleman"):
             st.session_state.ver_solucion = True
             st.rerun()
-            
+    else:
+        if st.button("🔄 Ocultar", use_container_width=True, key="btn_ver_castellano"):
+            st.session_state.ver_solucion = False
+            st.rerun()
+
+with col_nav2:
+    if st.button("Siguiente ➡️", use_container_width=True, key="btn_siguiente_arriba"):
+        if st.session_state.indice_actual < total_frases - 1:
+            st.session_state.indice_actual += 1
+            st.session_state.ver_solucion = False
+        else:
+            st.session_state.completado = True
+        st.rerun()
+
+# Renderizado de la Tarjeta a Ancho Completo
+if not st.session_state.ver_solucion:
     castellano_formateado = formatear_lineas(castellano_texto)
     st.markdown(f"""
     <div class="bloque-azul">
@@ -220,11 +235,6 @@ if not st.session_state.ver_solucion:
     </div>
     """, unsafe_allow_html=True)
 else:
-    with col_cambio:
-        if st.button("🔄 Ocultar", use_container_width=True, key="btn_ver_castellano"):
-            st.session_state.ver_solucion = False
-            st.rerun()
-            
     aleman_formateado = formatear_lineas(aleman_texto)
     st.markdown(f"""
     <div class="bloque-verde">
@@ -359,7 +369,7 @@ else:
     st.warning(f"⚠️ Audio no encontrado en la ruta: `{ruta_audio}`")
 
 
-# --- DESPLEGABLE DE DICTADO CON AMPLITUD ASEGURADA ---
+# --- DESPLEGABLE DE DICTADO ---
 with st.expander("📝 Modo Dictado: Haz clic aquí para escribir lo que oyes"):
     texto_usuario = st.text_area(
         "Escribe el texto en alemán:", 
@@ -385,19 +395,3 @@ with st.expander("📝 Modo Dictado: Haz clic aquí para escribir lo que oyes"):
             """, unsafe_allow_html=True)
         else:
             st.warning("Escribe algo en el cuadro antes de comprobar.")
-
-
-st.write("---")
-
-# --- BOTONES DE NAVEGACIÓN INFERIORES SIMPLIFICADOS ---
-col_nav1, col_nav2 = st.columns(2)
-with col_nav1:
-    st.write("")
-with col_nav2:
-    if st.button("Siguiente Frase ➡️", use_container_width=True):
-        if st.session_state.indice_actual < total_frases - 1:
-            st.session_state.indice_actual += 1
-            st.session_state.ver_solucion = False
-        else:
-            st.session_state.completado = True
-        st.rerun()
