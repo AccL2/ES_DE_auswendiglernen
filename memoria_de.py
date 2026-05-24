@@ -42,7 +42,7 @@ st.markdown("""
         margin-bottom: 1rem;
     }
     
-    /* Bloque Verde (Alemán - Mantiene la estética original idéntica) */
+    /* Bloque Verde (Alemán - Estética Original Restaurada) */
     .bloque-verde {
         background-color: rgba(33, 195, 84, 0.15);
         border-left: 5px solid rgb(33, 195, 84);
@@ -51,33 +51,26 @@ st.markdown("""
         margin-bottom: 1rem;
     }
     
-    /* Estructura interna de los pares de frases */
+    /* Contenedor de pares de frases */
     .contenedor-pares {
         display: flex;
         flex-direction: column;
-        gap: 1rem;
+        gap: 1.2rem;
     }
     
     .linea-par {
-        padding-bottom: 0.8rem;
-        border-bottom: 1px dashed rgba(255, 255, 255, 0.1);
+        margin: 0;
+        padding: 0;
     }
     
-    .linea-par:last-child {
-        border-bottom: none;
-        padding-bottom: 0;
-    }
-    
-    .txt-es {
-        color: rgba(255, 255, 255, 0.6);
-        font-size: 0.95rem;
-        font-style: italic;
+    /* Estilos de texto idénticos a la versión original */
+    .txt-original-es {
+        font-weight: 400;
         margin-bottom: 0.2rem;
     }
     
-    .txt-de {
-        color: #ffffff;
-        font-weight: 600;
+    .txt-original-de {
+        font-weight: 400;
     }
     
     /* Nota de porcentaje de coincidencia */
@@ -222,7 +215,7 @@ if 'Situacion' in fila_actual and pd.notna(fila_actual['Situacion']):
 # AUXILIAR: Segmenta el texto respetando los puntos finales de las frases
 def segmentar_frases(texto):
     frases = re.split(r'(?<=[.!?])\s+', texto.strip())
-    return [f.strip() for f in frases if f.strip()]
+    return [f.strip() for f in phrases if f.strip()]
 
 st.subheader(f"Progreso: Frase {st.session_state.indice_actual + 1} de {total_frases}")
 st.progress((st.session_state.indice_actual + 1) / total_frases)
@@ -230,7 +223,7 @@ st.progress((st.session_state.indice_actual + 1) / total_frases)
 if situacion_texto:
     st.markdown(f'<div class="titulo-situacion">📍 Situación: {situacion_texto}</div>', unsafe_allow_html=True)
 
-# --- PANEL VISUAL INTEGRADO EN EL BLOQUE VERDE ORIGINAL ---
+# --- PANEL VISUAL INTEGRADO CON COLORES ORIGINALES ---
 if not st.session_state.ver_solucion:
     listado_cas = segmentar_frases(castellano_texto)
     castellano_html = "<br>".join(listado_cas)
@@ -253,12 +246,13 @@ else:
         f_cas = lista_cas[idx] if idx < len(lista_cas) else ""
         f_ale = lista_ale[idx] if idx < len(lista_ale) else ""
         
-        html_pares += f'<div class="linea-par"><div class="txt-es">🇪🇸 {f_cas}</div><div class="txt-de">🇩🇪 {f_ale}</div></div>'
+        # Muestra la frase en castellano y abajo la de alemán, con el color de letra original
+        html_pares += f'<div class="linea-par"><div class="txt-original-es">{f_cas}</div><div class="txt-original-de"><b>{f_ale}</b></div></div>'
         
     st.markdown(f"""
     <div class="bloque-verde">
         <div class="texto-isla">
-            <b>Solución estructurada:</b><br><br>
+            <b>Solución:</b><br><br>
             <div class="contenedor-pares">
                 {html_pares}
             </div>
