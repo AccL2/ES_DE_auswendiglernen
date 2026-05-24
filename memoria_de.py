@@ -3,12 +3,13 @@ import pandas as pd
 import os
 import re
 import random
+import base64
 from difflib import SequenceMatcher
 
 # Configuración de la página
 st.set_page_config(page_title="Entrenador de Idiomas por Islas", page_icon="🇩🇪", layout="centered")
 
-# Inyectar la tipografía Montserrat y los estilos visuales limpios
+# Inyectar la tipografía Montserrat y estilos adaptables
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght=400;600&display=swap');
@@ -64,7 +65,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# FUNCIÓN: Comparación inteligente por ventanas de igual longitud
+# FUNCIÓN: Comparación por ventanas de igual longitud
 def calcular_similitud_parcial(texto_usuario, texto_original):
     def limpiar(t):
         t = t.strip().lower()
@@ -108,11 +109,9 @@ st.sidebar.title("Configuración")
 islas_disponibles = df_total['Isla'].unique()
 isla_seleccionada = st.sidebar.selectbox("🏝️ Selecciona la Isla:", islas_disponibles)
 
-# Filtrar las frases de la isla seleccionada de forma ordenada
 df_isla_original = df_total[df_total['Isla'] == isla_seleccionada].reset_index(drop=True)
 total_frases = len(df_isla_original)
 
-# CONTROL DE CAMBIO DE ISLA O INICIALIZACIÓN
 if 'isla_anterior' not in st.session_state or st.session_state.isla_anterior != isla_seleccionada:
     st.session_state.indice_actual = 0
     st.session_state.isla_anterior = isla_seleccionada
@@ -121,7 +120,6 @@ if 'isla_anterior' not in st.session_state or st.session_state.isla_anterior != 
     if 'orden_aleatorio' in st.session_state:
         del st.session_state.orden_aleatorio
 
-# --- INTERRUPTOR DE MODO ALEATORIO ---
 modo_aleatorio = st.sidebar.toggle("🔀 Activar orden aleatorio")
 
 if modo_aleatorio:
@@ -139,18 +137,15 @@ else:
         st.session_state.ver_solucion = False
     df_isla = df_isla_original
 
-# Asegurar inicialización básica del índice
 if 'indice_actual' not in st.session_state:
     st.session_state.indice_actual = 0
 
 if 'ver_solucion' not in st.session_state:
     st.session_state.ver_solucion = False
 
-# Asegurar que el índice esté dentro de los límites válidos
 if st.session_state.indice_actual >= total_frases:
     st.session_state.indice_actual = total_frases - 1 if total_frases > 0 else 0
 
-# Selector para saltar a una frase específica
 opciones_frases = [f"Frase {i+1}" for i in range(total_frases)]
 frase_seleccionada_nav = st.sidebar.selectbox(
     "🎯 Ir a frase específica:", 
@@ -179,7 +174,6 @@ if st.session_state.indice_actual >= total_frases - 1 and st.session_state.get('
         st.rerun()
     st.stop()
 
-# Cargar la fila actual basada en el dataframe activo
 fila_actual = df_isla.iloc[st.session_state.indice_actual]
 castellano_texto = str(fila_actual['Castellano'])
 aleman_texto = str(fila_actual['Aleman'])
@@ -206,7 +200,6 @@ st.progress((st.session_state.indice_actual + 1) / total_frases)
 if situacion_texto:
     st.markdown(f'<div class="titulo-situacion">📍 Situación: {situacion_texto}</div>', unsafe_allow_html=True)
 
-# --- BLOQUE DINÁMICO (INTERRUPTOR CAS/ALE) ---
 if not st.session_state.ver_solucion:
     castellano_formateado = formatear_lineas(castellano_texto)
     st.markdown(f"""
@@ -228,18 +221,78 @@ else:
     </div>
     """, unsafe_allow_html=True)
 
-# Reproductor de Audio
+
+# --- 🔥 NUEVO REPRODUCTOR CON FORMA DE ONDA + BOTONES DE TIEMPO 🔥 ---
 ruta_audio = f"Audios/{audio_id}.mp3"
 if os.path.exists(ruta_audio):
-    st.write("🎧 **Escucha el audio para hacer Shadowing:**")
-    st.audio(ruta_audio, format="audio/mp3")
+    st.write("🎧 **Escucha el audio e interactúa con la onda (estilo Audacity):**")
+    
+    # Convertimos el audio local a base64 para que el reproductor web pueda leerlo sin servidores externos
+    with open(ruta_audio, "rb") as f:
+        audio_bytes = f.read()
+    b64_audio = base64.b64encode(audio_bytes).decode()
+    
+    # Generamos el reproductor avanzado inyectando Wavesurfer.js mediante HTML
+    html_reproductor = f"""
+    <div style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; background: #f8fafc; border: 1px solid #e2e8f0; padding: 15px; border-radius: 12px;">
+        <div id="waveform" style="margin-bottom: 15px; background: #ffffff; border-radius: 6px; padding: 4px;"></div>
+        
+        <div style="display: flex; justify-content: center; align-items: center; gap: 10px;">
+            <button id="btnBack" style="padding: 8px 14px; background: #475569; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 0.9rem;">⏮️ -5s</button>
+            <button id="btnPlay" style="padding: 10px 22px; background: #1c83e1; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 1rem; min-width: 90px;">▶️ Play</button>
+            <button id="btnForward" style="padding: 8px 14px; background: #475569; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 0.9rem;">+5s ⏭️</button>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/wavesurfer.js@7"></script>
+    <script>
+        const wavesurfer = WaveSurfer.create({{
+            container: '#waveform',
+            waveColor: '#93c5fd',       /* Color de la onda de fondo */
+            progressColor: '#1c83e1',   /* Color de lo que ya se ha escuchado */
+            cursorColor: '#1e3a8a',     /* Color de la línea selectores */
+            barWidth: 2,
+            barGap: 2,
+            barRadius: 2,
+            height: 70,
+            url: 'data:audio/mp3;base64,{b64_audio}'
+        }});
+
+        // Control del botón Play / Pausa
+        const btnPlay = document.getElementById('btnPlay');
+        btnPlay.addEventListener('click', () => {{
+            wavesurfer.playPause();
+        }});
+
+        wavesurfer.on('play', () => {{
+            btnPlay.innerHTML = "⏸️ Pausa";
+            btnPlay.style.background = "#21c354"; // Cambia a verde en reproducción
+        }});
+
+        wavesurfer.on('pause', () => {{
+            btnPlay.innerHTML = "▶️ Play";
+            btnPlay.style.background = "#1c83e1"; // Vuelve a azul
+        }});
+
+        // Botón Retroceder 5 segundos
+        document.getElementById('btnBack').addEventListener('click', () => {{
+            wavesurfer.skip(-5);
+        }});
+
+        // Botón Avanzar 5 segundos
+        document.getElementById('btnForward').addEventListener('click', () => {{
+            wavesurfer.skip(5);
+        }});
+    </script>
+    """
+    # Renderizamos el componente en la pantalla con una altura cómoda
+    st.components.v1.html(html_reproductor, height=155)
 else:
     st.warning(f"⚠️ Audio no encontrado en la ruta: `{ruta_audio}`")
 
 
-# --- 🎯 DESPLEGABLE DE DICTADO CON AMPLITUD ASEGURADA ---
+# --- DESPLEGABLE DE DICTADO CON AMPLITUD ASEGURADA ---
 with st.expander("📝 Modo Dictado: Haz clic aquí para escribir lo que oyes"):
-    # Se le asigna un height=250 nativo para albergar textos largos cómodamente
     texto_usuario = st.text_area(
         "Escribe el texto en alemán:", 
         key=f"input_dictado_{st.session_state.indice_actual}",
@@ -251,11 +304,11 @@ with st.expander("📝 Modo Dictado: Haz clic aquí para escribir lo que oyes"):
             porcentaje_acierto = calcular_similitud_parcial(texto_usuario, aleman_texto)
             
             if porcentaje_acierto >= 90:
-                color_fondo, color_texto = "rgba(16, 185, 129, 0.15)", "#10b981"  # Verde
+                color_fondo, color_texto = "rgba(16, 185, 129, 0.15)", "#10b981"
             elif porcentaje_acierto >= 50:
-                color_fondo, color_texto = "rgba(245, 158, 11, 0.15)", "#f59e0b"  # Amarillo
+                color_fondo, color_texto = "rgba(245, 158, 11, 0.15)", "#f59e0b"
             else:
-                color_fondo, color_texto = "rgba(239, 68, 68, 0.15)", "#ef4444"   # Rojo
+                color_fondo, color_texto = "rgba(239, 68, 68, 0.15)", "#ef4444"
                 
             st.markdown(f"""
             <div class="resultado-porcentaje" style="background-color: {color_fondo}; color: {color_texto}; border: 1px solid {color_texto};">
