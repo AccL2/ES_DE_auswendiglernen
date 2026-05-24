@@ -222,20 +222,19 @@ else:
     """, unsafe_allow_html=True)
 
 
-# --- 🔥 NUEVO REPRODUCTOR CON FORMA DE ONDA + BOTONES DE TIEMPO 🔥 ---
+# --- 🎧 REPRODUCTOR CON ONDA ADAPTADO A MODO OSCURO + BUCLE POR REGIONES 🎧 ---
 ruta_audio = f"Audios/{audio_id}.mp3"
 if os.path.exists(ruta_audio):
-    st.write("🎧 **Escucha el audio e interactúa con la onda (estilo Audacity):**")
+    st.write("🎧 **Usa el ratón/dedo para arrastrar sobre la onda y repetir un trozo en bucle:**")
     
-    # Convertimos el audio local a base64 para que el reproductor web pueda leerlo sin servidores externos
     with open(ruta_audio, "rb") as f:
         audio_bytes = f.read()
     b64_audio = base64.b64encode(audio_bytes).decode()
     
-    # Generamos el reproductor avanzado inyectando Wavesurfer.js mediante HTML
+    # Renderizado HTML adaptado a interfaces oscuras y claras con soporte de bucle integrado
     html_reproductor = f"""
-    <div style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; background: #f8fafc; border: 1px solid #e2e8f0; padding: 15px; border-radius: 12px;">
-        <div id="waveform" style="margin-bottom: 15px; background: #ffffff; border-radius: 6px; padding: 4px;"></div>
+    <div style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.15); padding: 15px; border-radius: 12px; color: #ffffff;">
+        <div id="waveform" style="margin-bottom: 15px; background: rgba(0, 0, 0, 0.2); border-radius: 6px; padding: 4px;"></div>
         
         <div style="display: flex; justify-content: center; align-items: center; gap: 10px;">
             <button id="btnBack" style="padding: 8px 14px; background: #475569; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 0.9rem;">⏮️ -5s</button>
@@ -245,17 +244,50 @@ if os.path.exists(ruta_audio):
     </div>
 
     <script src="https://unpkg.com/wavesurfer.js@7"></script>
+    <script src="https://unpkg.com/wavesurfer.js@7/dist/plugins/regions.min.js"></script>
     <script>
         const wavesurfer = WaveSurfer.create({{
             container: '#waveform',
-            waveColor: '#93c5fd',       /* Color de la onda de fondo */
-            progressColor: '#1c83e1',   /* Color de lo que ya se ha escuchado */
-            cursorColor: '#1e3a8a',     /* Color de la línea selectores */
+            waveColor: '#64748b',       /* Color gris neutro visible tanto en claro como oscuro */
+            progressColor: '#3b82f6',   /* Azul brillante para progreso */
+            cursorColor: '#f43f5e',     /* Cursor rosa/rojo muy visible */
             barWidth: 2,
             barGap: 2,
             barRadius: 2,
             height: 70,
             url: 'data:audio/mp3;base64,{b64_audio}'
+        }});
+
+        // Inicializar el plugin de regiones para permitir arrastrar y crear bucles
+        const wsRegions = wavesurfer.registerPlugin(WaveSurfer.Regions.create());
+
+        // Habilitar que el usuario pueda dibujar la caja arrastrando el ratón
+        wsRegions.enableDragSelection({{
+            color: 'rgba(59, 130, 246, 0.3)' // Color azul transparente para la selección
+        }});
+
+        // Cuando se crea una región nueva, borramos la anterior para que solo haya un bucle activo
+        wsRegions.on('region-created', (region) => {{
+            wsRegions.getRegions().forEach(r => {{
+                if (r !== region) r.remove();
+            }});
+        }});
+
+        // Lógica del bucle infinito si el audio llega al final de la región seleccionada
+        wavesurfer.on('timeupdate', (currentTime) => {{
+            const regions = wsRegions.getRegions();
+            if (regions.length > 0) {{
+                const activeRegion = regions[0];
+                if (currentTime >= activeRegion.end || currentTime < activeRegion.start) {{
+                    wavesurfer.setTime(activeRegion.start);
+                }}
+            }}
+        }});
+
+        // Al hacer doble clic sobre la región o un clic fuera, se elimina el bucle
+        wsRegions.on('region-click', (region, e) => {{
+            e.stopPropagation();
+            region.remove();
         }});
 
         // Control del botón Play / Pausa
@@ -266,26 +298,24 @@ if os.path.exists(ruta_audio):
 
         wavesurfer.on('play', () => {{
             btnPlay.innerHTML = "⏸️ Pausa";
-            btnPlay.style.background = "#21c354"; // Cambia a verde en reproducción
+            btnPlay.style.background = "#22c55e"; 
         }});
 
         wavesurfer.on('pause', () => {{
             btnPlay.innerHTML = "▶️ Play";
-            btnPlay.style.background = "#1c83e1"; // Vuelve a azul
+            btnPlay.style.background = "#1c83e1"; 
         }});
 
-        // Botón Retroceder 5 segundos
+        // Botones de salto de tiempo
         document.getElementById('btnBack').addEventListener('click', () => {{
             wavesurfer.skip(-5);
         }});
 
-        // Botón Avanzar 5 segundos
         document.getElementById('btnForward').addEventListener('click', () => {{
             wavesurfer.skip(5);
         }});
     </script>
     """
-    # Renderizamos el componente en la pantalla con una altura cómoda
     st.components.v1.html(html_reproductor, height=155)
 else:
     st.warning(f"⚠️ Audio no encontrado en la ruta: `{ruta_audio}`")
