@@ -190,34 +190,39 @@ situacion_texto = ""
 if 'Situacion' in fila_actual and pd.notna(fila_actual['Situacion']):
     situacion_texto = str(fila_actual['Situacion']).strip()
 
+def formatear_lineas(texto):
+    frases = re.split(r'(?<=[.!?])\s+', texto.strip())
+    return "<br>".join(frases)
+
 st.subheader(f"Progreso: Frase {st.session_state.indice_actual + 1} de {total_frases}")
 st.progress((st.session_state.indice_actual + 1) / total_frases)
 
 if situacion_texto:
     st.markdown(f'<div class="titulo-situacion">📍 Situación: {situacion_texto}</div>', unsafe_allow_html=True)
 
-# --- PANEL VISUAL ORIGINAL RESTAURADO ---
 if not st.session_state.ver_solucion:
+    castellano_formateado = formatear_lineas(castellano_texto)
     st.markdown(f"""
     <div class="bloque-azul">
         <div class="texto-isla">
-            <b>Castellano:</b><br><br>
-            {castellano_texto}
+            <b>Castellano (Lee y piensa tu traducción):</b><br><br>
+            {castellano_formateado}
         </div>
     </div>
     """, unsafe_allow_html=True)
 else:
+    aleman_formateado = formatear_lineas(aleman_texto)
     st.markdown(f"""
     <div class="bloque-verde">
         <div class="texto-isla">
-            <b>Aleman:</b><br><br>
-            {aleman_texto}
+            <b>Solución en Alemán:</b><br><br>
+            {aleman_formateado}
         </div>
     </div>
     """, unsafe_allow_html=True)
 
 
-# --- 🎧 REPRODUCTOR CON ONDA + BUCLE POR REGIONES 🎧 ---
+# --- 🎧 REPRODUCTOR CON ONDA CON SINTAXIS REPARADA 🎧 ---
 ruta_audio = f"Audios/{audio_id}.mp3"
 if os.path.exists(ruta_audio):
     st.write("🎧 **Arrastra sobre la onda para bucle. Haz un clic normal fuera de la selección o pulsa el botón Reset para volver a escuchar todo:**")
@@ -285,7 +290,7 @@ if os.path.exists(ruta_audio):
                         wsRegions.clearRegions();
                     }}
                 }}
-            }}, 50);
+            }}, 50); // 🔥 Corregido: Llave doble para escapar de la f-string
         }});
 
         document.getElementById('btnResetRegion').addEventListener('click', () => {{
