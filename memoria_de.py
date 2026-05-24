@@ -33,7 +33,7 @@ st.markdown("""
         margin-bottom: 0.5rem;
     }
     
-    /* Bloque Azul (Castellano) */
+    /* Bloque Azul (Modo Pregunta - Solo Castellano) */
     .bloque-azul {
         background-color: rgba(28, 131, 225, 0.15);
         border-left: 5px solid rgb(28, 131, 225);
@@ -42,13 +42,38 @@ st.markdown("""
         margin-bottom: 1rem;
     }
     
-    /* Bloque Verde (Alemán) */
-    .bloque-verde {
-        background-color: rgba(33, 195, 84, 0.15);
-        border-left: 5px solid rgb(33, 195, 84);
+    /* Bloque Combinado (Modo Solución - Frase a Frase) */
+    .bloque-solucion-combinada {
+        background-color: rgba(255, 255, 255, 0.03);
+        border: 1px solid rgba(255, 255, 255, 0.1);
         padding: 1.2rem 1.5rem;
         border-radius: 0.5rem;
         margin-bottom: 1rem;
+    }
+    
+    .par-frase {
+        margin-bottom: 1.2rem;
+        padding-bottom: 1.2rem;
+        border-bottom: 1px dashed rgba(255, 255, 255, 0.1);
+    }
+    
+    .par-frase:last-child {
+        margin-bottom: 0;
+        padding-bottom: 0;
+        border-bottom: none;
+    }
+    
+    .sub-castellano {
+        color: #a0aec0;
+        font-size: 1rem;
+        font-style: italic;
+        margin-bottom: 0.3rem;
+    }
+    
+    .sub-aleman {
+        color: #22c55e;
+        font-size: 1.2rem;
+        font-weight: 600;
     }
     
     /* Nota de porcentaje de coincidencia */
@@ -190,9 +215,11 @@ situacion_texto = ""
 if 'Situacion' in fila_actual and pd.notna(fila_actual['Situacion']):
     situacion_texto = str(fila_actual['Situacion']).strip()
 
-def formatear_lineas(texto):
+# AUXILIAR: Segmenta el texto respetando los puntos finales de las frases
+def segmentar_frases(texto):
+    # Rompe por puntos, signos de exclamación o interrogación
     frases = re.split(r'(?<=[.!?])\s+', texto.strip())
-    return "<br>".join(frases)
+    return [f.strip() for f in frases if f.strip()]
 
 st.subheader(f"Progreso: Frase {st.session_state.indice_actual + 1} de {total_frases}")
 st.progress((st.session_state.indice_actual + 1) / total_frases)
@@ -200,29 +227,50 @@ st.progress((st.session_state.indice_actual + 1) / total_frases)
 if situacion_texto:
     st.markdown(f'<div class="titulo-situacion">📍 Situación: {situacion_texto}</div>', unsafe_allow_html=True)
 
+# --- 🔥 NUEVO PANEL VISUAL INTERACTIVO FRASE A FRASE 🔥 ---
 if not st.session_state.ver_solucion:
-    castellano_formateado = formatear_lineas(castellano_texto)
+    # Modo estudio estándar: Solo muestra el bloque en castellano
+    listado_cas = segmentar_frases(castellano_texto)
+    castellano_html = "<br>".join(listado_cas)
     st.markdown(f"""
     <div class="bloque-azul">
         <div class="texto-isla">
             <b>Castellano (Lee y piensa tu traducción):</b><br><br>
-            {castellano_formateado}
+            {castellano_html}
         </div>
     </div>
     """, unsafe_allow_html=True)
 else:
-    aleman_formateado = formatear_lineas(aleman_texto)
+    # Modo Solución: Empareja inteligentemente cada frase de Castellano con su Alemana
+    lista_cas = segmentar_frases(castellano_texto)
+    lista_ale = segmentar_frases(aleman_texto)
+    
+    html_pares = ""
+    # Recorremos asegurando que no se rompa si por error hay desfase de puntos en el Excel
+    max_lineas = max(len(lista_cas), len(lista_ale))
+    
+    for idx in range(max_lineas):
+        f_cas = lista_cas[idx] if idx < len(lista_cas) else ""
+        f_ale = lista_ale[idx] if idx < len(lista_ale) else ""
+        
+        html_pares += f"""
+        <div class="par-frase">
+            <div class="sub-castellano">🇪🇸 {f_cas}</div>
+            <div class="sub-aleman">🇩🇪 {f_ale}</div>
+        </div>
+        """
+        
     st.markdown(f"""
-    <div class="bloque-verde">
+    <div class="bloque-solucion-combinada">
         <div class="texto-isla">
-            <b>Solución en Alemán:</b><br><br>
-            {aleman_formateado}
+            <b>Comparativa estructurada de la solución:</b><br><br>
+            {html_pares}
         </div>
     </div>
     """, unsafe_allow_html=True)
 
 
-# --- 🎧 REPRODUCTOR CON ONDA CON SINTAXIS REPARADA 🎧 ---
+# --- 🎧 REPRODUCTOR CON ONDA + BUCLE POR REGIONES 🎧 ---
 ruta_audio = f"Audios/{audio_id}.mp3"
 if os.path.exists(ruta_audio):
     st.write("🎧 **Arrastra sobre la onda para bucle. Haz un clic normal fuera de la selección o pulsa el botón Reset para volver a escuchar todo:**")
@@ -290,7 +338,7 @@ if os.path.exists(ruta_audio):
                         wsRegions.clearRegions();
                     }}
                 }}
-            }}, 50); // 🔥 Corregido: Llave doble para escapar de la f-string
+            }}, 50);
         }});
 
         document.getElementById('btnResetRegion').addEventListener('click', () => {{
