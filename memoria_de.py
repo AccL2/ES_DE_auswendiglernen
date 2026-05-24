@@ -33,7 +33,7 @@ st.markdown("""
         margin-bottom: 0.5rem;
     }
     
-    /* Bloque Azul (Modo Pregunta - Solo Castellano) */
+    /* Bloque Azul (Castellano) */
     .bloque-azul {
         background-color: rgba(28, 131, 225, 0.15);
         border-left: 5px solid rgb(28, 131, 225);
@@ -42,37 +42,41 @@ st.markdown("""
         margin-bottom: 1rem;
     }
     
-    /* Bloque Combinado (Modo Solución - Frase a Frase) */
-    .bloque-solucion-combinada {
-        background-color: rgba(255, 255, 255, 0.03);
-        border: 1px solid rgba(255, 255, 255, 0.1);
+    /* Bloque Verde (Alemán - Mantiene la estética original idéntica) */
+    .bloque-verde {
+        background-color: rgba(33, 195, 84, 0.15);
+        border-left: 5px solid rgb(33, 195, 84);
         padding: 1.2rem 1.5rem;
         border-radius: 0.5rem;
         margin-bottom: 1rem;
     }
     
-    .par-frase {
-        margin-bottom: 1.2rem;
-        padding-bottom: 1.2rem;
+    /* Estructura interna de los pares de frases */
+    .contenedor-pares {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+    }
+    
+    .linea-par {
+        padding-bottom: 0.8rem;
         border-bottom: 1px dashed rgba(255, 255, 255, 0.1);
     }
     
-    .par-frase:last-child {
-        margin-bottom: 0;
-        padding-bottom: 0;
+    .linea-par:last-child {
         border-bottom: none;
+        padding-bottom: 0;
     }
     
-    .sub-castellano {
-        color: #a0aec0;
-        font-size: 1rem;
+    .txt-es {
+        color: rgba(255, 255, 255, 0.6);
+        font-size: 0.95rem;
         font-style: italic;
-        margin-bottom: 0.3rem;
+        margin-bottom: 0.2rem;
     }
     
-    .sub-aleman {
-        color: #22c55e;
-        font-size: 1.2rem;
+    .txt-de {
+        color: #ffffff;
         font-weight: 600;
     }
     
@@ -226,7 +230,7 @@ st.progress((st.session_state.indice_actual + 1) / total_frases)
 if situacion_texto:
     st.markdown(f'<div class="titulo-situacion">📍 Situación: {situacion_texto}</div>', unsafe_allow_html=True)
 
-# --- PANEL VISUAL CORREGIDO CON EXPLICITACIÓN DE HTML ---
+# --- PANEL VISUAL INTEGRADO EN EL BLOQUE VERDE ORIGINAL ---
 if not st.session_state.ver_solucion:
     listado_cas = segmentar_frases(castellano_texto)
     castellano_html = "<br>".join(listado_cas)
@@ -249,15 +253,15 @@ else:
         f_cas = lista_cas[idx] if idx < len(lista_cas) else ""
         f_ale = lista_ale[idx] if idx < len(lista_ale) else ""
         
-        # Generamos la estructura de los pares frase por frase sin romper las f-strings
-        html_pares += f'<div class="par-frase"><div class="sub-castellano">🇪🇸 {f_cas}</div><div class="sub-aleman">🇩🇪 {f_ale}</div></div>'
+        html_pares += f'<div class="linea-par"><div class="txt-es">🇪🇸 {f_cas}</div><div class="txt-de">🇩🇪 {f_ale}</div></div>'
         
-    # Usamos st.markdown con unsafe_allow_html=True forzado para renderizar los bloques
     st.markdown(f"""
-    <div class="bloque-solucion-combinada">
+    <div class="bloque-verde">
         <div class="texto-isla">
-            <b>Comparativa estructurada de la solución:</b><br><br>
-            {html_pares}
+            <b>Solución estructurada:</b><br><br>
+            <div class="contenedor-pares">
+                {html_pares}
+            </div>
         </div>
     </div>
     """, unsafe_allow_html=True)
