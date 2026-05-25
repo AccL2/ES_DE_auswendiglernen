@@ -66,7 +66,7 @@ st.markdown("""
         font-weight: 400 !important;
         line-height: 1.6;
         font-size: 1.15rem;
-        color: #991b1b;
+        color: #000000; /* Cambiado a negro para mejor legibilidad */
         margin: 0;
         padding: 0;
     }
@@ -229,7 +229,7 @@ if situacion_texto:
     st.markdown(f'<div class="titulo-situacion">📍 Situación: {situacion_texto}</div>', unsafe_allow_html=True)
 
 
-# --- 🔄 BARRA DE CONTROL ORIGINAL DE STREAMLIT (Añadido botón de Gramática) ---
+# --- 🔄 BARRA DE CONTROL ORIGINAL DE STREAMLIT ---
 col_nav_sol, col_nav_ant, col_nav_sig, col_nav_gram = st.columns([0.25, 0.25, 0.25, 0.25])
 
 # 1. Botón de Solución / Traducción
@@ -445,7 +445,7 @@ with st.expander("📝 Modo Dictado: Haz clic aquí para escribir lo que oyes"):
             st.warning("Escribe algo en el cuadro antes de comprobar.")
 
 
-# --- 💡 EXPLICACIÓN ABAJO DEL TODO (En Rojo Claro como pediste) ---
+# --- 💡 EXPLICACIÓN ABAJO DEL TODO ---
 if st.session_state.ver_gramatica:
     if 'Explicacion' in fila_actual and pd.notna(fila_actual['Explicacion']) and str(fila_actual['Explicacion']).strip() != "":
         explicacion_formateada = formatear_lineas(str(fila_actual['Explicacion']))
