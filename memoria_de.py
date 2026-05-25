@@ -12,7 +12,7 @@ st.set_page_config(page_title="Entrenador de Idiomas por Islas", page_icon="🇩
 # Estilos CSS
 st.markdown("""
     <style>
-    @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght=400;600&display=swap');
     .texto-isla { font-family: 'Montserrat', sans-serif !important; font-weight: 400 !important; line-height: 1.6; font-size: 1.15rem; }
     .titulo-situacion { font-family: 'Montserrat', sans-serif !important; font-weight: 600; text-transform: uppercase; color: #718096; margin-bottom: 0.5rem; }
     .bloque-azul { background-color: rgba(28, 131, 225, 0.15); border-left: 5px solid rgb(28, 131, 225); padding: 1.2rem; border-radius: 0.5rem; margin-bottom: 1rem; }
@@ -80,8 +80,6 @@ if not st.session_state.ver_solucion:
     st.markdown(f'<div class="bloque-azul"><b>Castellano:</b><br>{fila["Castellano"]}</div>', unsafe_allow_html=True)
 else:
     st.markdown(f'<div class="bloque-verde"><b>Solución:</b><br>{fila["Aleman"]}</div>', unsafe_allow_html=True)
-    if st.session_state.ver_gramatica and 'Explicacion' in fila and pd.notna(fila['Explicacion']):
-        st.markdown(f'<div class="bloque-gramatica"><b>Nota Gramatical:</b><br>{fila["Explicacion"]}</div>', unsafe_allow_html=True)
 
 # --- REPRODUCTOR (Blindado contra errores) ---
 val_audio = fila.get('Audio_ID')
@@ -120,3 +118,7 @@ with st.expander("📝 Modo Dictado"):
     if st.button("Comprobar dictado"):
         p = calcular_similitud_parcial(txt, str(fila["Aleman"]))
         st.markdown(f'<div class="resultado-porcentaje">Precisión: {p:.0f}%</div>', unsafe_allow_html=True)
+
+# --- EXPLICACIÓN ABAJO DEL TODO ---
+if st.session_state.ver_gramatica and 'Explicacion' in fila and pd.notna(fila['Explicacion']):
+    st.markdown(f'<div class="bloque-gramatica"><b>💡 Explicación Gramatical:</b><br>{fila["Explicacion"]}</div>', unsafe_allow_html=True)
