@@ -53,7 +53,7 @@ st.markdown("""
     
     /* Bloque Rojo Claro (Gramática) */
     .bloque-gramatica {
-        background-color: rgba(239, 68, 68, 0.1);
+        background-color: rgba(239, 68, 68, 0.15);
         border-left: 5px solid #ef4444;
         padding: 1.2rem 1.5rem;
         border-radius: 0.5rem;
@@ -66,7 +66,7 @@ st.markdown("""
         font-weight: 400 !important;
         line-height: 1.6;
         font-size: 1.15rem;
-        color: #000000; /* Cambiado a negro para mejor legibilidad */
+        /* Al no forzar un color aquí, hereda el del sistema (Negro en modo claro / Blanco en modo oscuro) */
         margin: 0;
         padding: 0;
     }
