@@ -51,6 +51,26 @@ st.markdown("""
         margin-bottom: 1rem;
     }
     
+    /* Bloque Rojo Claro (Gramática) */
+    .bloque-gramatica {
+        background-color: rgba(239, 68, 68, 0.1);
+        border-left: 5px solid #ef4444;
+        padding: 1.2rem 1.5rem;
+        border-radius: 0.5rem;
+        margin-top: 1rem;
+        margin-bottom: 1rem;
+    }
+    
+    .texto-gramatica {
+        font-family: 'Montserrat', sans-serif !important;
+        font-weight: 400 !important;
+        line-height: 1.6;
+        font-size: 1.15rem;
+        color: #991b1b;
+        margin: 0;
+        padding: 0;
+    }
+    
     /* Nota de porcentaje de coincidencia */
     .resultado-porcentaje {
         font-family: 'Montserrat', sans-serif;
@@ -116,6 +136,7 @@ if 'isla_anterior' not in st.session_state or st.session_state.isla_anterior != 
     st.session_state.indice_actual = 0
     st.session_state.isla_anterior = isla_seleccionada
     st.session_state.ver_solucion = False
+    st.session_state.ver_gramatica = False
     st.session_state.completado = False
     if 'orden_aleatorio' in st.session_state:
         del st.session_state.orden_aleatorio
@@ -129,12 +150,14 @@ if modo_aleatorio:
         st.session_state.orden_aleatorio = indices_mezclados
         st.session_state.indice_actual = 0  
         st.session_state.ver_solucion = False
+        st.session_state.ver_gramatica = False
     df_isla = df_isla_original.iloc[st.session_state.orden_aleatorio].reset_index(drop=True)
 else:
     if 'orden_aleatorio' in st.session_state:
         del st.session_state.orden_aleatorio
         st.session_state.indice_actual = 0  
         st.session_state.ver_solucion = False
+        st.session_state.ver_gramatica = False
     df_isla = df_isla_original
 
 if 'indice_actual' not in st.session_state:
@@ -142,6 +165,9 @@ if 'indice_actual' not in st.session_state:
 
 if 'ver_solucion' not in st.session_state:
     st.session_state.ver_solucion = False
+
+if 'ver_gramatica' not in st.session_state:
+    st.session_state.ver_gramatica = False
 
 if st.session_state.indice_actual >= total_frases:
     st.session_state.indice_actual = total_frases - 1 if total_frases > 0 else 0
@@ -158,6 +184,7 @@ nuevo_indice = opciones_frases.index(frase_seleccionada_nav)
 if nuevo_indice != st.session_state.indice_actual:
     st.session_state.indice_actual = nuevo_indice
     st.session_state.ver_solucion = False
+    st.session_state.ver_gramatica = False
     st.rerun()
 
 # --- CONTENIDO PRINCIPAL ---
@@ -168,6 +195,7 @@ if st.session_state.indice_actual >= total_frases - 1 and st.session_state.get('
     if st.button("Repetir Isla (Volver a empezar)", use_container_width=True):
         st.session_state.indice_actual = 0
         st.session_state.ver_solucion = False
+        st.session_state.ver_gramatica = False
         st.session_state.completado = False
         if 'orden_aleatorio' in st.session_state:
             del st.session_state.orden_aleatorio
@@ -201,8 +229,8 @@ if situacion_texto:
     st.markdown(f'<div class="titulo-situacion">📍 Situación: {situacion_texto}</div>', unsafe_allow_html=True)
 
 
-# --- 🔄 BARRA DE CONTROL ORIGINAL DE STREAMLIT (Sin botón Play arriba) ---
-col_nav_sol, col_nav_ant, col_nav_sig, col_vacio = st.columns([0.25, 0.25, 0.25, 0.25])
+# --- 🔄 BARRA DE CONTROL ORIGINAL DE STREAMLIT (Añadido botón de Gramática) ---
+col_nav_sol, col_nav_ant, col_nav_sig, col_nav_gram = st.columns([0.25, 0.25, 0.25, 0.25])
 
 # 1. Botón de Solución / Traducción
 with col_nav_sol:
@@ -221,6 +249,7 @@ with col_nav_ant:
         if st.session_state.indice_actual > 0:
             st.session_state.indice_actual -= 1
             st.session_state.ver_solucion = False
+            st.session_state.ver_gramatica = False
             st.rerun()
 
 # 3. Botón Siguiente
@@ -229,8 +258,15 @@ with col_nav_sig:
         if st.session_state.indice_actual < total_frases - 1:
             st.session_state.indice_actual += 1
             st.session_state.ver_solucion = False
+            st.session_state.ver_gramatica = False
         else:
             st.session_state.completado = True
+        st.rerun()
+
+# 4. Botón de Gramática
+with col_nav_gram:
+    if st.button("💡 Gramática", use_container_width=True, key="btn_gramatica_arriba"):
+        st.session_state.ver_gramatica = not st.session_state.ver_gramatica
         st.rerun()
 
 st.write("")
@@ -376,7 +412,6 @@ if os.path.exists(ruta_audio):
         }});
     </script>
     """
-    # Cargamos el HTML sin el argumento ID ilegal para evitar el TypeError
     st.components.v1.html(html_reproductor, height=215)
 else:
     st.warning(f"⚠️ Audio no encontrado en la ruta: `{ruta_audio}`")
@@ -408,3 +443,19 @@ with st.expander("📝 Modo Dictado: Haz clic aquí para escribir lo que oyes"):
             """, unsafe_allow_html=True)
         else:
             st.warning("Escribe algo en el cuadro antes de comprobar.")
+
+
+# --- 💡 EXPLICACIÓN ABAJO DEL TODO (En Rojo Claro como pediste) ---
+if st.session_state.ver_gramatica:
+    if 'Explicacion' in fila_actual and pd.notna(fila_actual['Explicacion']) and str(fila_actual['Explicacion']).strip() != "":
+        explicacion_formateada = formatear_lineas(str(fila_actual['Explicacion']))
+        st.markdown(f"""
+        <div class="bloque-gramatica">
+            <div class="texto-gramatica">
+                <b>💡 Explicación Gramatical:</b><br><br>
+                {explicacion_formateada}
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+    else:
+        st.info("ℹ️ No hay ninguna explicación cargada para esta frase en el archivo Excel.")
