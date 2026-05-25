@@ -66,7 +66,7 @@ st.markdown("""
         font-weight: 400 !important;
         line-height: 1.6;
         font-size: 1.15rem;
-        /* Al no forzar un color aquí, hereda el del sistema (Negro en modo claro / Blanco en modo oscuro) */
+        /* Hereda el color del sistema (Negro en claro / Blanco en oscuro) */
         margin: 0;
         padding: 0;
     }
@@ -448,6 +448,7 @@ with st.expander("📝 Modo Dictado: Haz clic aquí para escribir lo que oyes"):
 # --- 💡 EXPLICACIÓN ABAJO DEL TODO ---
 if st.session_state.ver_gramatica:
     if 'Explicacion' in fila_actual and pd.notna(fila_actual['Explicacion']) and str(fila_actual['Explicacion']).strip() != "":
+        # Se aplica la función 'formatear_lineas' para estructurar la explicación línea por línea
         explicacion_formateada = formatear_lineas(str(fila_actual['Explicacion']))
         st.markdown(f"""
         <div class="bloque-gramatica">
