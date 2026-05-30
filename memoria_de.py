@@ -26,6 +26,7 @@ st.markdown("""
         --rojo:        #e05454;
         --rojo-bg:     rgba(224, 84, 84, 0.10);
         --rojo-borde:  rgba(224, 84, 84, 0.55);
+        --naranja:     #f5a623;
         --radio:       12px;
     }
 
@@ -63,7 +64,20 @@ st.markdown("""
         gap: 6px;
     }
 
-    /* ── Tarjetas ── */
+    /* ── Tarjetas y Tiras de Historial ── */
+    .tira-historial {
+        width: 100%;
+        padding: 6px 12px;
+        border-radius: 6px;
+        font-size: 0.72rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        text-align: center;
+        margin-bottom: 12px;
+        color: white;
+    }
+
     .texto-isla, .texto-isla *, .texto-isla p, .texto-isla b {
         font-family: 'Montserrat', sans-serif !important;
         font-weight: 400 !important;
@@ -388,7 +402,7 @@ st.title("🇩🇪 Método de Chunks & Islas")
 fila_actual = df_en_rueda.iloc[st.session_state.indice_actual]
 castellano_texto = str(fila_actual['Castellano'])
 aleman_texto     = str(fila_actual['Aleman'])
-estado_actual    = str(fila_actual['Estado'])
+estado_actual    = str(fila_actual['Estado']).strip()
 
 indice_fila_google_sheet = int(df_isla_completa.index[df_isla_completa['Castellano'] == castellano_texto].tolist()[0]) + 2
 
@@ -455,6 +469,25 @@ st.write("")
 if st.session_state.get('flash_aprendida'):
     st.markdown('<div class="flash-aprendida">✦ ¡Frase aprendida! 🔵</div>', unsafe_allow_html=True)
     st.session_state.flash_aprendida = False
+
+
+# ── LÓGICA DE LA TIRA DEL COLOR SUPERIOR ──
+color_tira = "#3b7dd8"  # Azul por defecto para nuevos o vacíos
+texto_tira = "🆕 Frase Nueva / Sin Repasar"
+
+if estado_actual == "Rojo":
+    color_tira = "#e05454"
+    texto_tira = "🔴 Estado: Malas / Nueva"
+elif estado_actual == "Naranja":
+    color_tira = "#f5a623"
+    texto_tira = "🟠 Estado: A medias"
+elif estado_actual == "Verde":
+    color_tira = "#22a66e"
+    texto_tira = "🟢 Estado: Casi listas"
+
+# Renderizar la tira alargada del color que corresponda justo encima de la tarjeta
+st.markdown(f'<div class="tira-historial" style="background-color: {color_tira};">{texto_tira}</div>', unsafe_allow_html=True)
+
 
 # ── Tarjeta principal ──
 if not st.session_state.ver_solucion:
