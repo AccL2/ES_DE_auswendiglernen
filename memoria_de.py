@@ -64,18 +64,17 @@ st.markdown("""
         gap: 6px;
     }
 
-    /* ── Tarjetas y Tiras de Historial ── */
+    /* ── Tarjetas y Tiras de Historial Pastel ── */
     .tira-historial {
         width: 100%;
-        padding: 6px 12px;
-        border-radius: 6px;
-        font-size: 0.72rem;
+        padding: 5px 12px;
+        border-radius: 8px;
+        font-size: 0.70rem;
         font-weight: 600;
         text-transform: uppercase;
-        letter-spacing: 1px;
+        letter-spacing: 1.5px;
         text-align: center;
         margin-bottom: 12px;
-        color: white;
     }
 
     .texto-isla, .texto-isla *, .texto-isla p, .texto-isla b {
@@ -471,22 +470,27 @@ if st.session_state.get('flash_aprendida'):
     st.session_state.flash_aprendida = False
 
 
-# ── LÓGICA DE LA TIRA DEL COLOR SUPERIOR ──
-color_tira = "#3b7dd8"  # Azul por defecto para nuevos o vacíos
-texto_tira = "🆕 Frase Nueva / Sin Repasar"
+# ── LÓGICA DE LA TIRA DE COLOR PASTEL SUPERIOR ──
+# Colores con opacidad suave (0.15) e igual color de fuente que los bloques
+bg_tira = "rgba(59, 125, 216, 0.15)"
+color_texto_tira = "#3b7dd8" 
 
 if estado_actual == "Rojo":
-    color_tira = "#e05454"
-    texto_tira = "🔴 Estado: Malas / Nueva"
+    bg_tira = "rgba(224, 84, 84, 0.15)"
+    color_texto_tira = "#e05454"
 elif estado_actual == "Naranja":
-    color_tira = "#f5a623"
-    texto_tira = "🟠 Estado: A medias"
+    bg_tira = "rgba(245, 158, 11, 0.15)"
+    color_texto_tira = "#f59e0b"
 elif estado_actual == "Verde":
-    color_tira = "#22a66e"
-    texto_tira = "🟢 Estado: Casi listas"
+    bg_tira = "rgba(34, 166, 110, 0.15)"
+    color_texto_tira = "#22a66e"
 
-# Renderizar la tira alargada del color que corresponda justo encima de la tarjeta
-st.markdown(f'<div class="tira-historial" style="background-color: {color_tira};">{texto_tira}</div>', unsafe_allow_html=True)
+# Renderizar tira alargada premium pastel que dice solo ESTADO ACTUAL
+st.markdown(f"""
+    <div class="tira-historial" style="background-color: {bg_tira}; color: {color_texto_tira}; border: 1px solid {color_texto_tira}44;">
+        ESTADO ACTUAL
+    </div>
+""", unsafe_allow_html=True)
 
 
 # ── Tarjeta principal ──
