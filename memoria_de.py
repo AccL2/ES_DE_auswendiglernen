@@ -15,13 +15,12 @@ st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght=400;600&display=swap');
     
-    .texto-isla {
+    /* Forzar Montserrat de forma nativa y limpia en las tarjetas principales */
+    .texto-isla, .texto-isla *, .texto-isla p, .texto-isla b {
         font-family: 'Montserrat', sans-serif !important;
         font-weight: 400 !important;
         line-height: 1.6 !important;
         font-size: 1.15rem !important;
-        margin: 0;
-        padding: 0;
     }
     
     .titulo-situacion {
@@ -34,7 +33,7 @@ st.markdown("""
         margin-bottom: 0.5rem;
     }
     
-    /* Bloque Azul (Español) */
+    /* Bloque Azul (Castellano) */
     .bloque-azul {
         background-color: rgba(28, 131, 225, 0.15);
         border-left: 5px solid rgb(28, 131, 225);
@@ -153,16 +152,11 @@ df_activas_y_pendientes = df_isla_completa[df_isla_completa['Estado'] != 'Azul']
 df_azul = df_isla_completa[df_isla_completa['Estado'] == 'Azul']
 total_aprendidos = len(df_azul)
 
-# Construimos la Rueda de 15 activas (Rojo, Naranja, Verde)
-df_en_rueda = df_activas_y_pendientes[df_activas_y_pendientes['Estado'].isin(['Rojo', 'Naranja', 'Verde'])].copy()
-
-# Rellenamos rueda hasta 15 con pendientes si hace falta
-if len(df_en_rueda) < 15 and len(df_activas_y_pendientes) > len(df_en_rueda):
-    df_en_rueda = df_activas_y_pendientes.head(15).copy()
-
+# Construimos la Rueda tomando estrictamente un máximo de 15 del bloque activo/pendiente
+df_en_rueda = df_activas_y_pendientes.head(15).copy()
 total_rueda_actual = len(df_en_rueda)
 
-# Contar cuántos hay de cada color ESTRICTAMENTE dentro de los 15 de la rueda actual
+# Contar cuántos hay de cada color ESTRICTAMENTE dentro de los 15 máximos de la rueda en pantalla
 estados_rueda = df_en_rueda['Estado'].fillna('Rojo').tolist()
 n_rojos = estados_rueda.count('Rojo')
 n_naranjas = estados_rueda.count('Naranja')
@@ -172,7 +166,7 @@ n_verdes = estados_rueda.count('Verde')
 st.sidebar.write("---")
 st.sidebar.markdown("### 📊 Estado de la Isla")
 
-# Tarjeta sin puntos negros, sin texto "en rueda", y acumulado total solo en azul
+# Tarjeta sin puntos negros, estilizada, límitada a 15 y acumulado real global en azul
 st.sidebar.markdown(f"""
 <div style="font-family: 'Montserrat', sans-serif; background: rgba(255,255,255,0.05); padding: 14px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1);">
     <p style="margin: 0 0 10px 0; font-size: 0.95rem; color: #cbd5e1; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">🔄 LOADING... ({total_rueda_actual}):</p>
@@ -262,21 +256,25 @@ with col_nav_gram:
 
 st.write("")
 
-# Renderizado de la Tarjeta con Montserrat nativa aplicada correctamente a todo el bloque
+# Renderizado de la Tarjeta con la estructura de divs original para asegurar la fuente Montserrat limpia
 if not st.session_state.ver_solucion:
     castellano_formateado = formatear_lineas(castellano_texto)
     st.markdown(f"""
     <div class="bloque-azul">
-        <p class="texto-isla"><b>Español:</b></p>
-        <p class="texto-isla">{castellano_formateado}</p>
+        <div class="texto-isla">
+            <b>Castellano (Lee y piensa):</b><br><br>
+            {castellano_formateado}
+        </div>
     </div>
     """, unsafe_allow_html=True)
 else:
     aleman_formateado = formatear_lineas(aleman_texto)
     st.markdown(f"""
     <div class="bloque-verde">
-        <p class="texto-isla"><b>Alemán:</b></p>
-        <p class="texto-isla">{aleman_formateado}</p>
+        <div class="texto-isla">
+            <b>Solución en Alemán:</b><br><br>
+            {aleman_formateado}
+        </div>
     </div>
     """, unsafe_allow_html=True)
 
