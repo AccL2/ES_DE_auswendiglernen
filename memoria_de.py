@@ -331,7 +331,7 @@ if 'isla_anterior' not in st.session_state or st.session_state.isla_anterior != 
     st.session_state.ver_gramatica = False
     st.session_state.flash_aprendida = False
 
-# --- LÓGICA DE LA RUEDA DE LOS 15 ---
+# --- CÁLCULO ESTABLE DE LA RUEDA DE 15 ---
 df_activas_y_pendientes = df_isla_completa[df_isla_completa['Estado'] != 'Azul'].copy()
 df_azul = df_isla_completa[df_isla_completa['Estado'] == 'Azul']
 total_aprendidos = len(df_azul)
@@ -339,7 +339,8 @@ total_aprendidos = len(df_azul)
 df_en_rueda = df_activas_y_pendientes.head(15).copy()
 total_rueda_actual = len(df_en_rueda)
 
-estados_rueda = df_en_rueda['Estado'].fillna('Rojo').tolist()
+# Limpiar espacios y estandarizar estados para el conteo real
+estados_rueda = df_en_rueda['Estado'].fillna('Rojo').astype(str).str.strip().tolist()
 n_rojos   = estados_rueda.count('Rojo')
 n_naranjas = estados_rueda.count('Naranja')
 n_verdes  = estados_rueda.count('Verde')
@@ -471,7 +472,6 @@ if st.session_state.get('flash_aprendida'):
 
 
 # ── LÓGICA DE LA TIRA DE COLOR PASTEL SUPERIOR ──
-# Colores con opacidad suave (0.15) e igual color de fuente que los bloques
 bg_tira = "rgba(59, 125, 216, 0.15)"
 color_texto_tira = "#3b7dd8" 
 
@@ -485,7 +485,6 @@ elif estado_actual == "Verde":
     bg_tira = "rgba(34, 166, 110, 0.15)"
     color_texto_tira = "#22a66e"
 
-# Renderizar tira alargada premium pastel que dice solo ESTADO ACTUAL
 st.markdown(f"""
     <div class="tira-historial" style="background-color: {bg_tira}; color: {color_texto_tira}; border: 1px solid {color_texto_tira}44;">
         ESTADO ACTUAL
