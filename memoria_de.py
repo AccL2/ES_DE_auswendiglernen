@@ -172,48 +172,49 @@ WEB_APP_URL = "https://script.google.com/macros/s/AKfycbyMpUxnYWLCceZpCIsILNWTyw
 # URL base de tu Google Sheet (Carga vía XLSX limpia)
 SHEET_BASE_URL = "https://docs.google.com/spreadsheets/d/1hpP0J5qRrbx5p9W2nHWsoTDBA9hhvLZYblaU12Ln3w4/export?format=xlsx"
 
-# ── FUNCIONES DE CARGA REPARADAS Y OPTIMIZADAS ──
-@st.cache_data(ttl=2)
-def cargar_tablas_desde_google():
-    url = f"{SHEET_BASE_URL}&nocache={random.randint(1, 100000)}"
+
+# ── FUNCIÓN PRINCIPAL: solo carga df_total (frases) ──
+@st.cache_data(ttl=60)
+def cargar_frases():
+    url = f"{SHEET_BASE_URL}&nocache={random.randint(1, 999999)}"
     excel_completo = pd.ExcelFile(url)
-    
-    # Extraemos y procesamos las tablas individualmente
     df_f = excel_completo.parse(excel_completo.sheet_names[0])
     df_f.columns = df_f.columns.str.strip()
-    
-    df_p = excel_completo.parse("Progreso")
-    df_p.columns = df_p.columns.str.strip()
-    
-    return df_f, df_p
+    return df_f
 
-try:
-    df_total, df_progreso = cargar_tablas_desde_google()
-except Exception as e:
-    st.error(f"No se pudo conectar con el Google Sheet. Detalles: {e}")
-    st.stop()
+
+# ── FUNCIÓN SEPARADA: carga df_progreso con TTL muy corto ──
+@st.cache_data(ttl=1)
+def cargar_progreso_fresco(_bust):
+    url = f"{SHEET_BASE_URL}&sheet=Progreso&nocache={random.randint(1, 999999)}"
+    df_p = pd.read_excel(url, sheet_name="Progreso")
+    df_p.columns = df_p.columns.str.strip()
+    return df_p
+
 
 def obtener_contador_diario():
     try:
-        # Conseguimos el día de hoy en formato texto limpio (YYYY-MM-DD)
         hoy = datetime.now().strftime("%Y-%m-%d")
-        
-        df_prog_copy = df_progreso.copy()
-        
-        # Convertimos la columna Fecha a tipo fecha real de Pandas para evitar líos de formato texto
-        df_prog_copy['Fecha'] = pd.to_datetime(df_prog_copy['Fecha'], errors='coerce')
-        
-        # Filtramos extrayendo solo la parte de la fecha (sin horas) y comparamos con hoy
-        fila_hoy = df_prog_copy[df_prog_copy['Fecha'].dt.strftime('%Y-%m-%d') == hoy]
-        
+        # _bust fuerza cache miss en cada rerun tras limpiar caché
+        df_prog = cargar_progreso_fresco(_bust=random.randint(1, 999999)).copy()
+        df_prog['Fecha'] = pd.to_datetime(df_prog['Fecha'], errors='coerce')
+        fila_hoy = df_prog[df_prog['Fecha'].dt.strftime('%Y-%m-%d') == hoy]
         if not fila_hoy.empty:
             return int(fila_hoy.iloc[0]['Cantidad'])
     except Exception:
         pass
     return 0
 
-# Obtener contador del día actual para la interfaz
+
+try:
+    df_total = cargar_frases()
+except Exception as e:
+    st.error(f"No se pudo conectar con el Google Sheet. Detalles: {e}")
+    st.stop()
+
+# Contador diario — se recalcula fresco en cada rerun
 frases_vistas_hoy = obtener_contador_diario()
+
 
 # ── FUNCIONES AUXILIARES ──
 def calcular_similitud_parcial(texto_usuario, texto_original):
@@ -283,9 +284,9 @@ df_en_rueda = df_activas_y_pendientes.head(15).copy()
 total_rueda_actual = len(df_en_rueda)
 
 estados_rueda = df_en_rueda['Estado'].fillna('Rojo').astype(str).str.strip().tolist()
-n_rojos   = estados_rueda.count('Rojo')
+n_rojos    = estados_rueda.count('Rojo')
 n_naranjas = estados_rueda.count('Naranja')
-n_verdes  = estados_rueda.count('Verde')
+n_verdes   = estados_rueda.count('Verde')
 
 # --- RESUMEN SIDEBAR ---
 st.sidebar.write("---")
