@@ -166,49 +166,50 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# URL de tu Google Apps Script (Tu motor de escritura)
-WEB_APP_URL = "https://script.google.com/macros/s/AKfycbyMpUxnYWLCceZpCIsILNWTywzT0MGnrctLFK0DKVkRBr0t1JDj3TagKVfi70zZHQzb/exec"
+# URL base de tu Google Sheet (Sin gids ni complicaciones)
+SHEET_BASE_URL = "https://docs.google.com/spreadsheets/d/1hpP0J5qRrbx5p9W2nHWsoTDBA9hhvLZYblaU12Ln3w4/export?format=xlsx"
 
-# URLs de descarga de CSV para ambas pestañas
-URL_FRASES   = "https://docs.google.com/spreadsheets/d/1hpP0J5qRrbx5p9W2nHWsoTDBA9hhvLZYblaU12Ln3w4/export?format=csv&gid=0"
-URL_PROGRESO = "https://docs.google.com/spreadsheets/d/1hpP0J5qRrbx5p9W2nHWsoTDBA9hhvLZYblaU12Ln3w4/export?format=csv&gid=1513540695"
-
-# ── FUNCIONES DE CARGA ──
+# ── FUNCIONES DE CARGA OPTIMIZADAS (Vía XLSX para evitar Error 400) ──
 @st.cache_data(ttl=2)
-def cargar_frases():
-    url = f"{URL_FRASES}&nocache={random.randint(1, 100000)}"
-    df = pd.read_csv(url)
-    df.columns = df.columns.str.strip()
-    return df
+def cargar_todo_el_excel():
+    # Añadimos un número aleatorio para evitar que se quede congelado el caché
+    url = f"{SHEET_BASE_URL}&nocache={random.randint(1, 100000)}"
+    # Leemos el archivo Excel completo
+    excel_completo = pd.ExcelFile(url)
+    return excel_completo
 
-@st.cache_data(ttl=2)
+try:
+    # Descargamos el documento completo de una sola vez
+    archivo_excel = cargar_todo_el_excel()
+    
+    # Separamos las pestañas internamente en Python usando sus nombres exactos
+    df_total = archivo_excel.parse(archivo_excel.sheet_names[0]) # Primera pestaña (Frases)
+    df_total.columns = df_total.columns.str.strip()
+    
+    df_progreso = archivo_excel.parse("Progreso") # Pestaña de Progreso
+    df_progreso.columns = df_progreso.columns.str.strip()
+except Exception as e:
+    st.error(f"No se pudo conectar con el Google Sheet. Detalles: {e}")
+    st.stop()
+
+
 def obtener_contador_diario():
     try:
-        url = f"{URL_PROGRESO}&nocache={random.randint(1, 100000)}"
-        df_prog = pd.read_csv(url)
-        df_prog.columns = df_prog.columns.str.strip()
-        
         # Fecha de hoy formateada exactamente como la guarda Google (YYYY-MM-DD)
         hoy = datetime.now().strftime("%Y-%m-%d")
         
-        # Convertimos la columna Fecha a texto limpio para comparar sin fallos de tipo
-        df_prog['Fecha'] = df_prog['Fecha'].astype(str).str.strip()
+        # Convertimos la columna Fecha a texto limpio para comparar sin fallos
+        df_prog_copy = df_progreso.copy()
+        df_prog_copy['Fecha'] = df_prog_copy['Fecha'].astype(str).str.strip()
         
-        fila_hoy = df_prog[df_prog['Fecha'] == hoy]
+        fila_hoy = df_prog_copy[df_prog_copy['Fecha'] == hoy]
         if not fila_hoy.empty:
             return int(fila_hoy.iloc[0]['Cantidad'])
     except Exception:
         pass
     return 0
 
-# Carga inicial de las frases
-try:
-    df_total = cargar_frases()
-except Exception as e:
-    st.error(f"No se pudo conectar con el Google Sheet. Detalles: {e}")
-    st.stop()
-
-# Obtener contador del día actual
+# Obtener contador del día actual para la interfaz
 frases_vistas_hoy = obtener_contador_diario()
 
 # --- BARRA LATERAL ---
