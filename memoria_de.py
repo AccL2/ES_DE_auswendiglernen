@@ -5,6 +5,7 @@ import re
 import random
 import base64
 import requests
+import urllib.parse
 from datetime import date
 from difflib import SequenceMatcher
 
@@ -14,7 +15,7 @@ st.set_page_config(page_title="Entrenador de Idiomas por Islas", page_icon="🇩
 # Inyectar tipografías y estilos premium
 st.markdown("""
     <style>
-    @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght=300;400;500;600;700&display=swap');
 
     :root {
         --azul:        #3b7dd8;
@@ -220,22 +221,28 @@ def formatear_lineas(texto):
     return "<br>".join(frases)
 
 
-# ── URL DE GOOGLE SHEET (Estructura de dos pestañas) ──
-SHEET_FRASES_URL = "https://docs.google.com/spreadsheets/d/1hpP0J5qRrbx5p9W2nHWsoTDBA9hhvLZYblaU12Ln3w4/export?format=csv&gid=0"
-SHEET_PROGRESO_URL = "https://docs.google.com/spreadsheets/d/1hpP0J5qRrbx5p9W2nHWsoTDBA9hhvLZYblaU12Ln3w4/gviz/tq?tqx=out:csv&sheet=Progreso"
+# ── URL DE GOOGLE SHEET CORREGIDAS PARA EVITAR BAD REQUEST (HTTP 400) ──
+SPREADSHEET_ID = "1hpP0J5qRrbx5p9W2nHWsoTDBA9hhvLZYblaU12Ln3w4"
+# Pestaña 1 (Frases): Usamos el export clásico por GID
+SHEET_FRASES_URL = f"https://docs.google.com/spreadsheets/d/{SPREADSHEET_ID}/export?format=csv&gid=0"
+# Pestaña 2 (Progreso): Codificamos el nombre de forma segura para evitar fallos de formato
+nombre_pestaña_codificado = urllib.parse.quote("Progreso")
+SHEET_PROGRESO_URL = f"https://docs.google.com/spreadsheets/d/{SPREADSHEET_ID}/gviz/tq?tqx=out:csv&sheet={nombre_pestaña_codificado}"
 
 @st.cache_data(ttl=1)
 def cargar_datos_web():
     seed = random.randint(1, 100000)
-    # Cargar Frases
+    
+    # 1. Cargar Frases
     df_f = pd.read_csv(f"{SHEET_FRASES_URL}&nocache={seed}")
     df_f.columns = df_f.columns.str.strip()
     
-    # Cargar Contador de Progreso Diario
+    # 2. Cargar Contador de Progreso Diario
     try:
         df_p = pd.read_csv(f"{SHEET_PROGRESO_URL}&nocache={seed}")
         df_p.columns = df_p.columns.str.strip()
     except Exception:
+        # Si sigue fallando por configuración del Excel, creamos un dataframe vacío provisional para no congelar la app
         df_p = pd.DataFrame(columns=['Fecha', 'Cantidad'])
         
     return df_f, df_p
@@ -244,20 +251,27 @@ try:
     df_total, df_progreso = cargar_datos_web()
 except Exception as e:
     st.error(f"No se pudo conectar con el Google Sheet. Detalles: {e}")
+    st.info("💡 Consejo: Asegúrate de que tu Google Sheet tiene una pestaña abajo llamada exactamente 'Progreso' (respetando la mayúscula) y que el archivo está compartido como 'Cualquier persona con el enlace puede leer'.")
     st.stop()
 
 
 # ── CÁLCULO DEL CONTADOR GLOBAL DESDE EL EXCEL ──
 hoy_str = str(date.today())
-fila_hoy = df_progreso[df_progreso['Fecha'] == hoy_str]
+contador_diario_excel = 0
 
-if not fila_hoy.empty:
-    contador_diario_excel = int(fila_hoy.iloc[0]['Cantidad'])
-    if 'ultimo_contador_visto' in st.session_state and contador_diario_excel < st.session_state.ultimo_contador_visto:
+if not df_progreso.empty and 'Fecha' in df_progreso.columns:
+    # Asegurar que las fechas se traten como texto limpio para comparar
+    df_progreso['Fecha'] = df_progreso['Fecha'].astype(str).str.strip()
+    fila_hoy = df_progreso[df_progreso['Fecha'] == hoy_str]
+    
+    if not fila_hoy.empty and 'Cantidad' in df_progreso.columns:
+        contador_diario_excel = int(fila_hoy.iloc[0]['Cantidad'])
+        if 'ultimo_contador_visto' in st.session_state and contador_diario_excel < st.session_state.ultimo_contador_visto:
+            st.session_state.aviso_15_lanzado = False
+        st.session_state.ultimo_contador_visto = contador_diario_excel
+    else:
         st.session_state.aviso_15_lanzado = False
-    st.session_state.ultimo_contador_visto = contador_diario_excel
 else:
-    contador_diario_excel = 0
     st.session_state.aviso_15_lanzado = False
 
 
