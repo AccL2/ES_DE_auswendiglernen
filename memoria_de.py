@@ -178,18 +178,16 @@ def cargar_tablas_desde_google():
     url = f"{SHEET_BASE_URL}&nocache={random.randint(1, 100000)}"
     excel_completo = pd.ExcelFile(url)
     
-    # Extraemos y procesamos las tablas individualmente ANTES de guardarlas en caché
+    # Extraemos y procesamos las tablas individualmente
     df_f = excel_completo.parse(excel_completo.sheet_names[0])
     df_f.columns = df_f.columns.str.strip()
     
     df_p = excel_completo.parse("Progreso")
     df_p.columns = df_p.columns.str.strip()
     
-    # Devolvemos tipos serializables que no rompen Streamlit
     return df_f, df_p
 
 try:
-    # Descargamos ambas tablas sin romper la caché
     df_total, df_progreso = cargar_tablas_desde_google()
 except Exception as e:
     st.error(f"No se pudo conectar con el Google Sheet. Detalles: {e}")
@@ -197,11 +195,17 @@ except Exception as e:
 
 def obtener_contador_diario():
     try:
+        # Conseguimos el día de hoy en formato texto limpio (YYYY-MM-DD)
         hoy = datetime.now().strftime("%Y-%m-%d")
-        df_prog_copy = df_progreso.copy()
-        df_prog_copy['Fecha'] = df_prog_copy['Fecha'].astype(str).str.strip()
         
-        fila_hoy = df_prog_copy[df_prog_copy['Fecha'] == hoy]
+        df_prog_copy = df_progreso.copy()
+        
+        # Convertimos la columna Fecha a tipo fecha real de Pandas para evitar líos de formato texto
+        df_prog_copy['Fecha'] = pd.to_datetime(df_prog_copy['Fecha'], errors='coerce')
+        
+        # Filtramos extrayendo solo la parte de la fecha (sin horas) y comparamos con hoy
+        fila_hoy = df_prog_copy[df_prog_copy['Fecha'].dt.strftime('%Y-%m-%d') == hoy]
+        
         if not fila_hoy.empty:
             return int(fila_hoy.iloc[0]['Cantidad'])
     except Exception:
