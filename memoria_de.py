@@ -134,10 +134,55 @@ st.markdown("""
         letter-spacing: -0.3px;
     }
 
+    /* ── Resaltado dictado palabra a palabra ── */
+    .dictado-comparacion {
+        font-family: 'Montserrat', sans-serif;
+        font-size: 1.1rem;
+        line-height: 1.9;
+        padding: 1.2rem 1.4rem;
+        border-radius: var(--radio);
+        background: rgba(255,255,255,0.03);
+        border: 1px solid rgba(255,255,255,0.08);
+        margin-top: 12px;
+    }
+    .palabra-ok   { color: #22a66e; font-weight: 500; }
+    .palabra-mal  { color: #e05454; font-weight: 500; text-decoration: underline wavy #e05454; }
+    .palabra-extra { color: #f5a623; font-weight: 500; font-style: italic; }
+
     /* ── Barra de progreso más fina y elegante ── */
     .stProgress > div > div {
         height: 5px !important;
         border-radius: 99px !important;
+    }
+
+    /* ── Contador de progreso ── */
+    .progreso-contador {
+        font-family: 'Montserrat', sans-serif;
+        font-size: 0.72rem;
+        font-weight: 500;
+        color: #8a9ab5;
+        text-align: right;
+        letter-spacing: 1px;
+        margin-bottom: 4px;
+    }
+
+    /* ── Flash aprendida ── */
+    @keyframes flash-aprendida {
+        0%   { background: rgba(34,166,110,0.0); }
+        30%  { background: rgba(34,166,110,0.25); }
+        100% { background: rgba(34,166,110,0.0); }
+    }
+    .flash-aprendida {
+        animation: flash-aprendida 1.2s ease-out forwards;
+        border-radius: var(--radio);
+        padding: 1rem 1.4rem;
+        text-align: center;
+        font-family: 'Montserrat', sans-serif;
+        font-size: 1.1rem;
+        font-weight: 600;
+        color: #22a66e;
+        border: 1px solid rgba(34,166,110,0.35);
+        margin-bottom: 1rem;
     }
 
     /* ── Botones de navegación ── */
@@ -182,21 +227,17 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# FUNCIÓN: Comparación por ventanas de igual longitud
+# ── FUNCIÓN: Comparación por ventanas de igual longitud ──
 def calcular_similitud_parcial(texto_usuario, texto_original):
     def limpiar(t):
         t = t.strip().lower()
         return re.sub(r'[.,!?¿¡"\'\s\n\r\t]', '', t)
-    
     u_limpio = limpiar(texto_usuario)
     o_limpio = limpiar(texto_original)
-    
     if not u_limpio or not o_limpio:
         return 0
-    
     len_u = len(u_limpio)
     len_o = len(o_limpio)
-    
     if len_u <= len_o:
         mejor_ratio = 0.0
         for i in range(len_o - len_u + 1):
@@ -208,14 +249,47 @@ def calcular_similitud_parcial(texto_usuario, texto_original):
     else:
         return SequenceMatcher(None, u_limpio, o_limpio).ratio() * 100
 
+
+# ── FUNCIÓN: Comparación palabra a palabra para resaltado ──
+def comparar_palabras(texto_usuario, texto_original):
+    def tokenizar(t):
+        return re.findall(r'\w+', t.lower())
+
+    palabras_usuario  = tokenizar(texto_usuario)
+    palabras_original = tokenizar(texto_original)
+
+    matcher = SequenceMatcher(None, palabras_usuario, palabras_original)
+    html_usuario  = []
+    html_original = []
+
+    for tag, i1, i2, j1, j2 in matcher.get_opcodes():
+        if tag == 'equal':
+            for w in palabras_usuario[i1:i2]:
+                html_usuario.append(f'<span class="palabra-ok">{w}</span>')
+            for w in palabras_original[j1:j2]:
+                html_original.append(f'<span class="palabra-ok">{w}</span>')
+        elif tag == 'replace':
+            for w in palabras_usuario[i1:i2]:
+                html_usuario.append(f'<span class="palabra-mal">{w}</span>')
+            for w in palabras_original[j1:j2]:
+                html_original.append(f'<span class="palabra-mal">{w}</span>')
+        elif tag == 'delete':
+            for w in palabras_usuario[i1:i2]:
+                html_usuario.append(f'<span class="palabra-extra">{w}</span>')
+        elif tag == 'insert':
+            for w in palabras_original[j1:j2]:
+                html_original.append(f'<span class="palabra-mal">▢ {w}</span>')
+
+    return ' '.join(html_usuario), ' '.join(html_original)
+
+
 def formatear_lineas(texto):
     frases = re.split(r'(?<=[.!?])\s+', texto.strip())
     return "<br>".join(frases)
 
-# URL de tu Google Sheet (Exportación dinámica en formato CSV)
+# URL de tu Google Sheet
 SHEET_URL = "https://docs.google.com/spreadsheets/d/1hpP0J5qRrbx5p9W2nHWsoTDBA9hhvLZYblaU12Ln3w4/export?format=csv"
 
-# Cargar los datos desde Google Sheets en la nube
 @st.cache_data(ttl=2)
 def cargar_datos_web():
     url = f"{SHEET_URL}&nocache={random.randint(1, 100000)}"
@@ -229,42 +303,40 @@ except Exception as e:
     st.error(f"No se pudo conectar con el Google Sheet. Detalles: {e}")
     st.stop()
 
-# --- BARRA LATERAL (PANEL IZQUIERDO) ---
+# --- BARRA LATERAL ---
 st.sidebar.title("Configuración")
 islas_disponibles = df_total['Isla'].unique()
 isla_seleccionada = st.sidebar.selectbox("🏝️ Selecciona la Isla:", islas_disponibles)
 
-# Filtrar las frases pertenecientes a la isla seleccionada
 df_isla_completa = df_total[df_total['Isla'] == isla_seleccionada].copy()
 total_frases_isla = len(df_isla_completa)
 
-# Control de reinicio de estado al cambiar de isla
 if 'isla_anterior' not in st.session_state or st.session_state.isla_anterior != isla_seleccionada:
     st.session_state.indice_actual = 0
     st.session_state.isla_anterior = isla_seleccionada
     st.session_state.ver_solucion = False
     st.session_state.ver_gramatica = False
+    st.session_state.flash_aprendida = False
 
-# --- LOGICA DE LA RUEDA DE LOS 15 ---
+# --- LÓGICA DE LA RUEDA DE LOS 15 ---
 df_activas_y_pendientes = df_isla_completa[df_isla_completa['Estado'] != 'Azul'].copy()
 df_azul = df_isla_completa[df_isla_completa['Estado'] == 'Azul']
 total_aprendidos = len(df_azul)
 
-# Construimos la Rueda tomando estrictamente un máximo de 15 del bloque activo/pendiente
 df_en_rueda = df_activas_y_pendientes.head(15).copy()
 total_rueda_actual = len(df_en_rueda)
 
-# Contar cuántos hay de cada color ESTRICTAMENTE dentro de los 15 máximos de la rueda en pantalla
 estados_rueda = df_en_rueda['Estado'].fillna('Rojo').tolist()
-n_rojos = estados_rueda.count('Rojo')
+n_rojos   = estados_rueda.count('Rojo')
 n_naranjas = estados_rueda.count('Naranja')
-n_verdes = estados_rueda.count('Verde')
+n_verdes  = estados_rueda.count('Verde')
 
-# --- RESUMEN EN EL PANEL IZQUIERDO ---
+# --- RESUMEN SIDEBAR ---
 st.sidebar.write("---")
 st.sidebar.markdown("### 📊 Estado de la Isla")
 
-# Tarjeta sin puntos negros, estilizada, límitada a 15 y acumulado real global en azul
+porcentaje_isla = round((total_aprendidos / total_frases_isla * 100)) if total_frases_isla > 0 else 0
+
 st.sidebar.markdown(f"""
 <div style="font-family: 'Montserrat', sans-serif; background: rgba(255,255,255,0.04); padding: 16px 18px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.09);">
     <p style="margin: 0 0 12px 0; font-size: 0.7rem; color: #8a9ab5; font-weight: 500; text-transform: uppercase; letter-spacing: 2px;">🔄 En rueda &nbsp;·&nbsp; {total_rueda_actual}</p>
@@ -289,11 +361,17 @@ st.sidebar.markdown(f"""
         </div>
         <span style="font-size:1rem; font-weight:600; color:#3b7dd8;">{total_aprendidos}<span style="color:#8a9ab5; font-weight:400; font-size:0.82rem;"> / {total_frases_isla}</span></span>
     </div>
+    <div style="margin-top: 12px;">
+        <div style="height: 5px; background: rgba(255,255,255,0.08); border-radius: 99px; overflow: hidden;">
+            <div style="height: 100%; width: {porcentaje_isla}%; background: #3b7dd8; border-radius: 99px; transition: width 0.4s ease;"></div>
+        </div>
+        <p style="margin: 5px 0 0 0; font-size: 0.72rem; color: #8a9ab5; text-align: right; letter-spacing: 0.5px;">{porcentaje_isla}% completada</p>
+    </div>
 </div>
 """, unsafe_allow_html=True)
 
 
-# ¿Está la isla completada al 100%?
+# ¿Isla completada al 100%?
 if total_aprendidos == total_frases_isla and total_frases_isla > 0:
     st.title("🇩🇪 Método de Chunks & Islas")
     st.balloons()
@@ -307,13 +385,11 @@ if st.session_state.indice_actual >= total_rueda_actual:
 # --- CONTENIDO PRINCIPAL ---
 st.title("🇩🇪 Método de Chunks & Islas")
 
-# Extraer datos de la frase actual en la rueda
 fila_actual = df_en_rueda.iloc[st.session_state.indice_actual]
 castellano_texto = str(fila_actual['Castellano'])
-aleman_texto = str(fila_actual['Aleman'])
-estado_actual = str(fila_actual['Estado'])
+aleman_texto     = str(fila_actual['Aleman'])
+estado_actual    = str(fila_actual['Estado'])
 
-# Encontrar la fila real de Google Sheets (Pandas index + 2)
 indice_fila_google_sheet = int(df_isla_completa.index[df_isla_completa['Castellano'] == castellano_texto].tolist()[0]) + 2
 
 audio_id_raw = fila_actual['Audio_ID']
@@ -328,13 +404,16 @@ situacion_texto = ""
 if 'Situacion' in fila_actual and pd.notna(fila_actual['Situacion']):
     situacion_texto = str(fila_actual['Situacion']).strip()
 
-st.progress((st.session_state.indice_actual + 1) / total_rueda_actual)
+# ── Contador + barra de progreso ──
+pos_actual = st.session_state.indice_actual + 1
+st.markdown(f'<div class="progreso-contador">{pos_actual} / {total_rueda_actual}</div>', unsafe_allow_html=True)
+st.progress(pos_actual / total_rueda_actual)
 
 if situacion_texto:
     st.markdown(f'<div class="titulo-situacion">📍 {situacion_texto}</div>', unsafe_allow_html=True)
 
 
-# --- 🔄 BARRA DE NAV / CONTROL ---
+# --- BARRA DE NAV / CONTROL ---
 col_nav_sol, col_nav_ant, col_nav_sig, col_nav_gram = st.columns([0.25, 0.25, 0.25, 0.25])
 
 with col_nav_sol:
@@ -353,6 +432,7 @@ with col_nav_ant:
             st.session_state.indice_actual -= 1
             st.session_state.ver_solucion = False
             st.session_state.ver_gramatica = False
+            st.session_state.flash_aprendida = False
             st.rerun()
 
 with col_nav_sig:
@@ -361,6 +441,7 @@ with col_nav_sig:
             st.session_state.indice_actual += 1
             st.session_state.ver_solucion = False
             st.session_state.ver_gramatica = False
+            st.session_state.flash_aprendida = False
             st.rerun()
 
 with col_nav_gram:
@@ -370,7 +451,12 @@ with col_nav_gram:
 
 st.write("")
 
-# Renderizado de la Tarjeta con la estructura de divs original para asegurar la fuente Montserrat limpia
+# ── Flash "aprendida" ──
+if st.session_state.get('flash_aprendida'):
+    st.markdown('<div class="flash-aprendida">✦ ¡Frase aprendida! 🔵</div>', unsafe_allow_html=True)
+    st.session_state.flash_aprendida = False
+
+# ── Tarjeta principal ──
 if not st.session_state.ver_solucion:
     castellano_formateado = formatear_lineas(castellano_texto)
     st.markdown(f"""
@@ -393,7 +479,7 @@ else:
     """, unsafe_allow_html=True)
 
 
-# --- 🎛️ BOTONES DE COLORES ULTRA LIMPIOS 🎛️ ---
+# --- BOTONES DE COLORES ---
 col_c1, col_c2, col_c3, col_c4 = st.columns(4)
 nuevo_estado = None
 
@@ -411,33 +497,33 @@ with col_c4:
         nuevo_estado = "Azul"
 
 if nuevo_estado:
-    # URL de tu Web App de Google Apps Script
     WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzxuhVMl8swR7fJHyd5dXt0WCXTpHoSWUrLxxKpRF3Bcwt2lo09vSvkDiAeWymV3F7l/exec"
-    
     try:
         requests.post(WEB_APP_URL, params={"row": indice_fila_google_sheet, "status": nuevo_estado})
     except Exception:
         pass
-    
+
     st.cache_data.clear()
-    
-    if nuevo_estado != "Azul" and st.session_state.indice_actual < total_rueda_actual - 1:
+
+    if nuevo_estado == "Azul":
+        st.session_state.flash_aprendida = True
+    elif st.session_state.indice_actual < total_rueda_actual - 1:
         st.session_state.indice_actual += 1
-        
+
     st.session_state.ver_solucion = False
     st.session_state.ver_gramatica = False
     st.rerun()
 
 
-# --- 🎧 REPRODUCTOR CON ONDA + VELOCIDAD POR DÉCIMAS 🎧 ---
+# --- REPRODUCTOR DE AUDIO ---
 ruta_audio = f"Audios/{audio_id}.mp3"
 if os.path.exists(ruta_audio):
     st.write("🎧 **Onda de audio interactiva:**")
-    
+
     with open(ruta_audio, "rb") as f:
         audio_bytes = f.read()
     b64_audio = base64.b64encode(audio_bytes).decode()
-    
+
     html_reproductor = f"""
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600&display=swap');
@@ -595,18 +681,18 @@ if os.path.exists(ruta_audio):
 
         wavesurfer.on('play', () => {{
             btnPlay.innerHTML = "⏸ Pausa";
-            btnPlay.style.background = "#22a66e"; 
+            btnPlay.style.background = "#22a66e";
         }});
         wavesurfer.on('pause', () => {{
             btnPlay.innerHTML = "▶ Play";
-            btnPlay.style.background = "#3b7dd8"; 
+            btnPlay.style.background = "#3b7dd8";
         }});
 
         document.getElementById('btnBack').addEventListener('click', () => {{ wavesurfer.skip(-5); }});
         document.getElementById('btnForward').addEventListener('click', () => {{ wavesurfer.skip(5); }});
 
         const speedSlider = document.getElementById('speedSlider');
-        const speedValue = document.getElementById('speedValue');
+        const speedValue  = document.getElementById('speedValue');
 
         speedSlider.addEventListener('input', (e) => {{
             const currentSpeed = parseFloat(e.target.value);
@@ -621,32 +707,50 @@ else:
     st.warning(f"⚠️ Audio no encontrado en: `{ruta_audio}`")
 
 
-# --- DESPLEGABLE DE DICTADO ---
+# --- MODO DICTADO ---
 with st.expander("📝 Modo Dictado"):
     texto_usuario = st.text_area(
-        "Escribe el texto en alemán:", 
+        "Escribe el texto en alemán:",
         key=f"input_dictado_{st.session_state.indice_actual}",
         height=250
     )
-    
+
     if st.button("🔍 Comprobar Dictado", use_container_width=True):
         if texto_usuario:
             porcentaje_acierto = calcular_similitud_parcial(texto_usuario, aleman_texto)
+
             if porcentaje_acierto >= 90:
                 color_fondo, color_texto = "rgba(16, 185, 129, 0.15)", "#10b981"
             elif porcentaje_acierto >= 50:
                 color_fondo, color_texto = "rgba(245, 158, 11, 0.15)", "#f59e0b"
             else:
                 color_fondo, color_texto = "rgba(239, 68, 68, 0.15)", "#ef4444"
-                
+
             st.markdown(f"""
             <div class="resultado-porcentaje" style="background-color: {color_fondo}; color: {color_texto}; border: 1px solid {color_texto};">
                 De lo que has escrito: {porcentaje_acierto:.0f}% bien
             </div>
             """, unsafe_allow_html=True)
 
+            # ── Resaltado palabra a palabra ──
+            html_usuario, html_original = comparar_palabras(texto_usuario, aleman_texto)
 
-# --- 💡 EXPLICACIÓN ---
+            st.markdown(f"""
+            <div class="dictado-comparacion">
+                <div style="font-size:0.7rem; font-weight:600; text-transform:uppercase; letter-spacing:1.5px; color:#8a9ab5; margin-bottom:8px;">Tu versión</div>
+                <div style="margin-bottom:14px;">{html_usuario}</div>
+                <div style="font-size:0.7rem; font-weight:600; text-transform:uppercase; letter-spacing:1.5px; color:#8a9ab5; margin-bottom:8px;">Versión correcta</div>
+                <div>{html_original}</div>
+            </div>
+            <div style="font-family:'Montserrat',sans-serif; font-size:0.75rem; color:#8a9ab5; margin-top:8px; display:flex; gap:16px;">
+                <span><span class="palabra-ok" style="color:#22a66e;">■</span> Correcto</span>
+                <span><span class="palabra-mal" style="color:#e05454;">■</span> Error / Faltante</span>
+                <span><span class="palabra-extra" style="color:#f5a623;">■</span> Sobrante</span>
+            </div>
+            """, unsafe_allow_html=True)
+
+
+# --- EXPLICACIÓN GRAMATICAL ---
 if st.session_state.ver_gramatica:
     if 'Explicacion' in fila_actual and pd.notna(fila_actual['Explicacion']) and str(fila_actual['Explicacion']).strip() != "":
         explicacion_formateada = formatear_lineas(str(fila_actual['Explicacion']))
