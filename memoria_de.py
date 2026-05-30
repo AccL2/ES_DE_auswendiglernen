@@ -179,25 +179,6 @@ st.markdown("""
         margin-bottom: 4px;
     }
 
-    /* ── Flash aprendida ── */
-    @keyframes flash-aprendida {
-        0%   { background: rgba(34,166,110,0.0); }
-        30%  { background: rgba(34,166,110,0.25); }
-        100% { background: rgba(34,166,110,0.0); }
-    }
-    .flash-aprendida {
-        animation: flash-aprendida 1.2s ease-out forwards;
-        border-radius: var(--radio);
-        padding: 1rem 1.4rem;
-        text-align: center;
-        font-family: 'Montserrat', sans-serif;
-        font-size: 1.1rem;
-        font-weight: 600;
-        color: #22a66e;
-        border: 1px solid rgba(34,166,110,0.35);
-        margin-bottom: 1rem;
-    }
-
     /* ── Botones de navegación ── */
     .stButton button {
         border-radius: 8px !important;
@@ -329,7 +310,6 @@ if 'isla_anterior' not in st.session_state or st.session_state.isla_anterior != 
     st.session_state.isla_anterior = isla_seleccionada
     st.session_state.ver_solucion = False
     st.session_state.ver_gramatica = False
-    st.session_state.flash_aprendida = False
 
 # --- CÁLCULO ESTABLE DE LA RUEDA DE 15 ---
 df_activas_y_pendientes = df_isla_completa[df_isla_completa['Estado'] != 'Azul'].copy()
@@ -339,7 +319,6 @@ total_aprendidos = len(df_azul)
 df_en_rueda = df_activas_y_pendientes.head(15).copy()
 total_rueda_actual = len(df_en_rueda)
 
-# Limpiar espacios y estandarizar estados para el conteo real
 estados_rueda = df_en_rueda['Estado'].fillna('Rojo').astype(str).str.strip().tolist()
 n_rojos   = estados_rueda.count('Rojo')
 n_naranjas = estados_rueda.count('Naranja')
@@ -446,7 +425,6 @@ with col_nav_ant:
             st.session_state.indice_actual -= 1
             st.session_state.ver_solucion = False
             st.session_state.ver_gramatica = False
-            st.session_state.flash_aprendida = False
             st.rerun()
 
 with col_nav_sig:
@@ -455,7 +433,6 @@ with col_nav_sig:
             st.session_state.indice_actual += 1
             st.session_state.ver_solucion = False
             st.session_state.ver_gramatica = False
-            st.session_state.flash_aprendida = False
             st.rerun()
 
 with col_nav_gram:
@@ -464,11 +441,6 @@ with col_nav_gram:
         st.rerun()
 
 st.write("")
-
-# ── Flash "aprendida" ──
-if st.session_state.get('flash_aprendida'):
-    st.markdown('<div class="flash-aprendida">✦ ¡Frase aprendida! 🔵</div>', unsafe_allow_html=True)
-    st.session_state.flash_aprendida = False
 
 
 # ── LÓGICA DE LA TIRA DE COLOR PASTEL SUPERIOR ──
@@ -541,9 +513,8 @@ if nuevo_estado:
 
     st.cache_data.clear()
 
-    if nuevo_estado == "Azul":
-        st.session_state.flash_aprendida = True
-    elif st.session_state.indice_actual < total_rueda_actual - 1:
+    # Si no es la última frase de la rueda, avanzamos automáticamente
+    if st.session_state.indice_actual < total_rueda_actual - 1:
         st.session_state.indice_actual += 1
 
     st.session_state.ver_solucion = False
