@@ -13,7 +13,7 @@ st.set_page_config(page_title="Entrenador de Idiomas por Islas", page_icon="🇩
 # Inyectar tipografías y estilos premium
 st.markdown("""
     <style>
-    @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Serif+Display:ital@0;1&family=Montserrat:wght@400;500;600&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&display=swap');
 
     /* ── Variables de color ── */
     :root {
@@ -31,23 +31,29 @@ st.markdown("""
 
     /* ── Fuente base para toda la app ── */
     html, body, [class*="css"], .stMarkdown, .stTextArea, .stExpander,
-    .stButton button, .stSelectbox, .stSidebar {
-        font-family: 'DM Sans', sans-serif !important;
+    .stButton button, .stSelectbox, .stSidebar, p, span, div, label, input, textarea {
+        font-family: 'Montserrat', sans-serif !important;
     }
 
     /* ── Título principal ── */
     h1 {
-        font-family: 'DM Serif Display', serif !important;
-        font-size: 2rem !important;
+        font-family: 'Montserrat', sans-serif !important;
+        font-weight: 700 !important;
+        font-size: 1.85rem !important;
         letter-spacing: -0.5px !important;
         margin-bottom: 0.25rem !important;
     }
 
+    h2, h3 {
+        font-family: 'Montserrat', sans-serif !important;
+        font-weight: 600 !important;
+    }
+
     /* ── Etiqueta de situación ── */
     .titulo-situacion {
-        font-family: 'DM Sans', sans-serif !important;
+        font-family: 'Montserrat', sans-serif !important;
         font-weight: 500 !important;
-        font-size: 0.78rem !important;
+        font-size: 0.75rem !important;
         text-transform: uppercase;
         letter-spacing: 2px;
         color: #8a9ab5;
@@ -117,7 +123,7 @@ st.markdown("""
 
     /* ── Resultado dictado ── */
     .resultado-porcentaje {
-        font-family: 'DM Serif Display', serif;
+        font-family: 'Montserrat', sans-serif;
         font-size: 1.5rem;
         font-weight: 400;
         text-align: center;
@@ -137,9 +143,9 @@ st.markdown("""
     /* ── Botones de navegación ── */
     .stButton button {
         border-radius: 8px !important;
-        font-weight: 500 !important;
-        font-size: 0.88rem !important;
-        letter-spacing: 0.2px !important;
+        font-weight: 600 !important;
+        font-size: 0.82rem !important;
+        letter-spacing: 0.4px !important;
         padding: 0.45rem 0.9rem !important;
         transition: all 0.15s ease !important;
         border: 1px solid rgba(255,255,255,0.08) !important;
@@ -160,13 +166,14 @@ st.markdown("""
     section[data-testid="stSidebar"] h1,
     section[data-testid="stSidebar"] h2,
     section[data-testid="stSidebar"] h3 {
-        font-family: 'DM Sans', sans-serif !important;
+        font-family: 'Montserrat', sans-serif !important;
     }
 
     /* ── Expander ── */
     .streamlit-expanderHeader {
-        font-family: 'DM Sans', sans-serif !important;
+        font-family: 'Montserrat', sans-serif !important;
         font-weight: 500 !important;
+        font-size: 0.95rem !important;
         border-radius: 8px !important;
     }
 
@@ -259,7 +266,7 @@ st.sidebar.markdown("### 📊 Estado de la Isla")
 
 # Tarjeta sin puntos negros, estilizada, límitada a 15 y acumulado real global en azul
 st.sidebar.markdown(f"""
-<div style="font-family: 'DM Sans', sans-serif; background: rgba(255,255,255,0.04); padding: 16px 18px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.09);">
+<div style="font-family: 'Montserrat', sans-serif; background: rgba(255,255,255,0.04); padding: 16px 18px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.09);">
     <p style="margin: 0 0 12px 0; font-size: 0.7rem; color: #8a9ab5; font-weight: 500; text-transform: uppercase; letter-spacing: 2px;">🔄 En rueda &nbsp;·&nbsp; {total_rueda_actual}</p>
     <div style="display: flex; flex-direction: column; gap: 8px;">
         <div style="display:flex; align-items:center; gap:10px; font-size:0.9rem;">
@@ -433,9 +440,9 @@ if os.path.exists(ruta_audio):
     
     html_reproductor = f"""
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600&display=swap');
         .audio-player {{
-            font-family: 'DM Sans', sans-serif;
+            font-family: 'Montserrat', sans-serif;
             background: rgba(255,255,255,0.04);
             border: 1px solid rgba(255,255,255,0.1);
             padding: 16px;
@@ -467,7 +474,7 @@ if os.path.exists(ruta_audio):
             cursor: pointer;
             font-weight: 500;
             font-size: 0.83rem;
-            font-family: 'DM Sans', sans-serif;
+            font-family: 'Montserrat', sans-serif;
             transition: all 0.15s ease;
         }}
         .audio-btn:hover {{ background: rgba(255,255,255,0.14); transform: translateY(-1px); }}
@@ -480,7 +487,7 @@ if os.path.exists(ruta_audio):
             cursor: pointer;
             font-weight: 600;
             font-size: 0.9rem;
-            font-family: 'DM Sans', sans-serif;
+            font-family: 'Montserrat', sans-serif;
             min-width: 96px;
             transition: all 0.15s ease;
         }}
@@ -494,7 +501,7 @@ if os.path.exists(ruta_audio):
             cursor: pointer;
             font-weight: 500;
             font-size: 0.83rem;
-            font-family: 'DM Sans', sans-serif;
+            font-family: 'Montserrat', sans-serif;
             transition: all 0.15s ease;
         }}
         .audio-btn-reset:hover {{ background: rgba(224,84,84,0.25); }}
