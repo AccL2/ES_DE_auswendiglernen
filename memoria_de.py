@@ -169,25 +169,28 @@ st.markdown("""
 # URL de tu Google Apps Script (Tu motor de escritura)
 WEB_APP_URL = "https://script.google.com/macros/s/AKfycbyMpUxnYWLCceZpCIsILNWTywzT0MGnrctLFK0DKVkRBr0t1JDj3TagKVfi70zZHQzb/exec"
 
-# URL base de tu Google Sheet (Carga vía XLSX limpia sin errores 400)
+# URL base de tu Google Sheet (Carga vía XLSX limpia)
 SHEET_BASE_URL = "https://docs.google.com/spreadsheets/d/1hpP0J5qRrbx5p9W2nHWsoTDBA9hhvLZYblaU12Ln3w4/export?format=xlsx"
 
-# ── FUNCIONES DE CARGA OPTIMIZADAS ──
+# ── FUNCIONES DE CARGA REPARADAS Y OPTIMIZADAS ──
 @st.cache_data(ttl=2)
-def cargar_todo_el_excel():
+def cargar_tablas_desde_google():
     url = f"{SHEET_BASE_URL}&nocache={random.randint(1, 100000)}"
     excel_completo = pd.ExcelFile(url)
-    return excel_completo
+    
+    # Extraemos y procesamos las tablas individualmente ANTES de guardarlas en caché
+    df_f = excel_completo.parse(excel_completo.sheet_names[0])
+    df_f.columns = df_f.columns.str.strip()
+    
+    df_p = excel_completo.parse("Progreso")
+    df_p.columns = df_p.columns.str.strip()
+    
+    # Devolvemos tipos serializables que no rompen Streamlit
+    return df_f, df_p
 
 try:
-    archivo_excel = cargar_todo_el_excel()
-    
-    # Separamos las pestañas internamente
-    df_total = archivo_excel.parse(archivo_excel.sheet_names[0]) 
-    df_total.columns = df_total.columns.str.strip()
-    
-    df_progreso = archivo_excel.parse("Progreso") 
-    df_progreso.columns = df_progreso.columns.str.strip()
+    # Descargamos ambas tablas sin romper la caché
+    df_total, df_progreso = cargar_tablas_desde_google()
 except Exception as e:
     st.error(f"No se pudo conectar con el Google Sheet. Detalles: {e}")
     st.stop()
