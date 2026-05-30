@@ -14,7 +14,7 @@ st.set_page_config(page_title="Entrenador de Idiomas por Islas", page_icon="🇩
 # Inyectar tipografías y estilos premium
 st.markdown("""
     <style>
-    @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght=300;400;500;600;700&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&display=swap');
 
     /* ── Variables de color ── */
     :root {
@@ -166,39 +166,35 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# URL base de tu Google Sheet (Sin gids ni complicaciones)
+# URL de tu Google Apps Script (Tu motor de escritura)
+WEB_APP_URL = "https://script.google.com/macros/s/AKfycbyMpUxnYWLCceZpCIsILNWTywzT0MGnrctLFK0DKVkRBr0t1JDj3TagKVfi70zZHQzb/exec"
+
+# URL base de tu Google Sheet (Carga vía XLSX limpia sin errores 400)
 SHEET_BASE_URL = "https://docs.google.com/spreadsheets/d/1hpP0J5qRrbx5p9W2nHWsoTDBA9hhvLZYblaU12Ln3w4/export?format=xlsx"
 
-# ── FUNCIONES DE CARGA OPTIMIZADAS (Vía XLSX para evitar Error 400) ──
+# ── FUNCIONES DE CARGA OPTIMIZADAS ──
 @st.cache_data(ttl=2)
 def cargar_todo_el_excel():
-    # Añadimos un número aleatorio para evitar que se quede congelado el caché
     url = f"{SHEET_BASE_URL}&nocache={random.randint(1, 100000)}"
-    # Leemos el archivo Excel completo
     excel_completo = pd.ExcelFile(url)
     return excel_completo
 
 try:
-    # Descargamos el documento completo de una sola vez
     archivo_excel = cargar_todo_el_excel()
     
-    # Separamos las pestañas internamente en Python usando sus nombres exactos
-    df_total = archivo_excel.parse(archivo_excel.sheet_names[0]) # Primera pestaña (Frases)
+    # Separamos las pestañas internamente
+    df_total = archivo_excel.parse(archivo_excel.sheet_names[0]) 
     df_total.columns = df_total.columns.str.strip()
     
-    df_progreso = archivo_excel.parse("Progreso") # Pestaña de Progreso
+    df_progreso = archivo_excel.parse("Progreso") 
     df_progreso.columns = df_progreso.columns.str.strip()
 except Exception as e:
     st.error(f"No se pudo conectar con el Google Sheet. Detalles: {e}")
     st.stop()
 
-
 def obtener_contador_diario():
     try:
-        # Fecha de hoy formateada exactamente como la guarda Google (YYYY-MM-DD)
         hoy = datetime.now().strftime("%Y-%m-%d")
-        
-        # Convertimos la columna Fecha a texto limpio para comparar sin fallos
         df_prog_copy = df_progreso.copy()
         df_prog_copy['Fecha'] = df_prog_copy['Fecha'].astype(str).str.strip()
         
@@ -211,6 +207,52 @@ def obtener_contador_diario():
 
 # Obtener contador del día actual para la interfaz
 frases_vistas_hoy = obtener_contador_diario()
+
+# ── FUNCIONES AUXILIARES ──
+def calcular_similitud_parcial(texto_usuario, texto_original):
+    def limpiar(t):
+        t = t.strip().lower()
+        return re.sub(r'[.,!?¿¡"\'\s\n\r\t]', '', t)
+    u_limpio = limpiar(texto_usuario)
+    o_limpio = limpiar(texto_original)
+    if not u_limpio or not o_limpio:
+        return 0
+    len_u = len(u_limpio)
+    len_o = len(o_limpio)
+    if len_u <= len_o:
+        mejor_ratio = 0.0
+        for i in range(len_o - len_u + 1):
+            subcadena_original = o_limpio[i : i + len_u]
+            ratio_actual = SequenceMatcher(None, u_limpio, subcadena_original).ratio()
+            if ratio_actual > mejor_ratio:
+                mejor_ratio = ratio_actual
+        return mejor_ratio * 100
+    else:
+        return SequenceMatcher(None, u_limpio, o_limpio).ratio() * 100
+
+def comparar_palabras(texto_usuario, texto_original):
+    def tokenizar(t):
+        return re.findall(r'\w+', t.lower())
+    palabras_usuario  = tokenizar(texto_usuario)
+    palabras_original = tokenizar(texto_original)
+    matcher = SequenceMatcher(None, palabras_usuario, palabras_original)
+    html_usuario, html_original = [], []
+    for tag, i1, i2, j1, j2 in matcher.get_opcodes():
+        if tag == 'equal':
+            for w in palabras_usuario[i1:i2]: html_usuario.append(f'<span class="palabra-ok">{w}</span>')
+            for w in palabras_original[j1:j2]: html_original.append(f'<span class="palabra-ok">{w}</span>')
+        elif tag == 'replace':
+            for w in palabras_usuario[i1:i2]: html_usuario.append(f'<span class="palabra-mal">{w}</span>')
+            for w in palabras_original[j1:j2]: html_original.append(f'<span class="palabra-mal">{w}</span>')
+        elif tag == 'delete':
+            for w in palabras_usuario[i1:i2]: html_usuario.append(f'<span class="palabra-extra">{w}</span>')
+        elif tag == 'insert':
+            for w in palabras_original[j1:j2]: html_original.append(f'<span class="palabra-mal">▢ {w}</span>')
+    return ' '.join(html_usuario), ' '.join(html_original)
+
+def formatear_lineas(texto):
+    frases = re.split(r'(?<=[.!?])\s+', texto.strip())
+    return "<br>".join(frases)
 
 # --- BARRA LATERAL ---
 st.sidebar.title("Configuración")
@@ -277,7 +319,7 @@ st.sidebar.markdown(f"""
 </div>
 """, unsafe_allow_html=True)
 
-# ── NUEVA SECCIÓN VISUAL: RENDIMIENTO DIARIO EN LA APP ──
+# ── RENDIMIENTO DIARIO EN LA SIDEBAR ──
 st.sidebar.markdown(f"""
 <div style="font-family: 'Montserrat', sans-serif; background: rgba(34, 166, 110, 0.08); padding: 14px 16px; border-radius: 12px; border: 1px solid rgba(34, 166, 110, 0.3); text-align: center;">
     <span style="font-size: 1.4rem; display: block; margin-bottom: 2px;">🎯</span>
@@ -285,7 +327,6 @@ st.sidebar.markdown(f"""
     <span style="font-size: 2rem; font-weight: 700; color: #22a66e; line-height: 1.2; display: block; margin-top: 2px;">{frases_vistas_hoy}</span>
 </div>
 """, unsafe_allow_html=True)
-
 
 # Validación isla completa
 if total_aprendidos == total_frases_isla and total_frases_isla > 0:
@@ -299,6 +340,10 @@ if st.session_state.indice_actual >= total_rueda_actual:
 
 # --- CONTENIDO PRINCIPAL ---
 st.title("🇩🇪 Método de Chunks & Islas")
+
+if total_rueda_actual == 0:
+    st.info("No quedan frases activas en esta rueda.")
+    st.stop()
 
 fila_actual = df_en_rueda.iloc[st.session_state.indice_actual]
 castellano_texto = str(fila_actual['Castellano'])
@@ -391,9 +436,9 @@ if os.path.exists(ruta_audio):
     html_reproductor = f"""
     <div id="waveform" style="background:rgba(0,0,0,0.25); border-radius:8px; padding:6px; margin-bottom:14px;"></div>
     <div style="display:flex; justify-content:center; gap:8px; margin-bottom:12px;">
-        <button id="btnBack" style="padding:6px 12px; background:rgba(255,255,255,0.08); color:white; border:none; border-radius:6px; cursor:pointer;">⏮ -5s</button>
+        <button id="btnBack" style="padding:6px 12px; background:rgba(255,255,255,0.08); color:white; border:none; border-radius:6px; cursor:pointer;">&lt;-- -5s</button>
         <button id="btnPlay" style="padding:8px 20px; background:#3b7dd8; color:white; border:none; border-radius:6px; font-weight:600; cursor:pointer;">▶ Play</button>
-        <button id="btnForward" style="padding:6px 12px; background:rgba(255,255,255,0.08); color:white; border:none; border-radius:6px; cursor:pointer;">+5s ⏭</button>
+        <button id="btnForward" style="padding:6px 12px; background:rgba(255,255,255,0.08); color:white; border:none; border-radius:6px; cursor:pointer;">+5s --&gt;</button>
     </div>
     <script src="https://unpkg.com/wavesurfer.js@7"></script>
     <script>
@@ -416,6 +461,8 @@ with st.expander("📝 Modo Dictado"):
             porcentaje = calcular_similitud_parcial(texto_usuario, aleman_texto)
             cf, ct = ("rgba(16,185,129,0.15)", "#10b981") if porcentaje >= 90 else ("rgba(245,158,11,0.15)", "#f59e0b") if porcentaje >= 50 else ("rgba(239,68,68,0.15)", "#ef4444")
             st.markdown(f'<div class="resultado-porcentaje" style="background-color:{cf}; color:{ct}; border:1px solid {ct};">De lo que has escrito: {porcentaje:.0f}% bien</div>', unsafe_allow_html=True)
+            html_usuario, html_original = comparar_palabras(texto_usuario, aleman_texto)
+            st.markdown(f'<div class="dictado-comparacion"><div style="font-size:0.7rem; font-weight:600; text-transform:uppercase; letter-spacing:1.5px; color:#8a9ab5; margin-bottom:8px;">Tu versión</div><div style="margin-bottom:14px;">{html_usuario}</div><div style="font-size:0.7rem; font-weight:600; text-transform:uppercase; letter-spacing:1.5px; color:#8a9ab5; margin-bottom:8px;">Versión correcta</div><div>{html_original}</div></div>', unsafe_allow_html=True)
 
 # Anotaciones
 anotacion_inicial = str(fila_actual['Explicacion']) if 'Explicacion' in fila_actual and pd.notna(fila_actual['Explicacion']) else ""
