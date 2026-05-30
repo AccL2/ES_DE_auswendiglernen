@@ -10,77 +10,168 @@ from difflib import SequenceMatcher
 # Configuración de la página
 st.set_page_config(page_title="Entrenador de Idiomas por Islas", page_icon="🇩🇪", layout="centered")
 
-# Inyectar la tipografía Montserrat y estilos adaptables
+# Inyectar tipografías y estilos premium
 st.markdown("""
     <style>
-    @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght=400;600&display=swap');
-    
-    /* Forzar Montserrat de forma nativa y limpia en las tarjetas principales */
-    .texto-isla, .texto-isla *, .texto-isla p, .texto-isla b {
-        font-family: 'Montserrat', sans-serif !important;
-        font-weight: 400 !important;
-        line-height: 1.6 !important;
-        font-size: 1.15rem !important;
+    @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Serif+Display:ital@0;1&display=swap');
+
+    /* ── Variables de color ── */
+    :root {
+        --azul:        #3b7dd8;
+        --azul-bg:     rgba(59, 125, 216, 0.10);
+        --azul-borde:  rgba(59, 125, 216, 0.55);
+        --verde:       #22a66e;
+        --verde-bg:    rgba(34, 166, 110, 0.10);
+        --verde-borde: rgba(34, 166, 110, 0.55);
+        --rojo:        #e05454;
+        --rojo-bg:     rgba(224, 84, 84, 0.10);
+        --rojo-borde:  rgba(224, 84, 84, 0.55);
+        --radio:       12px;
     }
-    
+
+    /* ── Fuente base para toda la app ── */
+    html, body, [class*="css"], .stMarkdown, .stTextArea, .stExpander,
+    .stButton button, .stSelectbox, .stSidebar {
+        font-family: 'DM Sans', sans-serif !important;
+    }
+
+    /* ── Título principal ── */
+    h1 {
+        font-family: 'DM Serif Display', serif !important;
+        font-size: 2rem !important;
+        letter-spacing: -0.5px !important;
+        margin-bottom: 0.25rem !important;
+    }
+
+    /* ── Etiqueta de situación ── */
     .titulo-situacion {
-        font-family: 'Montserrat', sans-serif !important;
-        font-weight: 600 !important;
-        font-size: 1rem;
+        font-family: 'DM Sans', sans-serif !important;
+        font-weight: 500 !important;
+        font-size: 0.78rem !important;
         text-transform: uppercase;
-        letter-spacing: 1px;
-        color: #718096;
-        margin-bottom: 0.5rem;
+        letter-spacing: 2px;
+        color: #8a9ab5;
+        margin-bottom: 0.75rem;
+        display: flex;
+        align-items: center;
+        gap: 6px;
     }
-    
-    /* Bloque Azul (Castellano) */
-    .bloque-azul {
-        background-color: rgba(28, 131, 225, 0.15);
-        border-left: 5px solid rgb(28, 131, 225);
-        padding: 1.2rem 1.5rem;
-        border-radius: 0.5rem;
-        margin-bottom: 1rem;
-    }
-    
-    /* Bloque Verde (Alemán) */
-    .bloque-verde {
-        background-color: rgba(33, 195, 84, 0.15);
-        border-left: 5px solid rgb(33, 195, 84);
-        padding: 1.2rem 1.5rem;
-        border-radius: 0.5rem;
-        margin-bottom: 1rem;
-    }
-    
-    /* Bloque Rojo Claro (Gramática) */
-    .bloque-gramatica {
-        background-color: rgba(239, 68, 68, 0.15);
-        border-left: 5px solid #ef4444;
-        padding: 1.2rem 1.5rem;
-        border-radius: 0.5rem;
-        margin-top: 1rem;
-        margin-bottom: 1rem;
-    }
-    
-    .texto-gramatica {
-        font-family: 'Montserrat', sans-serif !important;
+
+    /* ── Tarjetas ── */
+    .texto-isla, .texto-isla *, .texto-isla p, .texto-isla b {
+        font-family: 'DM Sans', sans-serif !important;
         font-weight: 400 !important;
-        line-height: 1.6;
-        font-size: 1.15rem;
-        margin: 0;
-        padding: 0;
+        line-height: 1.75 !important;
+        font-size: 1.1rem !important;
     }
-    
-    /* Nota de porcentaje de coincidencia */
+    .texto-isla b {
+        font-weight: 600 !important;
+        font-size: 0.72rem !important;
+        text-transform: uppercase;
+        letter-spacing: 1.5px;
+        opacity: 0.65;
+    }
+
+    .bloque-azul {
+        background: var(--azul-bg);
+        border: 1px solid var(--azul-borde);
+        border-left: 4px solid var(--azul);
+        padding: 1.4rem 1.6rem;
+        border-radius: var(--radio);
+        margin-bottom: 1rem;
+        box-shadow: 0 2px 12px rgba(59,125,216,0.07);
+        transition: box-shadow 0.2s;
+    }
+    .bloque-azul:hover { box-shadow: 0 4px 20px rgba(59,125,216,0.14); }
+
+    .bloque-verde {
+        background: var(--verde-bg);
+        border: 1px solid var(--verde-borde);
+        border-left: 4px solid var(--verde);
+        padding: 1.4rem 1.6rem;
+        border-radius: var(--radio);
+        margin-bottom: 1rem;
+        box-shadow: 0 2px 12px rgba(34,166,110,0.07);
+        transition: box-shadow 0.2s;
+    }
+    .bloque-verde:hover { box-shadow: 0 4px 20px rgba(34,166,110,0.14); }
+
+    .bloque-gramatica {
+        background: var(--rojo-bg);
+        border: 1px solid var(--rojo-borde);
+        border-left: 4px solid var(--rojo);
+        padding: 1.4rem 1.6rem;
+        border-radius: var(--radio);
+        margin-top: 0.75rem;
+        margin-bottom: 1rem;
+        box-shadow: 0 2px 12px rgba(224,84,84,0.07);
+    }
+
+    .texto-gramatica {
+        font-family: 'DM Sans', sans-serif !important;
+        font-weight: 400 !important;
+        line-height: 1.75;
+        font-size: 1.05rem;
+        margin: 0; padding: 0;
+    }
+
+    /* ── Resultado dictado ── */
     .resultado-porcentaje {
-        font-family: 'Montserrat', sans-serif;
-        font-size: 1.3rem;
-        font-weight: 600;
+        font-family: 'DM Serif Display', serif;
+        font-size: 1.5rem;
+        font-weight: 400;
         text-align: center;
-        padding: 12px;
-        border-radius: 8px;
+        padding: 14px 20px;
+        border-radius: var(--radio);
         margin-top: 10px;
         margin-bottom: 10px;
+        letter-spacing: -0.3px;
     }
+
+    /* ── Barra de progreso más fina y elegante ── */
+    .stProgress > div > div {
+        height: 5px !important;
+        border-radius: 99px !important;
+    }
+
+    /* ── Botones de navegación ── */
+    .stButton button {
+        border-radius: 8px !important;
+        font-weight: 500 !important;
+        font-size: 0.88rem !important;
+        letter-spacing: 0.2px !important;
+        padding: 0.45rem 0.9rem !important;
+        transition: all 0.15s ease !important;
+        border: 1px solid rgba(255,255,255,0.08) !important;
+    }
+    .stButton button:hover {
+        transform: translateY(-1px) !important;
+        box-shadow: 0 4px 14px rgba(0,0,0,0.18) !important;
+    }
+    .stButton button:active {
+        transform: translateY(0px) !important;
+    }
+
+    /* ── Sidebar ── */
+    section[data-testid="stSidebar"] {
+        border-right: 1px solid rgba(255,255,255,0.06);
+    }
+    section[data-testid="stSidebar"] .stSelectbox label,
+    section[data-testid="stSidebar"] h1,
+    section[data-testid="stSidebar"] h2,
+    section[data-testid="stSidebar"] h3 {
+        font-family: 'DM Sans', sans-serif !important;
+    }
+
+    /* ── Expander ── */
+    .streamlit-expanderHeader {
+        font-family: 'DM Sans', sans-serif !important;
+        font-weight: 500 !important;
+        border-radius: 8px !important;
+    }
+
+    /* ── Separador sidebar ── */
+    hr { opacity: 0.15; }
     </style>
 """, unsafe_allow_html=True)
 
@@ -168,13 +259,29 @@ st.sidebar.markdown("### 📊 Estado de la Isla")
 
 # Tarjeta sin puntos negros, estilizada, límitada a 15 y acumulado real global en azul
 st.sidebar.markdown(f"""
-<div style="font-family: 'Montserrat', sans-serif; background: rgba(255,255,255,0.05); padding: 14px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1);">
-    <p style="margin: 0 0 10px 0; font-size: 0.95rem; color: #cbd5e1; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">🔄 LOADING... ({total_rueda_actual}):</p>
-    <div style="font-size: 1rem; margin-bottom: 6px;">🔴 {n_rojos} Malas / Nuevas</div>
-    <div style="font-size: 1rem; margin-bottom: 6px;">🟠 {n_naranjas} A medias</div>
-    <div style="font-size: 1rem; margin-bottom: 0px;">🟢 {n_verdes} Casi listas</div>
-    <hr style="margin: 12px 0; border: 0; border-top: 1px solid rgba(255,255,255,0.15);">
-    <p style="margin: 0; font-size: 1rem; font-weight: 600;">🔵 Aprendidos: <span style="color: #3b82f6;">{total_aprendidos}</span> / {total_frases_isla}</p>
+<div style="font-family: 'DM Sans', sans-serif; background: rgba(255,255,255,0.04); padding: 16px 18px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.09);">
+    <p style="margin: 0 0 12px 0; font-size: 0.7rem; color: #8a9ab5; font-weight: 500; text-transform: uppercase; letter-spacing: 2px;">🔄 En rueda &nbsp;·&nbsp; {total_rueda_actual}</p>
+    <div style="display: flex; flex-direction: column; gap: 8px;">
+        <div style="display:flex; align-items:center; gap:10px; font-size:0.9rem;">
+            <span style="width:10px;height:10px;border-radius:50%;background:#e05454;display:inline-block;flex-shrink:0;"></span>
+            <span style="color:#e8ecf2;">{n_rojos} &nbsp;<span style="color:#8a9ab5;font-size:0.8rem;">Nuevas / Malas</span></span>
+        </div>
+        <div style="display:flex; align-items:center; gap:10px; font-size:0.9rem;">
+            <span style="width:10px;height:10px;border-radius:50%;background:#f5a623;display:inline-block;flex-shrink:0;"></span>
+            <span style="color:#e8ecf2;">{n_naranjas} &nbsp;<span style="color:#8a9ab5;font-size:0.8rem;">A medias</span></span>
+        </div>
+        <div style="display:flex; align-items:center; gap:10px; font-size:0.9rem;">
+            <span style="width:10px;height:10px;border-radius:50%;background:#22a66e;display:inline-block;flex-shrink:0;"></span>
+            <span style="color:#e8ecf2;">{n_verdes} &nbsp;<span style="color:#8a9ab5;font-size:0.8rem;">Casi listas</span></span>
+        </div>
+    </div>
+    <div style="margin: 14px 0 0 0; padding-top: 12px; border-top: 1px solid rgba(255,255,255,0.08); display:flex; align-items:center; justify-content:space-between;">
+        <div style="display:flex; align-items:center; gap:8px; font-size:0.9rem;">
+            <span style="width:10px;height:10px;border-radius:50%;background:#3b7dd8;display:inline-block;flex-shrink:0;"></span>
+            <span style="color:#8a9ab5; font-size:0.8rem;">Aprendidas</span>
+        </div>
+        <span style="font-size:1rem; font-weight:600; color:#3b7dd8;">{total_aprendidos}<span style="color:#8a9ab5; font-weight:400; font-size:0.82rem;"> / {total_frases_isla}</span></span>
+    </div>
 </div>
 """, unsafe_allow_html=True)
 
@@ -325,20 +432,108 @@ if os.path.exists(ruta_audio):
     b64_audio = base64.b64encode(audio_bytes).decode()
     
     html_reproductor = f"""
-    <div style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.15); padding: 12px; border-radius: 12px; color: #ffffff; box-sizing: border-box;">
-        <div id="waveform" style="margin-bottom: 12px; background: rgba(0, 0, 0, 0.2); border-radius: 6px; padding: 4px; cursor: pointer;"></div>
-        
-        <div style="display: flex; justify-content: center; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 12px;">
-            <button id="btnBack" style="padding: 6px 12px; background: #475569; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 0.85rem;">⏮️ -5s</button>
-            <button id="btnPlay" style="padding: 8px 20px; background: #1c83e1; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 0.95rem; min-width: 90px;">▶️ Play</button>
-            <button id="btnForward" style="padding: 6px 12px; background: #475569; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 0.85rem;">+5s ⏭️</button>
-            <button id="btnResetRegion" style="padding: 6px 12px; background: #dc2626; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 0.85rem;">Reset 🔄</button>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&display=swap');
+        .audio-player {{
+            font-family: 'DM Sans', sans-serif;
+            background: rgba(255,255,255,0.04);
+            border: 1px solid rgba(255,255,255,0.1);
+            padding: 16px;
+            border-radius: 14px;
+            color: #e8ecf2;
+            box-sizing: border-box;
+        }}
+        .audio-player .waveform-wrap {{
+            margin-bottom: 14px;
+            background: rgba(0,0,0,0.25);
+            border-radius: 8px;
+            padding: 6px 6px 2px;
+            cursor: pointer;
+        }}
+        .audio-controls {{
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-bottom: 12px;
+        }}
+        .audio-btn {{
+            padding: 7px 15px;
+            background: rgba(255,255,255,0.08);
+            color: #e8ecf2;
+            border: 1px solid rgba(255,255,255,0.12);
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 500;
+            font-size: 0.83rem;
+            font-family: 'DM Sans', sans-serif;
+            transition: all 0.15s ease;
+        }}
+        .audio-btn:hover {{ background: rgba(255,255,255,0.14); transform: translateY(-1px); }}
+        .audio-btn-play {{
+            padding: 8px 22px;
+            background: #3b7dd8;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 0.9rem;
+            font-family: 'DM Sans', sans-serif;
+            min-width: 96px;
+            transition: all 0.15s ease;
+        }}
+        .audio-btn-play:hover {{ background: #2d6ac4; transform: translateY(-1px); }}
+        .audio-btn-reset {{
+            padding: 7px 15px;
+            background: rgba(224,84,84,0.15);
+            color: #e05454;
+            border: 1px solid rgba(224,84,84,0.3);
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 500;
+            font-size: 0.83rem;
+            font-family: 'DM Sans', sans-serif;
+            transition: all 0.15s ease;
+        }}
+        .audio-btn-reset:hover {{ background: rgba(224,84,84,0.25); }}
+        .speed-row {{
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            background: rgba(0,0,0,0.18);
+            padding: 8px 14px;
+            border-radius: 10px;
+        }}
+        .speed-label {{
+            font-size: 0.78rem;
+            font-weight: 500;
+            color: #8a9ab5;
+            white-space: nowrap;
+            min-width: 90px;
+        }}
+        .speed-val {{
+            font-size: 0.88rem;
+            font-weight: 600;
+            color: #3b7dd8;
+            min-width: 38px;
+            text-align: right;
+        }}
+    </style>
+    <div class="audio-player">
+        <div class="waveform-wrap"><div id="waveform"></div></div>
+        <div class="audio-controls">
+            <button id="btnBack" class="audio-btn">⏮ −5s</button>
+            <button id="btnPlay" class="audio-btn-play">▶ Play</button>
+            <button id="btnForward" class="audio-btn">+5s ⏭</button>
+            <button id="btnResetRegion" class="audio-btn-reset">✕ Reset</button>
         </div>
-
-        <div style="display: flex; align-items: center; justify-content: center; gap: 12px; background: rgba(0,0,0,0.15); padding: 6px 12px; border-radius: 8px;">
-            <label for="speedSlider" style="font-size: 0.8rem; font-weight: bold; color: #cbd5e1; min-width: 120px;">⚡ Velocidad:</label>
-            <input type="range" id="speedSlider" min="0.5" max="2.0" step="0.1" value="1.0" style="flex-grow: 1; cursor: pointer; accent-color: #1c83e1; margin: 0;">
-            <span id="speedValue" style="font-size: 0.85rem; font-weight: bold; color: #3b82f6; min-width: 40px; text-align: right;">1.0x</span>
+        <div class="speed-row">
+            <span class="speed-label">⚡ Velocidad</span>
+            <input type="range" id="speedSlider" min="0.5" max="2.0" step="0.1" value="1.0"
+                   style="flex-grow:1; cursor:pointer; accent-color:#3b7dd8; margin:0;">
+            <span id="speedValue" class="speed-val">1.0×</span>
         </div>
     </div>
 
@@ -347,13 +542,13 @@ if os.path.exists(ruta_audio):
     <script>
         const wavesurfer = WaveSurfer.create({{
             container: '#waveform',
-            waveColor: '#64748b',
-            progressColor: '#3b82f6',
-            cursorColor: '#f43f5e',
+            waveColor: '#4a5568',
+            progressColor: '#3b7dd8',
+            cursorColor: '#e05454',
             barWidth: 2,
             barGap: 2,
-            barRadius: 2,
-            height: 65,
+            barRadius: 3,
+            height: 60,
             url: 'data:audio/mp3;base64,{b64_audio}'
         }});
 
@@ -392,12 +587,12 @@ if os.path.exists(ruta_audio):
         btnPlay.addEventListener('click', () => {{ wavesurfer.playPause(); }});
 
         wavesurfer.on('play', () => {{
-            btnPlay.innerHTML = "⏸️ Pausa";
-            btnPlay.style.background = "#22c55e"; 
+            btnPlay.innerHTML = "⏸ Pausa";
+            btnPlay.style.background = "#22a66e"; 
         }});
         wavesurfer.on('pause', () => {{
-            btnPlay.innerHTML = "▶️ Play";
-            btnPlay.style.background = "#1c83e1"; 
+            btnPlay.innerHTML = "▶ Play";
+            btnPlay.style.background = "#3b7dd8"; 
         }});
 
         document.getElementById('btnBack').addEventListener('click', () => {{ wavesurfer.skip(-5); }});
@@ -409,7 +604,7 @@ if os.path.exists(ruta_audio):
         speedSlider.addEventListener('input', (e) => {{
             const currentSpeed = parseFloat(e.target.value);
             wavesurfer.setPlaybackRate(currentSpeed);
-            speedValue.innerHTML = currentSpeed.toFixed(1) + "x";
+            speedValue.innerHTML = currentSpeed.toFixed(1) + "×";
         }});
         wavesurfer.on('ready', () => {{ wavesurfer.setPlaybackRate(parseFloat(speedSlider.value)); }});
     </script>
