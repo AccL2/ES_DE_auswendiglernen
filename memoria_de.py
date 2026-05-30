@@ -31,7 +31,7 @@ st.markdown("""
 
     /* ── Fuente base para toda la app ── */
     html, body, [class*="css"], .stMarkdown, .stTextArea, .stExpander,
-    .stButton button, .stSelectbox, .stSidebar, p, span, div, label, input, textarea {
+    .stButton button, .stSelectbox, .stSidebar, p, label, input, textarea {
         font-family: 'Montserrat', sans-serif !important;
     }
 
