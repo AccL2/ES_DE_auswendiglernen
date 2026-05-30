@@ -18,8 +18,8 @@ st.markdown("""
     .texto-isla {
         font-family: 'Montserrat', sans-serif !important;
         font-weight: 400 !important;
-        line-height: 1.6;
-        font-size: 1.15rem;
+        line-height: 1.6 !important;
+        font-size: 1.15rem !important;
         margin: 0;
         padding: 0;
     }
@@ -162,8 +162,7 @@ if len(df_en_rueda) < 15 and len(df_activas_y_pendientes) > len(df_en_rueda):
 
 total_rueda_actual = len(df_en_rueda)
 
-# Contar cuántos hay de cada color REALMENTE dentro de esos 15 en pantalla (o menos si se acaban)
-# Si una frase no tiene estado asignado aún en Excel, la tratamos como Roja provisional en el contador
+# Contar cuántos hay de cada color ESTRICTAMENTE dentro de los 15 de la rueda actual
 estados_rueda = df_en_rueda['Estado'].fillna('Rojo').tolist()
 n_rojos = estados_rueda.count('Rojo')
 n_naranjas = estados_rueda.count('Naranja')
@@ -173,16 +172,14 @@ n_verdes = estados_rueda.count('Verde')
 st.sidebar.write("---")
 st.sidebar.markdown("### 📊 Estado de la Isla")
 
-# Tarjeta de resumen directo y sin paja
+# Tarjeta sin puntos negros, sin texto "en rueda", y acumulado total solo en azul
 st.sidebar.markdown(f"""
-<div style="font-family: 'Montserrat', sans-serif; background: rgba(255,255,255,0.05); padding: 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1);">
-    <p style="margin: 0 0 8px 0; font-size: 0.9rem; color: #cbd5e1; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">🔄 En Rueda (Loading: {total_rueda_actual}):</p>
-    <ul style="margin: 0; padding-left: 20px; font-size: 1rem; line-height: 1.5;">
-        <li>🔴 {n_rojos} Malas / Nuevas</li>
-        <li>🟠 {n_naranjas} A medias</li>
-        <li>🟢 {n_verdes} Casi listas</li>
-    </ul>
-    <hr style="margin: 10px 0; border: 0; border-top: 1px solid rgba(255,255,255,0.15);">
+<div style="font-family: 'Montserrat', sans-serif; background: rgba(255,255,255,0.05); padding: 14px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1);">
+    <p style="margin: 0 0 10px 0; font-size: 0.95rem; color: #cbd5e1; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">🔄 LOADING... ({total_rueda_actual}):</p>
+    <div style="font-size: 1rem; margin-bottom: 6px;">🔴 {n_rojos} Malas / Nuevas</div>
+    <div style="font-size: 1rem; margin-bottom: 6px;">🟠 {n_naranjas} A medias</div>
+    <div style="font-size: 1rem; margin-bottom: 0px;">🟢 {n_verdes} Casi listas</div>
+    <hr style="margin: 12px 0; border: 0; border-top: 1px solid rgba(255,255,255,0.15);">
     <p style="margin: 0; font-size: 1rem; font-weight: 600;">🔵 Aprendidos: <span style="color: #3b82f6;">{total_aprendidos}</span> / {total_frases_isla}</p>
 </div>
 """, unsafe_allow_html=True)
@@ -265,25 +262,21 @@ with col_nav_gram:
 
 st.write("")
 
-# Renderizado de la Tarjeta con Montserrat limpia
+# Renderizado de la Tarjeta con Montserrat nativa aplicada correctamente a todo el bloque
 if not st.session_state.ver_solucion:
     castellano_formateado = formatear_lineas(castellano_texto)
     st.markdown(f"""
     <div class="bloque-azul">
-        <div class="texto-isla">
-            <b>Español:</b><br><br>
-            {castellano_formateado}
-        </div>
+        <p class="texto-isla"><b>Español:</b></p>
+        <p class="texto-isla">{castellano_formateado}</p>
     </div>
     """, unsafe_allow_html=True)
 else:
     aleman_formateado = formatear_lineas(aleman_texto)
     st.markdown(f"""
     <div class="bloque-verde">
-        <div class="texto-isla">
-            <b>Alemán:</b><br><br>
-            {aleman_formateado}
-        </div>
+        <p class="texto-isla"><b>Alemán:</b></p>
+        <p class="texto-isla">{aleman_formateado}</p>
     </div>
     """, unsafe_allow_html=True)
 
