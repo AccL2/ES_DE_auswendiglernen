@@ -119,7 +119,7 @@ def formatear_lineas(texto):
 SHEET_URL = "https://docs.google.com/spreadsheets/d/1hpP0J5qRrbx5p9W2nHWsoTDBA9hhvLZYblaU12Ln3w4/export?format=csv"
 
 # Cargar los datos desde Google Sheets en la nube
-@st.cache_data(ttl=2) # TTL mínimo para ver cambios casi al instante
+@st.cache_data(ttl=2)
 def cargar_datos_web():
     url = f"{SHEET_URL}&nocache={random.randint(1, 100000)}"
     df = pd.read_csv(url)
@@ -129,10 +129,10 @@ def cargar_datos_web():
 try:
     df_total = cargar_datos_web()
 except Exception as e:
-    st.error(f"No se pudo conectar con el Google Sheet. Asegúrate de tener conexión a internet. Detalles: {e}")
+    st.error(f"No se pudo conectar con el Google Sheet. Detalles: {e}")
     st.stop()
 
-# --- BARRA LATERAL ---
+# --- BARRA LATERAL (PANEL IZQUIERDO) ---
 st.sidebar.title("Configuración")
 islas_disponibles = df_total['Isla'].unique()
 isla_seleccionada = st.sidebar.selectbox("🏝️ Selecciona la Isla:", islas_disponibles)
@@ -149,19 +149,14 @@ if 'isla_anterior' not in st.session_state or st.session_state.isla_anterior != 
     st.session_state.ver_gramatica = False
 
 # --- LOGICA DE LA RUEDA DE LOS 15 ---
-# Separar frases jubiladas (Azul) de las activas/pendientes
 df_activas_y_pendientes = df_isla_completa[df_isla_completa['Estado'] != 'Azul'].copy()
 df_jubiladas = df_isla_completa[df_isla_completa['Estado'] == 'Azul']
 total_jubiladas = len(df_jubiladas)
 
-# ¿Está la isla completada al 100%?
-if total_jubiladas == total_frases_isla and total_frases_isla > 0:
-    st.title("🇩🇪 Método de Chunks & Islas")
-    st.balloons()
-    st.success(f"🎉 ¡ESPECTACULAR! Has completado la isla '{isla_seleccionada}' al 100%.")
-    st.info(f"Has jubilado con éxito los {total_frases_isla} monólogos en color Azul 🔵.")
-    st.stop()
-
+# Mostrar contadores arriba en el panel izquierdo para que no molesten en el principal
+st.sidebar.write("---")
+st.sidebar.markdown("### 📊 Progreso de la Isla")
+st.sidebar.metric("🏝️ Total Isla", f"{total_frases_isla}")
 # Construimos la Rueda de 15 activas (Rojo, Naranja, Verde)
 df_en_rueda = df_activas_y_pendientes[df_activas_y_pendientes['Estado'].isin(['Rojo', 'Naranja', 'Verde'])].copy()
 
@@ -171,22 +166,22 @@ if len(df_en_rueda) < 15 and len(df_activas_y_pendientes) > len(df_en_rueda):
 
 total_rueda_actual = len(df_en_rueda)
 
+st.sidebar.metric("🔄 Loading", f"{total_rueda_actual} / 15")
+st.sidebar.metric("🔵 Aprendidos", f"{total_jubiladas} / {total_frases_isla}")
+
+# ¿Está la isla completada al 100%?
+if total_jubiladas == total_frases_isla and total_frases_isla > 0:
+    st.title("🇩🇪 Método de Chunks & Islas")
+    st.balloons()
+    st.success(f"🎉 ¡ESPECTACULAR! Has completado la isla '{isla_seleccionada}' al 100%.")
+    st.info(f"Has pasado a Aprendidos los {total_frases_isla} monólogos en color Azul 🔵.")
+    st.stop()
+
 if st.session_state.indice_actual >= total_rueda_actual:
     st.session_state.indice_actual = total_rueda_actual - 1 if total_rueda_actual > 0 else 0
 
 # --- CONTENIDO PRINCIPAL ---
 st.title("🇩🇪 Método de Chunks & Islas")
-
-# Marcadores superiores de control discretos
-col_ind1, col_ind2, col_ind3 = st.columns(3)
-with col_ind1:
-    st.metric("🏝️ Total Isla", f"{total_frases_isla}")
-with col_ind2:
-    st.metric("🔄 En Rueda", f"{total_rueda_actual} / 15")
-with col_ind3:
-    st.metric("🔵 Jubilados", f"{total_jubiladas} / {total_frases_isla}")
-
-st.write("---")
 
 # Extraer datos de la frase actual en la rueda
 fila_actual = df_en_rueda.iloc[st.session_state.indice_actual]
@@ -274,7 +269,7 @@ else:
     """, unsafe_allow_html=True)
 
 
-# --- 🎛️ BOTONES DE COLORES LIMPIOS (MANDAN A LA NUBE Y PASAN FRASES) 🎛️ ---
+# --- 🎛️ BOTONES DE COLORES ULTRA LIMPIOS 🎛️ ---
 col_c1, col_c2, col_c3, col_c4 = st.columns(4)
 nuevo_estado = None
 
@@ -295,22 +290,16 @@ if nuevo_estado:
     # URL de tu Web App de Google Apps Script 
     WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzxuhVMl8swR7fJHyd5dXt0WCXTpHoSWUrLxxKpRF3Bcwt2lo09vSvkDiAeWymV3F7l/exec"
     
-    # Realizamos la petición HTTP POST de forma directa y segura desde el servidor Python
     try:
         requests.post(WEB_APP_URL, params={"row": indice_fila_google_sheet, "status": nuevo_estado})
     except Exception:
-        pass # Evita que se cuelgue si hay un microcorte de red
+        pass
     
-    # Limpiamos caché local de Streamlit para obligarle a leer el nuevo dato en la siguiente vuelta
     st.cache_data.clear()
     
-    # LÓGICA DE AVANCE AUTOMÁTICO:
-    # Si jubilamos (Azul), la rueda cambia de tamaño o mete otra, nos quedamos en el mismo índice visual ya que entra contenido nuevo en ese hueco.
-    # Si marcamos Rojo, Naranja o Verde, avanzamos a la siguiente frase de la rueda si no es la última.
     if nuevo_estado != "Azul" and st.session_state.indice_actual < total_rueda_actual - 1:
         st.session_state.indice_actual += 1
         
-    # Resetear estados visuales para la siguiente frase
     st.session_state.ver_solucion = False
     st.session_state.ver_gramatica = False
     st.rerun()
