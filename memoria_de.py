@@ -171,7 +171,7 @@ WEB_APP_URL = "https://script.google.com/macros/s/AKfycbyMpUxnYWLCceZpCIsILNWTyw
 
 # URLs de descarga de CSV para ambas pestañas
 URL_FRASES   = "https://docs.google.com/spreadsheets/d/1hpP0J5qRrbx5p9W2nHWsoTDBA9hhvLZYblaU12Ln3w4/export?format=csv&gid=0"
-URL_PROGRESO = "https://docs.google.com/spreadsheets/d/1hpP0J5qRrbx5p9W2nHWsoTDBA9hhvLZYblaU12Ln3w4/export?format=csv&gid=1116631109"
+URL_PROGRESO = "https://docs.google.com/spreadsheets/d/1hpP0J5qRrbx5p9W2nHWsoTDBA9hhvLZYblaU12Ln3w4/export?format=csv&gid=1513540695"
 
 # ── FUNCIONES DE CARGA ──
 @st.cache_data(ttl=2)
