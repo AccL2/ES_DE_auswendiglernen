@@ -13,7 +13,7 @@ st.set_page_config(page_title="Entrenador de Idiomas por Islas", page_icon="🇩
 # Inyectar tipografías y estilos premium
 st.markdown("""
     <style>
-    @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Serif+Display:ital@0;1&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Serif+Display:ital@0;1&family=Montserrat:wght@400;500;600&display=swap');
 
     /* ── Variables de color ── */
     :root {
@@ -59,10 +59,10 @@ st.markdown("""
 
     /* ── Tarjetas ── */
     .texto-isla, .texto-isla *, .texto-isla p, .texto-isla b {
-        font-family: 'DM Sans', sans-serif !important;
+        font-family: 'Montserrat', sans-serif !important;
         font-weight: 400 !important;
-        line-height: 1.75 !important;
-        font-size: 1.1rem !important;
+        line-height: 1.8 !important;
+        font-size: 1.25rem !important;
     }
     .texto-isla b {
         font-weight: 600 !important;
@@ -108,10 +108,10 @@ st.markdown("""
     }
 
     .texto-gramatica {
-        font-family: 'DM Sans', sans-serif !important;
+        font-family: 'Montserrat', sans-serif !important;
         font-weight: 400 !important;
-        line-height: 1.75;
-        font-size: 1.05rem;
+        line-height: 1.8;
+        font-size: 1.2rem;
         margin: 0; padding: 0;
     }
 
