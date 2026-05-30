@@ -34,7 +34,7 @@ st.markdown("""
         margin-bottom: 0.5rem;
     }
     
-    /* Bloque Azul (Castellano) */
+    /* Bloque Azul (Español) */
     .bloque-azul {
         background-color: rgba(28, 131, 225, 0.15);
         border-left: 5px solid rgb(28, 131, 225);
@@ -115,7 +115,7 @@ def formatear_lineas(texto):
     frases = re.split(r'(?<=[.!?])\s+', texto.strip())
     return "<br>".join(frases)
 
-# URL de tu Google Sheet (Modificada internamente para exportar como CSV)
+# URL de tu Google Sheet (Exportación dinámica en formato CSV)
 SHEET_URL = "https://docs.google.com/spreadsheets/d/1hpP0J5qRrbx5p9W2nHWsoTDBA9hhvLZYblaU12Ln3w4/export?format=csv"
 
 # Cargar los datos desde Google Sheets en la nube
@@ -150,13 +150,8 @@ if 'isla_anterior' not in st.session_state or st.session_state.isla_anterior != 
 
 # --- LOGICA DE LA RUEDA DE LOS 15 ---
 df_activas_y_pendientes = df_isla_completa[df_isla_completa['Estado'] != 'Azul'].copy()
-df_jubiladas = df_isla_completa[df_isla_completa['Estado'] == 'Azul']
-total_jubiladas = len(df_jubiladas)
-
-# Mostrar contadores arriba en el panel izquierdo para que no molesten en el principal
-st.sidebar.write("---")
-st.sidebar.markdown("### 📊 Progreso de la Isla")
-st.sidebar.metric("🏝️ Total Isla", f"{total_frases_isla}")
+df_azul = df_isla_completa[df_isla_completa['Estado'] == 'Azul']
+total_aprendidos = len(df_azul)
 
 # Construimos la Rueda de 15 activas (Rojo, Naranja, Verde)
 df_en_rueda = df_activas_y_pendientes[df_activas_y_pendientes['Estado'].isin(['Rojo', 'Naranja', 'Verde'])].copy()
@@ -167,11 +162,34 @@ if len(df_en_rueda) < 15 and len(df_activas_y_pendientes) > len(df_en_rueda):
 
 total_rueda_actual = len(df_en_rueda)
 
-st.sidebar.metric("🔄 Loading", f"{total_rueda_actual} / 15")
-st.sidebar.metric("🔵 Aprendidos", f"{total_jubiladas} / {total_frases_isla}")
+# Contar cuántos hay de cada color REALMENTE dentro de esos 15 en pantalla (o menos si se acaban)
+# Si una frase no tiene estado asignado aún en Excel, la tratamos como Roja provisional en el contador
+estados_rueda = df_en_rueda['Estado'].fillna('Rojo').tolist()
+n_rojos = estados_rueda.count('Rojo')
+n_naranjas = estados_rueda.count('Naranja')
+n_verdes = estados_rueda.count('Verde')
+
+# --- RESUMEN EN EL PANEL IZQUIERDO ---
+st.sidebar.write("---")
+st.sidebar.markdown("### 📊 Estado de la Isla")
+
+# Tarjeta de resumen directo y sin paja
+st.sidebar.markdown(f"""
+<div style="font-family: 'Montserrat', sans-serif; background: rgba(255,255,255,0.05); padding: 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1);">
+    <p style="margin: 0 0 8px 0; font-size: 0.9rem; color: #cbd5e1; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">🔄 En Rueda (Loading: {total_rueda_actual}):</p>
+    <ul style="margin: 0; padding-left: 20px; font-size: 1rem; line-height: 1.5;">
+        <li>🔴 {n_rojos} Malas / Nuevas</li>
+        <li>🟠 {n_naranjas} A medias</li>
+        <li>🟢 {n_verdes} Casi listas</li>
+    </ul>
+    <hr style="margin: 10px 0; border: 0; border-top: 1px solid rgba(255,255,255,0.15);">
+    <p style="margin: 0; font-size: 1rem; font-weight: 600;">🔵 Aprendidos: <span style="color: #3b82f6;">{total_aprendidos}</span> / {total_frases_isla}</p>
+</div>
+""", unsafe_allow_html=True)
+
 
 # ¿Está la isla completada al 100%?
-if total_jubiladas == total_frases_isla and total_frases_isla > 0:
+if total_aprendidos == total_frases_isla and total_frases_isla > 0:
     st.title("🇩🇪 Método de Chunks & Islas")
     st.balloons()
     st.success(f"🎉 ¡ESPECTACULAR! Has completado la isla '{isla_seleccionada}' al 100%.")
@@ -247,13 +265,13 @@ with col_nav_gram:
 
 st.write("")
 
-# Renderizado de la Tarjeta ORIGINAL recuperando Montserrat al 100%
+# Renderizado de la Tarjeta con Montserrat limpia
 if not st.session_state.ver_solucion:
     castellano_formateado = formatear_lineas(castellano_texto)
     st.markdown(f"""
     <div class="bloque-azul">
         <div class="texto-isla">
-            <b>Castellano (Haz el 'Tapa y Escupe'):</b><br><br>
+            <b>Español:</b><br><br>
             {castellano_formateado}
         </div>
     </div>
@@ -263,7 +281,7 @@ else:
     st.markdown(f"""
     <div class="bloque-verde">
         <div class="texto-isla">
-            <b>Solución en Alemán:</b><br><br>
+            <b>Alemán:</b><br><br>
             {aleman_formateado}
         </div>
     </div>
@@ -288,7 +306,7 @@ with col_c4:
         nuevo_estado = "Azul"
 
 if nuevo_estado:
-    # URL de tu Web App de Google Apps Script 
+    # URL de tu Web App de Google Apps Script
     WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzxuhVMl8swR7fJHyd5dXt0WCXTpHoSWUrLxxKpRF3Bcwt2lo09vSvkDiAeWymV3F7l/exec"
     
     try:
