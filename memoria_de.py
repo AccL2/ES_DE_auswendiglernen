@@ -4,7 +4,7 @@ import os
 import re
 import random
 import base64
-import urllib.parse
+import requests
 from difflib import SequenceMatcher
 
 # Configuración de la página
@@ -119,9 +119,8 @@ def formatear_lineas(texto):
 SHEET_URL = "https://docs.google.com/spreadsheets/d/1hpP0J5qRrbx5p9W2nHWsoTDBA9hhvLZYblaU12Ln3w4/export?format=csv"
 
 # Cargar los datos desde Google Sheets en la nube
-@st.cache_data(ttl=5) # ttl bajo para captar rápido los cambios de estado entre móvil/pc
+@st.cache_data(ttl=2) # TTL mínimo para ver cambios casi al instante
 def cargar_datos_web():
-    # Añadimos un parámetro aleatorio al final para romper la cache del navegador al recargar
     url = f"{SHEET_URL}&nocache={random.randint(1, 100000)}"
     df = pd.read_csv(url)
     df.columns = df.columns.str.strip()
@@ -160,20 +159,16 @@ if total_jubiladas == total_frases_isla and total_frases_isla > 0:
     st.title("🇩🇪 Método de Chunks & Islas")
     st.balloons()
     st.success(f"🎉 ¡ESPECTACULAR! Has completado la isla '{isla_seleccionada}' al 100%.")
-    st.info(f"Has jubilado con éxito los {total_frases_isla} monólogos en color Azul 🔵. ¡Están listos en tu disco duro profundo!")
-    
-    if st.button("♻️ Reiniciar toda la isla a Rojo (Empezar de cero)", use_container_width=True):
-        st.warning("Para reiniciar, cambia manualmente la columna Estado a 'Rojo' en tu Google Sheet y recarga la app.")
+    st.info(f"Has jubilado con éxito los {total_frases_isla} monólogos en color Azul 🔵.")
     st.stop()
 
-# Si no está completada, construimos la Rueda de 15 activas
+# Construimos la Rueda de 15 activas (Rojo, Naranja, Verde)
 df_en_rueda = df_activas_y_pendientes[df_activas_y_pendientes['Estado'].isin(['Rojo', 'Naranja', 'Verde'])].copy()
 
-# Si en la rueda no se llega a 15, rellenamos el hueco con las siguientes "Pendientes"
+# Rellenamos rueda hasta 15 con pendientes si hace falta
 if len(df_en_rueda) < 15 and len(df_activas_y_pendientes) > len(df_en_rueda):
     df_en_rueda = df_activas_y_pendientes.head(15).copy()
 
-# Guardamos el total de monólogos que van a competir en esta rueda (máximo 15)
 total_rueda_actual = len(df_en_rueda)
 
 if st.session_state.indice_actual >= total_rueda_actual:
@@ -182,24 +177,24 @@ if st.session_state.indice_actual >= total_rueda_actual:
 # --- CONTENIDO PRINCIPAL ---
 st.title("🇩🇪 Método de Chunks & Islas")
 
-# Marcadores superiores de control del sistema de memoria
+# Marcadores superiores de control discretos
 col_ind1, col_ind2, col_ind3 = st.columns(3)
 with col_ind1:
-    st.metric("🏝️ Total Isla", f"{total_frases_isla} chunks")
+    st.metric("🏝️ Total Isla", f"{total_frases_isla}")
 with col_ind2:
-    st.metric("🔄 En Rueda Activa", f"{total_rueda_actual} / 15")
+    st.metric("🔄 En Rueda", f"{total_rueda_actual} / 15")
 with col_ind3:
-    st.metric("🔵 Jubilados (Azul)", f"{total_jubiladas} / {total_frases_isla}")
+    st.metric("🔵 Jubilados", f"{total_jubiladas} / {total_frases_isla}")
 
 st.write("---")
 
-# Extraer datos de la frase en rueda que toca estudiar
+# Extraer datos de la frase actual en la rueda
 fila_actual = df_en_rueda.iloc[st.session_state.indice_actual]
 castellano_texto = str(fila_actual['Castellano'])
 aleman_texto = str(fila_actual['Aleman'])
 estado_actual = str(fila_actual['Estado'])
 
-# Averiguar el índice real en la hoja de cálculo de Google (Panda index + 2 por encabezados)
+# Encontrar la fila real de Google Sheets (Pandas index + 2)
 indice_fila_google_sheet = int(df_isla_completa.index[df_isla_completa['Castellano'] == castellano_texto].tolist()[0]) + 2
 
 audio_id_raw = fila_actual['Audio_ID']
@@ -214,18 +209,13 @@ situacion_texto = ""
 if 'Situacion' in fila_actual and pd.notna(fila_actual['Situacion']):
     situacion_texto = str(fila_actual['Situacion']).strip()
 
-# Mostrar indicador del color del monólogo actual en la rueda
-dict_colores_emoji = {"Rojo": "🔴 Crudo / Nuevo", "Naranja": "🟠 En progreso", "Verde": "🟢 Repasillo / Dominado"}
-color_badge = dict_colores_emoji.get(estado_actual, "🔴 Rojo")
-
-st.subheader(f"Monólogo en rueda: {st.session_state.indice_actual + 1} de {total_rueda_actual} (Estado: {color_badge})")
 st.progress((st.session_state.indice_actual + 1) / total_rueda_actual)
 
 if situacion_texto:
-    st.markdown(f'<div class="titulo-situacion">📍 Situación: {situacion_texto}</div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="titulo-situacion">📍 {situacion_texto}</div>', unsafe_allow_html=True)
 
 
-# --- 🔄 BARRA DE NAV / CONTROL ORIGINAL ---
+# --- 🔄 BARRA DE NAV / CONTROL ---
 col_nav_sol, col_nav_ant, col_nav_sig, col_nav_gram = st.columns([0.25, 0.25, 0.25, 0.25])
 
 with col_nav_sol:
@@ -267,7 +257,7 @@ if not st.session_state.ver_solucion:
     st.markdown(f"""
     <div class="bloque-azul">
         <div class="texto-isla">
-            <b>Castellano (Haz el 'Tapa y Escupe'):</b><br><br>
+            <b>Castellano:</b><br><br>
             {castellano_formateado}
         </div>
     </div>
@@ -277,63 +267,59 @@ else:
     st.markdown(f"""
     <div class="bloque-verde">
         <div class="texto-isla">
-            <b>Solución en Alemán:</b><br><br>
+            <b>Alemán:</b><br><br>
             {aleman_formateado}
         </div>
     </div>
     """, unsafe_allow_html=True)
 
 
-# --- 🎛️ BARRA DE GESTIÓN DE LA MEMORIA (TUS COLORES) 🎛️ ---
-st.write("### 🧮 Califica tu evocación mental para este monólogo:")
+# --- 🎛️ BOTONES DE COLORES LIMPIOS (MANDAN A LA NUBE Y PASAN FRASES) 🎛️ ---
 col_c1, col_c2, col_c3, col_c4 = st.columns(4)
-
-nuevo_estado_solicitado = None
+nuevo_estado = None
 
 with col_c1:
-    if st.button("🔴 Mantener Rojo", use_container_width=True, help="Te ha costado mucho o es nuevo"):
-        nuevo_estado_solicitado = "Rojo"
+    if st.button("🔴", use_container_width=True, key="btn_color_rojo"):
+        nuevo_estado = "Rojo"
 with col_c2:
-    if st.button("🟠 Pasar Naranja", use_container_width=True, help="Lo vas pillando pero aún dudas"):
-        nuevo_estado_solicitado = "Naranja"
+    if st.button("🟠", use_container_width=True, key="btn_color_naranja"):
+        nuevo_estado = "Naranja"
 with col_c3:
-    if st.button("🟢 Pasar Verde", use_container_width=True, help="Te lo sabes, listo para repasar rápido"):
-        nuevo_estado_solicitado = "Verde"
+    if st.button("🟢", use_container_width=True, key="btn_color_verde"):
+        nuevo_estado = "Verde"
 with col_c4:
-    if st.button("🔵 Jubilar Azul", use_container_width=True, help="¡Dominado! Sacar de la rueda y meter uno nuevo"):
-        nuevo_estado_solicitado = "Azul"
+    if st.button("🔵", use_container_width=True, key="btn_color_azul"):
+        nuevo_estado = "Azul"
 
-# Si el usuario hace clic en cambiar un color, mandamos la actualización a Google Sheets
-if nuevo_estado_solicitado:
-    # URL de la Web App de Google que has creado e implementado en tu cuenta
-    WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzxuhVMl8swR7fJHyd5dXt0WCXTpHoSWUrLxxKpRF3Bcwt2lo09vSvkDiAeWymV3F7l/exec" 
+if nuevo_estado:
+    # URL de tu Web App de Google Apps Script 
+    WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzxuhVMl8swR7fJHyd5dXt0WCXTpHoSWUrLxxKpRF3Bcwt2lo09vSvkDiAeWymV3F7l/exec"
     
-    params = urllib.parse.urlencode({
-        "row": indice_fila_google_sheet,
-        "status": nuevo_estado_solicitado
-    })
+    # Realizamos la petición HTTP POST de forma directa y segura desde el servidor Python
+    try:
+        requests.post(WEB_APP_URL, params={"row": indice_fila_google_sheet, "status": nuevo_estado})
+    except Exception:
+        pass # Evita que se cuelgue si hay un microcorte de red
     
-    url_final_update = f"{WEB_APP_URL}?{params}"
-    
-    # Inyectamos el componente de recarga instantánea
-    st.components.v1.html(f"""
-        <script>
-            fetch("{url_final_update}", {{ method: "POST", mode: "no-cors" }})
-            .then(() => {{
-                parent.window.location.reload();
-            }});
-        </script>
-    """, height=0, width=0)
-    
+    # Limpiamos caché local de Streamlit para obligarle a leer el nuevo dato en la siguiente vuelta
     st.cache_data.clear()
-    st.success(f"¡Estado actualizado a {nuevo_estado_solicitado}! Sincronizando en la nube...")
+    
+    # LÓGICA DE AVANCE AUTOMÁTICO:
+    # Si jubilamos (Azul), la rueda cambia de tamaño o mete otra, nos quedamos en el mismo índice visual ya que entra contenido nuevo en ese hueco.
+    # Si marcamos Rojo, Naranja o Verde, avanzamos a la siguiente frase de la rueda si no es la última.
+    if nuevo_estado != "Azul" and st.session_state.indice_actual < total_rueda_actual - 1:
+        st.session_state.indice_actual += 1
+        
+    # Resetear estados visuales para la siguiente frase
+    st.session_state.ver_solucion = False
+    st.session_state.ver_gramatica = False
     st.rerun()
 
 
 # --- 🎧 REPRODUCTOR CON ONDA + VELOCIDAD POR DÉCIMAS 🎧 ---
 ruta_audio = f"Audios/{audio_id}.mp3"
 if os.path.exists(ruta_audio):
-    st.write("🎧 **Arrastra sobre la onda para bucle. Haz un clic normal fuera de la selección o pulsa el botón Reset para volver a escuchar todo:**")
+    st.write("🎧 **Onda de audio interactiva:**")
     
     with open(ruta_audio, "rb") as f:
         audio_bytes = f.read()
@@ -351,7 +337,7 @@ if os.path.exists(ruta_audio):
         </div>
 
         <div style="display: flex; align-items: center; justify-content: center; gap: 12px; background: rgba(0,0,0,0.15); padding: 6px 12px; border-radius: 8px;">
-            <label for="speedSlider" style="font-size: 0.8rem; font-weight: bold; color: #cbd5e1; min-width: 120px;">⚡ Velocidad de audio:</label>
+            <label for="speedSlider" style="font-size: 0.8rem; font-weight: bold; color: #cbd5e1; min-width: 120px;">⚡ Velocidad:</label>
             <input type="range" id="speedSlider" min="0.5" max="2.0" step="0.1" value="1.0" style="flex-grow: 1; cursor: pointer; accent-color: #1c83e1; margin: 0;">
             <span id="speedValue" style="font-size: 0.85rem; font-weight: bold; color: #3b82f6; min-width: 40px; text-align: right;">1.0x</span>
         </div>
@@ -373,15 +359,10 @@ if os.path.exists(ruta_audio):
         }});
 
         const wsRegions = wavesurfer.registerPlugin(WaveSurfer.Regions.create());
-
-        wsRegions.enableDragSelection({{
-            color: 'rgba(59, 130, 246, 0.3)'
-        }});
+        wsRegions.enableDragSelection({{ color: 'rgba(59, 130, 246, 0.3)' }});
 
         wsRegions.on('region-created', (region) => {{
-            wsRegions.getRegions().forEach(r => {{
-                if (r !== region) r.remove();
-            }});
+            wsRegions.getRegions().forEach(r => {{ if (r !== region) r.remove(); }});
         }});
 
         wavesurfer.on('timeupdate', (currentTime) => {{
@@ -407,32 +388,21 @@ if os.path.exists(ruta_audio):
             }}, 50);
         }});
 
-        document.getElementById('btnResetRegion').addEventListener('click', () => {{
-            wsRegions.clearRegions();
-        }});
-
+        document.getElementById('btnResetRegion').addEventListener('click', () => {{ wsRegions.clearRegions(); }});
         const btnPlay = document.getElementById('btnPlay');
-        btnPlay.addEventListener('click', () => {{
-            wavesurfer.playPause();
-        }});
+        btnPlay.addEventListener('click', () => {{ wavesurfer.playPause(); }});
 
         wavesurfer.on('play', () => {{
             btnPlay.innerHTML = "⏸️ Pausa";
             btnPlay.style.background = "#22c55e"; 
         }});
-
         wavesurfer.on('pause', () => {{
             btnPlay.innerHTML = "▶️ Play";
             btnPlay.style.background = "#1c83e1"; 
         }});
 
-        document.getElementById('btnBack').addEventListener('click', () => {{
-            wavesurfer.skip(-5);
-        }});
-
-        document.getElementById('btnForward').addEventListener('click', () => {{
-            wavesurfer.skip(5);
-        }});
+        document.getElementById('btnBack').addEventListener('click', () => {{ wavesurfer.skip(-5); }});
+        document.getElementById('btnForward').addEventListener('click', () => {{ wavesurfer.skip(5); }});
 
         const speedSlider = document.getElementById('speedSlider');
         const speedValue = document.getElementById('speedValue');
@@ -442,19 +412,16 @@ if os.path.exists(ruta_audio):
             wavesurfer.setPlaybackRate(currentSpeed);
             speedValue.innerHTML = currentSpeed.toFixed(1) + "x";
         }});
-        
-        wavesurfer.on('ready', () => {{
-            wavesurfer.setPlaybackRate(parseFloat(speedSlider.value));
-        }});
+        wavesurfer.on('ready', () => {{ wavesurfer.setPlaybackRate(parseFloat(speedSlider.value)); }});
     </script>
     """
     st.components.v1.html(html_reproductor, height=215)
 else:
-    st.warning(f"⚠️ Audio no encontrado en la ruta: `{ruta_audio}`")
+    st.warning(f"⚠️ Audio no encontrado en: `{ruta_audio}`")
 
 
 # --- DESPLEGABLE DE DICTADO ---
-with st.expander("📝 Modo Dictado: Haz clic aquí para escribir lo que oyes"):
+with st.expander("📝 Modo Dictado"):
     texto_usuario = st.text_area(
         "Escribe el texto en alemán:", 
         key=f"input_dictado_{st.session_state.indice_actual}",
@@ -464,7 +431,6 @@ with st.expander("📝 Modo Dictado: Haz clic aquí para escribir lo que oyes"):
     if st.button("🔍 Comprobar Dictado", use_container_width=True):
         if texto_usuario:
             porcentaje_acierto = calcular_similitud_parcial(texto_usuario, aleman_texto)
-            
             if porcentaje_acierto >= 90:
                 color_fondo, color_texto = "rgba(16, 185, 129, 0.15)", "#10b981"
             elif porcentaje_acierto >= 50:
@@ -477,11 +443,9 @@ with st.expander("📝 Modo Dictado: Haz clic aquí para escribir lo que oyes"):
                 De lo que has escrito: {porcentaje_acierto:.0f}% bien
             </div>
             """, unsafe_allow_html=True)
-        else:
-            st.warning("Escribe algo en el cuadro antes de comprobar.")
 
 
-# --- 💡 EXPLICACIÓN ABAJO DEL TODO ---
+# --- 💡 EXPLICACIÓN ---
 if st.session_state.ver_gramatica:
     if 'Explicacion' in fila_actual and pd.notna(fila_actual['Explicacion']) and str(fila_actual['Explicacion']).strip() != "":
         explicacion_formateada = formatear_lineas(str(fila_actual['Explicacion']))
@@ -493,5 +457,3 @@ if st.session_state.ver_gramatica:
             </div>
         </div>
         """, unsafe_allow_html=True)
-    else:
-        st.info("ℹ️ No hay ninguna explicación cargada para esta frase en el archivo Excel.")
