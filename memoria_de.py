@@ -749,24 +749,22 @@ with st.expander("📝 Modo Dictado"):
             """, unsafe_allow_html=True)
 
 
-# --- BLOQUE FIJO: ANOTACIONES (Optimizado sin barras fantasma) ---
+# --- BLOQUE FIJO: ANOTACIONES (Diseño ultra limpio en mayúsculas) ---
 anotacion_inicial = str(fila_actual['Explicacion']) if 'Explicacion' in fila_actual and pd.notna(fila_actual['Explicacion']) else ""
 
-# Metemos el título y el cuadro directamente dentro del contenedor con estilo
-st.markdown(f"""
-<div class="bloque-anotaciones">
-    <div style="font-size: 0.85rem; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; color: #e05454; margin-bottom: 10px;">
-        📝 Anotaciones personales:
+# Título simple en mayúsculas sin marcos ni cajas de color
+st.markdown("""
+    <div style="font-family: 'Montserrat', sans-serif; font-size: 0.85rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px; color: #8a9ab5; margin-top: 1.5rem; margin-bottom: 8px;">
+        ANOTACIONES
     </div>
-</div>
 """, unsafe_allow_html=True)
 
 texto_anotaciones = st.text_area(
-    "Anotaciones", # Etiqueta interna oculta visualmente por CSS
+    "Anotaciones", 
     value=anotacion_inicial,
     key=f"input_anotaciones_{st.session_state.indice_actual}",
     height=150,
-    label_visibility="collapsed" # Ocultamos la etiqueta duplicada de Streamlit
+    label_visibility="collapsed" # Oculta el texto duplicado automático de Streamlit
 )
 
 if st.button("💾 Guardar Anotaciones", use_container_width=True, key="btn_guardar_anotaciones"):
