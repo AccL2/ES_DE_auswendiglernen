@@ -4,6 +4,7 @@ import os
 import re
 import random
 import base64
+import urllib.parse
 from difflib import SequenceMatcher
 
 # Configuración de la página
@@ -66,7 +67,6 @@ st.markdown("""
         font-weight: 400 !important;
         line-height: 1.6;
         font-size: 1.15rem;
-        /* Hereda el color del sistema (Negro en claro / Blanco en oscuro) */
         margin: 0;
         padding: 0;
     }
@@ -111,17 +111,26 @@ def calcular_similitud_parcial(texto_usuario, texto_original):
     else:
         return SequenceMatcher(None, u_limpio, o_limpio).ratio() * 100
 
-# Cargar la base de datos de Excel
-@st.cache_data(ttl=10)
-def cargar_datos():
-    df = pd.read_excel("frases.xlsx")
+def formatear_lineas(texto):
+    frases = re.split(r'(?<=[.!?])\s+', texto.strip())
+    return "<br>".join(frases)
+
+# URL de tu Google Sheet (Modificada internamente para exportar como CSV)
+SHEET_URL = "https://docs.google.com/spreadsheets/d/1hpP0J5qRrbx5p9W2nHWsoTDBA9hhvLZYblaU12Ln3w4/export?format=csv"
+
+# Cargar los datos desde Google Sheets en la nube
+@st.cache_data(ttl=5) # ttl bajo para captar rápido los cambios de estado entre móvil/pc
+def cargar_datos_web():
+    # Añadimos un parámetro aleatorio al final para romper la cache del navegador al recargar
+    url = f"{SHEET_URL}&nocache={random.randint(1, 100000)}"
+    df = pd.read_csv(url)
     df.columns = df.columns.str.strip()
     return df
 
 try:
-    df_total = cargar_datos()
+    df_total = cargar_datos_web()
 except Exception as e:
-    st.error(f"No se pudo cargar el archivo 'frases.xlsx'. Error: {e}")
+    st.error(f"No se pudo conectar con el Google Sheet. Asegúrate de tener conexión a internet. Detalles: {e}")
     st.stop()
 
 # --- BARRA LATERAL ---
@@ -129,82 +138,69 @@ st.sidebar.title("Configuración")
 islas_disponibles = df_total['Isla'].unique()
 isla_seleccionada = st.sidebar.selectbox("🏝️ Selecciona la Isla:", islas_disponibles)
 
-df_isla_original = df_total[df_total['Isla'] == isla_seleccionada].reset_index(drop=True)
-total_frases = len(df_isla_original)
+# Filtrar las frases pertenecientes a la isla seleccionada
+df_isla_completa = df_total[df_total['Isla'] == isla_seleccionada].copy()
+total_frases_isla = len(df_isla_completa)
 
+# Control de reinicio de estado al cambiar de isla
 if 'isla_anterior' not in st.session_state or st.session_state.isla_anterior != isla_seleccionada:
     st.session_state.indice_actual = 0
     st.session_state.isla_anterior = isla_seleccionada
     st.session_state.ver_solucion = False
     st.session_state.ver_gramatica = False
-    st.session_state.completado = False
-    if 'orden_aleatorio' in st.session_state:
-        del st.session_state.orden_aleatorio
 
-modo_aleatorio = st.sidebar.toggle("🔀 Activar orden aleatorio")
+# --- LOGICA DE LA RUEDA DE LOS 15 ---
+# Separar frases jubiladas (Azul) de las activas/pendientes
+df_activas_y_pendientes = df_isla_completa[df_isla_completa['Estado'] != 'Azul'].copy()
+df_jubiladas = df_isla_completa[df_isla_completa['Estado'] == 'Azul']
+total_jubiladas = len(df_jubiladas)
 
-if modo_aleatorio:
-    if 'orden_aleatorio' not in st.session_state:
-        indices_mezclados = list(range(total_frases))
-        random.shuffle(indices_mezclados)
-        st.session_state.orden_aleatorio = indices_mezclados
-        st.session_state.indice_actual = 0  
-        st.session_state.ver_solucion = False
-        st.session_state.ver_gramatica = False
-    df_isla = df_isla_original.iloc[st.session_state.orden_aleatorio].reset_index(drop=True)
-else:
-    if 'orden_aleatorio' in st.session_state:
-        del st.session_state.orden_aleatorio
-        st.session_state.indice_actual = 0  
-        st.session_state.ver_solucion = False
-        st.session_state.ver_gramatica = False
-    df_isla = df_isla_original
+# ¿Está la isla completada al 100%?
+if total_jubiladas == total_frases_isla and total_frases_isla > 0:
+    st.title("🇩🇪 Método de Chunks & Islas")
+    st.balloons()
+    st.success(f"🎉 ¡ESPECTACULAR! Has completado la isla '{isla_seleccionada}' al 100%.")
+    st.info(f"Has jubilado con éxito los {total_frases_isla} monólogos en color Azul 🔵. ¡Están listos en tu disco duro profundo!")
+    
+    if st.button("♻️ Reiniciar toda la isla a Rojo (Empezar de cero)", use_container_width=True):
+        st.warning("Para reiniciar, cambia manualmente la columna Estado a 'Rojo' en tu Google Sheet y recarga la app.")
+    st.stop()
 
-if 'indice_actual' not in st.session_state:
-    st.session_state.indice_actual = 0
+# Si no está completada, construimos la Rueda de 15 activas
+df_en_rueda = df_activas_y_pendientes[df_activas_y_pendientes['Estado'].isin(['Rojo', 'Naranja', 'Verde'])].copy()
 
-if 'ver_solucion' not in st.session_state:
-    st.session_state.ver_solucion = False
+# Si en la rueda no se llega a 15, rellenamos el hueco con las siguientes "Pendientes"
+if len(df_en_rueda) < 15 and len(df_activas_y_pendientes) > len(df_en_rueda):
+    df_en_rueda = df_activas_y_pendientes.head(15).copy()
 
-if 'ver_gramatica' not in st.session_state:
-    st.session_state.ver_gramatica = False
+# Guardamos el total de monólogos que van a competir en esta rueda (máximo 15)
+total_rueda_actual = len(df_en_rueda)
 
-if st.session_state.indice_actual >= total_frases:
-    st.session_state.indice_actual = total_frases - 1 if total_frases > 0 else 0
-
-opciones_frases = [f"Frase {i+1}" for i in range(total_frases)]
-frase_seleccionada_nav = st.sidebar.selectbox(
-    "🎯 Ir a frase específica:", 
-    options=opciones_frases, 
-    index=int(st.session_state.indice_actual),
-    key=f"nav_selector_{st.session_state.indice_actual}"
-)
-
-nuevo_indice = opciones_frases.index(frase_seleccionada_nav)
-if nuevo_indice != st.session_state.indice_actual:
-    st.session_state.indice_actual = nuevo_indice
-    st.session_state.ver_solucion = False
-    st.session_state.ver_gramatica = False
-    st.rerun()
+if st.session_state.indice_actual >= total_rueda_actual:
+    st.session_state.indice_actual = total_rueda_actual - 1 if total_rueda_actual > 0 else 0
 
 # --- CONTENIDO PRINCIPAL ---
 st.title("🇩🇪 Método de Chunks & Islas")
 
-if st.session_state.indice_actual >= total_frases - 1 and st.session_state.get('completado', False):
-    st.success("🎉 ¡Enhorabuena! Has completado todas las frases de esta isla.")
-    if st.button("Repetir Isla (Volver a empezar)", use_container_width=True):
-        st.session_state.indice_actual = 0
-        st.session_state.ver_solucion = False
-        st.session_state.ver_gramatica = False
-        st.session_state.completado = False
-        if 'orden_aleatorio' in st.session_state:
-            del st.session_state.orden_aleatorio
-        st.rerun()
-    st.stop()
+# Marcadores superiores de control del sistema de memoria
+col_ind1, col_ind2, col_ind3 = st.columns(3)
+with col_ind1:
+    st.metric("🏝️ Total Isla", f"{total_frases_isla} chunks")
+with col_ind2:
+    st.metric("🔄 En Rueda Activa", f"{total_rueda_actual} / 15")
+with col_ind3:
+    st.metric("🔵 Jubilados (Azul)", f"{total_jubiladas} / {total_frases_isla}")
 
-fila_actual = df_isla.iloc[st.session_state.indice_actual]
+st.write("---")
+
+# Extraer datos de la frase en rueda que toca estudiar
+fila_actual = df_en_rueda.iloc[st.session_state.indice_actual]
 castellano_texto = str(fila_actual['Castellano'])
 aleman_texto = str(fila_actual['Aleman'])
+estado_actual = str(fila_actual['Estado'])
+
+# Averiguar el índice real en la hoja de cálculo de Google (Panda index + 2 por encabezados)
+indice_fila_google_sheet = int(df_isla_completa.index[df_isla_completa['Castellano'] == castellano_texto].tolist()[0]) + 2
 
 audio_id_raw = fila_actual['Audio_ID']
 if pd.isna(audio_id_raw):
@@ -218,21 +214,20 @@ situacion_texto = ""
 if 'Situacion' in fila_actual and pd.notna(fila_actual['Situacion']):
     situacion_texto = str(fila_actual['Situacion']).strip()
 
-def formatear_lineas(texto):
-    frases = re.split(r'(?<=[.!?])\s+', texto.strip())
-    return "<br>".join(frases)
+# Mostrar indicador del color del monólogo actual en la rueda
+dict_colores_emoji = {"Rojo": "🔴 Crudo / Nuevo", "Naranja": "🟠 En progreso", "Verde": "🟢 Repasillo / Dominado"}
+color_badge = dict_colores_emoji.get(estado_actual, "🔴 Rojo")
 
-st.subheader(f"Progreso: Frase {st.session_state.indice_actual + 1} de {total_frases}")
-st.progress((st.session_state.indice_actual + 1) / total_frases)
+st.subheader(f"Monólogo en rueda: {st.session_state.indice_actual + 1} de {total_rueda_actual} (Estado: {color_badge})")
+st.progress((st.session_state.indice_actual + 1) / total_rueda_actual)
 
 if situacion_texto:
     st.markdown(f'<div class="titulo-situacion">📍 Situación: {situacion_texto}</div>', unsafe_allow_html=True)
 
 
-# --- 🔄 BARRA DE CONTROL ORIGINAL DE STREAMLIT ---
+# --- 🔄 BARRA DE NAV / CONTROL ORIGINAL ---
 col_nav_sol, col_nav_ant, col_nav_sig, col_nav_gram = st.columns([0.25, 0.25, 0.25, 0.25])
 
-# 1. Botón de Solución / Traducción
 with col_nav_sol:
     if not st.session_state.ver_solucion:
         if st.button("👁️ Solución", use_container_width=True, key="btn_ver_aleman"):
@@ -243,7 +238,6 @@ with col_nav_sol:
             st.session_state.ver_solucion = False
             st.rerun()
 
-# 2. Botón Anterior
 with col_nav_ant:
     if st.button("⬅️ Anterior", use_container_width=True, key="btn_anterior_arriba"):
         if st.session_state.indice_actual > 0:
@@ -252,18 +246,14 @@ with col_nav_ant:
             st.session_state.ver_gramatica = False
             st.rerun()
 
-# 3. Botón Siguiente
 with col_nav_sig:
     if st.button("Siguiente ➡️", use_container_width=True, key="btn_siguiente_arriba"):
-        if st.session_state.indice_actual < total_frases - 1:
+        if st.session_state.indice_actual < total_rueda_actual - 1:
             st.session_state.indice_actual += 1
             st.session_state.ver_solucion = False
             st.session_state.ver_gramatica = False
-        else:
-            st.session_state.completado = True
-        st.rerun()
+            st.rerun()
 
-# 4. Botón de Gramática
 with col_nav_gram:
     if st.button("💡 Gramática", use_container_width=True, key="btn_gramatica_arriba"):
         st.session_state.ver_gramatica = not st.session_state.ver_gramatica
@@ -271,13 +261,13 @@ with col_nav_gram:
 
 st.write("")
 
-# Renderizado de la Tarjeta
+# Renderizado de la Tarjeta (Castellano / Alemán)
 if not st.session_state.ver_solucion:
     castellano_formateado = formatear_lineas(castellano_texto)
     st.markdown(f"""
     <div class="bloque-azul">
         <div class="texto-isla">
-            <b>Castellano (Lee y piensa):</b><br><br>
+            <b>Castellano (Haz el 'Tapa y Escupe'):</b><br><br>
             {castellano_formateado}
         </div>
     </div>
@@ -292,6 +282,52 @@ else:
         </div>
     </div>
     """, unsafe_allow_html=True)
+
+
+# --- 🎛️ BARRA DE GESTIÓN DE LA MEMORIA (TUS COLORES) 🎛️ ---
+st.write("### 🧮 Califica tu evocación mental para este monólogo:")
+col_c1, col_c2, col_c3, col_c4 = st.columns(4)
+
+nuevo_estado_solicitado = None
+
+with col_c1:
+    if st.button("🔴 Mantener Rojo", use_container_width=True, help="Te ha costado mucho o es nuevo"):
+        nuevo_estado_solicitado = "Rojo"
+with col_c2:
+    if st.button("🟠 Pasar Naranja", use_container_width=True, help="Lo vas pillando pero aún dudas"):
+        nuevo_estado_solicitado = "Naranja"
+with col_c3:
+    if st.button("🟢 Pasar Verde", use_container_width=True, help="Te lo sabes, listo para repasar rápido"):
+        nuevo_estado_solicitado = "Verde"
+with col_c4:
+    if st.button("🔵 Jubilar Azul", use_container_width=True, help="¡Dominado! Sacar de la rueda y meter uno nuevo"):
+        nuevo_estado_solicitado = "Azul"
+
+# Si el usuario hace clic en cambiar un color, mandamos la actualización a Google Sheets
+if nuevo_estado_solicitado:
+    # URL de la Web App de Google que has creado e implementado en tu cuenta
+    WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzxuhVMl8swR7fJHyd5dXt0WCXTpHoSWUrLxxKpRF3Bcwt2lo09vSvkDiAeWymV3F7l/exec" 
+    
+    params = urllib.parse.urlencode({
+        "row": indice_fila_google_sheet,
+        "status": nuevo_estado_solicitado
+    })
+    
+    url_final_update = f"{WEB_APP_URL}?{params}"
+    
+    # Inyectamos el componente de recarga instantánea
+    st.components.v1.html(f"""
+        <script>
+            fetch("{url_final_update}", {{ method: "POST", mode: "no-cors" }})
+            .then(() => {{
+                parent.window.location.reload();
+            }});
+        </script>
+    """, height=0, width=0)
+    
+    st.cache_data.clear()
+    st.success(f"¡Estado actualizado a {nuevo_estado_solicitado}! Sincronizando en la nube...")
+    st.rerun()
 
 
 # --- 🎧 REPRODUCTOR CON ONDA + VELOCIDAD POR DÉCIMAS 🎧 ---
@@ -448,7 +484,6 @@ with st.expander("📝 Modo Dictado: Haz clic aquí para escribir lo que oyes"):
 # --- 💡 EXPLICACIÓN ABAJO DEL TODO ---
 if st.session_state.ver_gramatica:
     if 'Explicacion' in fila_actual and pd.notna(fila_actual['Explicacion']) and str(fila_actual['Explicacion']).strip() != "":
-        # Se aplica la función 'formatear_lineas' para estructurar la explicación línea por línea
         explicacion_formateada = formatear_lineas(str(fila_actual['Explicacion']))
         st.markdown(f"""
         <div class="bloque-gramatica">
