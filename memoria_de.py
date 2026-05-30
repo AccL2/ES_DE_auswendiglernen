@@ -749,21 +749,28 @@ with st.expander("📝 Modo Dictado"):
             """, unsafe_allow_html=True)
 
 
-# --- BLOQUE FIJO: ANOTACIONES (Sincronizado con la columna 'Explicacion') ---
+# --- BLOQUE FIJO: ANOTACIONES (Optimizado sin barras fantasma) ---
 anotacion_inicial = str(fila_actual['Explicacion']) if 'Explicacion' in fila_actual and pd.notna(fila_actual['Explicacion']) else ""
 
-st.markdown('<div class="bloque-anotaciones">', unsafe_allow_html=True)
+# Metemos el título y el cuadro directamente dentro del contenedor con estilo
+st.markdown(f"""
+<div class="bloque-anotaciones">
+    <div style="font-size: 0.85rem; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; color: #e05454; margin-bottom: 10px;">
+        📝 Anotaciones personales:
+    </div>
+</div>
+""", unsafe_allow_html=True)
+
 texto_anotaciones = st.text_area(
-    "📝 Anotaciones personales:",
+    "Anotaciones", # Etiqueta interna oculta visualmente por CSS
     value=anotacion_inicial,
     key=f"input_anotaciones_{st.session_state.indice_actual}",
-    height=150
+    height=150,
+    label_visibility="collapsed" # Ocultamos la etiqueta duplicada de Streamlit
 )
-st.markdown('</div>', unsafe_allow_html=True)
 
 if st.button("💾 Guardar Anotaciones", use_container_width=True, key="btn_guardar_anotaciones"):
     try:
-        # Enviamos la actualización usando el parámetro 'explanation' para mapear directamente a la columna Explicacion
         res = requests.post(WEB_APP_URL, params={"row": indice_fila_google_sheet, "explanation": texto_anotaciones})
         if res.status_code == 200:
             st.success("¡Anotaciones guardadas correctamente en Google Sheets! 🚀")
