@@ -11,13 +11,16 @@ from difflib import SequenceMatcher
 # Configuración de la página
 st.set_page_config(page_title="Entrenador de Idiomas por Islas", page_icon="🇩🇪", layout="centered")
 
-# URL ÚNICA DE TU NUEVA WEB APP DE GOOGLE (Sacada de tu captura de pantalla)
+# --- 🌐 ENLACES DE TU CONFIGURACIÓN ---
+# Tu Google Sheet exportado dinámicamente como CSV para leerlo al instante
+SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/1hpP0J5qRrbx5p9W2nHWsoTDBA9hhvLZYblaU12Ln3w4/export?format=csv&gid=0"
+# Tu Web App de Google para guardar los estados y el contador diario
 WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxT5tzluJTlMl8dW0Ps-v93F672sG4Fn8ajDBrdoeitbQBFyqqrW_udtjwuD47glvUX/exec"
 
-# Inyectar la tipografía Montserrat y estilos adaptables premium
+# Inyectar la tipografía Montserrat y estilos premium adaptables
 st.markdown("""
     <style>
-    @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght=300;400;500;600;700&display=swap');
     
     :root {
         --azul:        #3b7dd8;
@@ -123,7 +126,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# FUNCIÓN: Comparación por ventanas de igual longitud
+# FUNCIÓN: Comparación por ventanas de igual longitud para el dictado
 def calcular_similitud_parcial(texto_usuario, texto_original):
     def limpiar(t):
         t = t.strip().lower()
@@ -147,18 +150,31 @@ def formatear_lineas(texto):
     frases = re.split(r'(?<=[.!?])\s+', texto.strip())
     return "<br>".join(frases)
 
-# Cargar la base de datos local y sincronizar el progreso diario desde la Web App
-@st.cache_data(ttl=2)
+# Cargar los datos desde Google Sheets en tiempo real de forma segura
+@st.cache_data(ttl=1)
 def cargar_datos_sistema():
-    # Cargar frases locales obligatorias
-    df = pd.read_excel("frases.xlsx")
+    try:
+        # Carga directa de la nube sin depender de archivos locales
+        df = pd.read_csv(SHEET_CSV_URL)
+    except Exception as e:
+        # Respaldo si falla la conexión a internet
+        if os.path.exists("frases.xlsx"):
+            df = pd.read_excel("frases.xlsx")
+        else:
+            df = pd.DataFrame(columns=['Isla', 'Castellano', 'Aleman', 'Audio_ID', 'Situacion', 'Explicacion', 'Estado'])
+        
     df.columns = df.columns.str.strip()
     
-    # Consultar contador diario a la Web App para que sea multidispositivo
+    # Blindar las columnas requeridas para evitar KeyErrors accidentales
+    columnas_requeridas = ['Isla', 'Castellano', 'Aleman', 'Audio_ID', 'Situacion', 'Explicacion', 'Estado']
+    for col in columnas_requeridas:
+        if col not in df.columns:
+            df[col] = 'Rojo' if col == 'Estado' else ""
+
+    # Obtener el progreso del objetivo diario desde la Web App
     try:
         respuesta = requests.get(WEB_APP_URL, params={"getContador": "true"}, timeout=4)
-        datos = respuesta.json()
-        contador = datos.get("contador", 0)
+        contador = respuesta.json().get("contador", 0)
     except Exception:
         contador = 0
         
@@ -167,12 +183,12 @@ def cargar_datos_sistema():
 try:
     df_total, contador_diario = cargar_datos_sistema()
 except Exception as e:
-    st.error(f"No se pudo inicializar la base de datos. Error: {e}")
+    st.error(f"No se pudo inicializar la base de datos remota. Error: {e}")
     st.stop()
 
 # --- BARRA LATERAL ---
 st.sidebar.title("Configuración")
-islas_disponibles = df_total['Isla'].unique()
+islas_disponibles = df_total['Isla'].dropna().unique() if len(df_total['Isla'].dropna().unique()) > 0 else ["Sin Islas"]
 isla_seleccionada = st.sidebar.selectbox("🏝️ Selecciona la Isla:", islas_disponibles)
 
 df_isla_completa = df_total[df_total['Isla'] == isla_seleccionada].copy()
@@ -185,20 +201,23 @@ if 'isla_anterior' not in st.session_state or st.session_state.isla_anterior != 
     st.session_state.ver_gramatica = False
     st.session_state.flash_aprendida = False
 
-# --- LÓGICA DE LA RUEDA DINÁMICA DE LOS 15 ---
-df_activas_y_pendientes = df_isla_completa[df_isla_completa['Estado'] != 'Azul'].copy()
-df_azul = df_isla_completa[df_isla_completa['Estado'] == 'Azul']
+# --- LÓGICA DE LA RUEDA DINÁMICA DE LOS 15 CHUNKS ---
+df_activas_y_pendientes = df_isla_completa[df_isla_completa['Estado'].astype(str).str.strip() != 'Azul'].copy()
+df_azul = df_isla_completa[df_isla_completa['Estado'].astype(str).str.strip() == 'Azul']
 total_aprendidos = len(df_azul)
 
 df_en_rueda = df_activas_y_pendientes.head(15).copy()
 total_rueda_actual = len(df_en_rueda)
 
-estados_rueda = df_en_rueda['Estado'].fillna('Rojo').tolist()
-n_rojos   = estados_rueda.count('Rojo')
-n_naranjas = estados_rueda.count('Naranja')
-n_verdes  = estados_rueda.count('Verde')
+if total_rueda_actual > 0:
+    estados_rueda = df_en_rueda['Estado'].fillna('Rojo').astype(str).str.strip().tolist()
+    n_rojos   = estados_rueda.count('Rojo')
+    n_naranjas = estados_rueda.count('Naranja')
+    n_verdes  = estados_rueda.count('Verde')
+else:
+    n_rojos = n_naranjas = n_verdes = 0
 
-# --- 🎯 OBJETIVO DIARIO (SINCRONIZADO) ---
+# --- 🎯 OBJETIVO DIARIO ---
 st.sidebar.write("---")
 st.sidebar.markdown("### 🎯 Objetivo Diario")
 progreso_diario = min(contador_diario / 15, 1.0)
@@ -213,7 +232,7 @@ st.sidebar.markdown(f"""
 </div>
 """, unsafe_allow_html=True)
 
-# --- RESUMEN DE LA ISLA (ESTILO DE TU PANEL SIDEBAR) ---
+# --- RESUMEN DE LA ISLA ---
 st.sidebar.markdown("### 📊 Estado de la Isla")
 porcentaje_isla = round((total_aprendidos / total_frases_isla * 100)) if total_frases_isla > 0 else 0
 
@@ -241,7 +260,7 @@ st.sidebar.markdown(f"""
 </div>
 """, unsafe_allow_html=True)
 
-if total_aprendidos == total_frases_isla and total_frases_isla > 0:
+if total_frases_isla > 0 and total_aprendidos == total_frases_isla:
     st.title("🇩🇪 Método de Chunks & Islas")
     st.balloons()
     st.success(f"🎉 ¡ESPECTACULAR! Has completado la isla '{isla_seleccionada}' al 100%.")
@@ -253,17 +272,22 @@ if st.session_state.indice_actual >= total_rueda_actual:
 # --- CONTENIDO PRINCIPAL ---
 st.title("🇩🇪 Método de Chunks & Islas")
 
+if total_rueda_actual == 0:
+    st.info("🏝️ No hay frases disponibles o todas han sido marcadas como Aprendidas (Azul). ¡Excelente trabajo!")
+    st.stop()
+
 if contador_diario >= 15 and not st.session_state.get('aviso_diario_mostrado', False):
     st.balloons()
-    st.success("🎯 ¡Objetivo Diario Alcanzado en la nube! Has completado tus 15 frases de hoy.")
+    st.success("🎯 ¡Objetivo Diario Alcanzado en la nube! Completaste tus 15 frases de hoy.")
     st.session_state.aviso_diario_mostrado = True
 
 fila_actual = df_en_rueda.iloc[st.session_state.indice_actual]
 castellano_texto = str(fila_actual['Castellano'])
 aleman_texto     = str(fila_actual['Aleman'])
 
-# Encontrar la fila real del Excel (contando cabecera + desfase de index)
-indice_fila_excel = int(df_total[df_total['Castellano'] == castellano_texto].index[0]) + 2
+# Calcular de forma precisa la fila real de Google Sheets (Contando cabecera y desfase 2)
+indices_match = df_total[df_total['Castellano'] == castellano_texto].index
+indice_fila_excel = int(indices_match[0]) + 2 if len(indices_match) > 0 else 2
 
 audio_id_raw = fila_actual['Audio_ID']
 audio_id = "sin_audio" if pd.isna(audio_id_raw) else str(int(audio_id_raw)) if isinstance(audio_id_raw, float) else str(audio_id_raw).strip()
@@ -277,7 +301,7 @@ st.progress(pos_actual / total_rueda_actual)
 if situacion_texto:
     st.markdown(f'<div class="titulo-situacion">📍 {situacion_texto}</div>', unsafe_allow_html=True)
 
-# --- 🔄 CONTROLADORES ORIGINALES ---
+# --- 🔄 MANDOS DE NAVEGACIÓN ---
 col_nav_sol, col_nav_ant, col_nav_sig, col_nav_gram = st.columns([0.25, 0.25, 0.25, 0.25])
 with col_nav_sol:
     if not st.session_state.ver_solucion:
@@ -294,16 +318,16 @@ with col_nav_gram:
     if st.button("💡 Gramática", use_container_width=True): st.session_state.ver_gramatica = not st.session_state.ver_gramatica; st.rerun()
 
 if st.session_state.get('flash_aprendida'):
-    st.markdown('<div class="flash-aprendida">✦ ¡Frase enviada a la nube! 🔵</div>', unsafe_allow_html=True)
+    st.markdown('<div class="flash-aprendida">✦ ¡Frase guardada en tu Google Sheet! 🔵</div>', unsafe_allow_html=True)
     st.session_state.flash_aprendida = False
 
-# Renderizado de Tarjetas
+# Renderizado de Paneles de texto
 if not st.session_state.ver_solucion:
     st.markdown(f'<div class="bloque-azul"><div class="texto-isla"><b>Castellano (Lee y piensa):</b><br><br>{formatear_lineas(castellano_texto)}</div></div>', unsafe_allow_html=True)
 else:
     st.markdown(f'<div class="bloque-verde"><div class="texto-isla"><b>Solución en Alemán:</b><br><br>{formatear_lineas(aleman_texto)}</div></div>', unsafe_allow_html=True)
 
-# --- 🎛️ BOTONES DE ESTADOS (MÓDULO DE COLORES PARA ENVIAR AL EXCEL) ---
+# --- 🎛️ BOTONES DE ACTUALIZACIÓN DE ESTADOS (NUBE) ---
 col_c1, col_c2, col_c3, col_c4 = st.columns(4)
 nuevo_estado = None
 with col_c1:
@@ -317,7 +341,7 @@ with col_c4:
 
 if nuevo_estado:
     try:
-        # Enviamos los parámetros exactos requeridos por tu Google Apps Script
+        # Enviar cambio de estado y sumarle al contador diario en la nube al unísono
         requests.post(WEB_APP_URL, params={
             "row": indice_fila_excel, 
             "status": nuevo_estado,
@@ -336,10 +360,10 @@ if nuevo_estado:
     st.session_state.ver_gramatica = False
     st.rerun()
 
-# --- 🎧 REPRODUCTOR AVANZADO CON SELECCIÓN DE ONDA Y VELOCIDAD ---
+# --- 🎧 REPRODUCTOR PREMIUM CON SELECCIÓN DE ONDA Y VELOCIDAD ---
 ruta_audio = f"Audios/{audio_id}.mp3"
 if os.path.exists(ruta_audio):
-    st.write("🎧 **Arrastra sobre la onda para bucle. Haz clic fuera para reiniciar:**")
+    st.write("🎧 **Arrastra sobre la onda para hacer bucles. Haz clic fuera para limpiar:**")
     with open(ruta_audio, "rb") as f: b64_audio = base64.b64encode(f.read()).decode()
     
     html_reproductor = f"""
@@ -405,7 +429,7 @@ if os.path.exists(ruta_audio):
     """
     st.components.v1.html(html_reproductor, height=215)
 else:
-    st.warning(f"⚠️ Audio no encontrado en la ruta: `{ruta_audio}`")
+    st.warning(f"⚠️ Audio no encontrado para el ID: `{audio_id}`")
 
 # --- DESPLEGABLE DE DICTADO ---
 with st.expander("📝 Modo Dictado: Haz clic aquí para escribir lo que oyes"):
@@ -423,4 +447,4 @@ if st.session_state.ver_gramatica:
     if 'Explicacion' in fila_actual and pd.notna(fila_actual['Explicacion']) and str(fila_actual['Explicacion']).strip() != "":
         st.markdown(f'<div class="bloque-gramatica"><div class="texto-gramatica"><b>💡 Explicación Gramatical:</b><br><br>{formatear_lineas(str(fila_actual['Explicacion']))}</div></div>', unsafe_allow_html=True)
     else:
-        st.info("ℹ️ No hay ninguna explicación cargada para esta frase en el archivo Excel.")
+        st.info("ℹ️ No hay ninguna explicación cargada para esta frase en el Google Sheet.")
