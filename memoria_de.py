@@ -496,8 +496,8 @@ with col_c4:
     if st.button("🔵", use_container_width=True, key="btn_color_azul"):
         nuevo_estado = "Azul"
 
-# URL de la API de Google Apps Script
-WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzxuhVMl8swR7fJHyd5dXt0WCXTpHoSWUrLxxKpRF3Bcwt2lo09vSvkDiAeWymV3F7l/exec"
+# URL de la API de Google Apps Script (ACTUALIZADA CON TU NUEVA VERSIÓN)
+WEB_APP_URL = "https://script.google.com/macros/s/AKfycbyMpUxnYWLCceZpCIsILNWTywzT0MGnrctLFK0DKVkRBr0t1JDj3TagKVfi70zZHQzb/exec"
 
 if nuevo_estado:
     try:
