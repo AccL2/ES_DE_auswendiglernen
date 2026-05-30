@@ -13,7 +13,7 @@ st.set_page_config(page_title="Entrenador de Idiomas por Islas", page_icon="🇩
 # Inyectar tipografías y estilos premium
 st.markdown("""
     <style>
-    @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght={300;400;500;600;700}&display=swap');
 
     /* ── Variables de color ── */
     :root {
@@ -115,23 +115,23 @@ st.markdown("""
     }
     .bloque-verde:hover { box-shadow: 0 4px 20px rgba(34,166,110,0.14); }
 
-    .bloque-gramatica {
-        background: var(--rojo-bg);
-        border: 1px solid var(--rojo-borde);
-        border-left: 4px solid var(--rojo);
-        padding: 1.4rem 1.6rem;
-        border-radius: var(--radio);
-        margin-top: 0.75rem;
-        margin-bottom: 1rem;
-        box-shadow: 0 2px 12px rgba(224,84,84,0.07);
+    /* Estilo para el contenedor de Anotaciones */
+    .bloque-anotaciones {
+        background: var(--rojo-bg) !important;
+        border: 1px solid var(--rojo-borde) !important;
+        border-left: 4px solid var(--rojo) !important;
+        padding: 1.4rem 1.6rem !important;
+        border-radius: var(--radio) !important;
+        margin-top: 1.5rem !important;
+        margin-bottom: 0.5rem !important;
+        box-shadow: 0 2px 12px rgba(224,84,84,0.07) !important;
     }
 
-    .texto-gramatica {
-        font-family: 'Montserrat', sans-serif !important;
-        font-weight: 400 !important;
-        line-height: 1.8;
-        font-size: 1.2rem;
-        margin: 0; padding: 0;
+    /* Forzar que el text_area interno de Streamlit sea transparente para que luzca integrado */
+    .bloque-anotaciones div[data-testid="stTextArea"] textarea {
+        background-color: transparent !important;
+        border: 1px solid rgba(255,255,255,0.08) !important;
+        color: #e8ecf2 !important;
     }
 
     /* ── Resultado dictado ── */
@@ -309,7 +309,6 @@ if 'isla_anterior' not in st.session_state or st.session_state.isla_anterior != 
     st.session_state.indice_actual = 0
     st.session_state.isla_anterior = isla_seleccionada
     st.session_state.ver_solucion = False
-    st.session_state.ver_gramatica = False
 
 # --- CÁLCULO ESTABLE DE LA RUEDA DE 15 ---
 df_activas_y_pendientes = df_isla_completa[df_isla_completa['Estado'] != 'Azul'].copy()
@@ -406,8 +405,8 @@ if situacion_texto:
     st.markdown(f'<div class="titulo-situacion">📍 {situacion_texto}</div>', unsafe_allow_html=True)
 
 
-# --- BARRA DE NAV / CONTROL ---
-col_nav_sol, col_nav_ant, col_nav_sig, col_nav_gram = st.columns([0.25, 0.25, 0.25, 0.25])
+# --- BARRA DE NAV / CONTROL (Botón Gramática eliminado) ---
+col_nav_sol, col_nav_ant, col_nav_sig = st.columns([0.34, 0.33, 0.33])
 
 with col_nav_sol:
     if not st.session_state.ver_solucion:
@@ -424,7 +423,6 @@ with col_nav_ant:
         if st.session_state.indice_actual > 0:
             st.session_state.indice_actual -= 1
             st.session_state.ver_solucion = False
-            st.session_state.ver_gramatica = False
             st.rerun()
 
 with col_nav_sig:
@@ -432,13 +430,7 @@ with col_nav_sig:
         if st.session_state.indice_actual < total_rueda_actual - 1:
             st.session_state.indice_actual += 1
             st.session_state.ver_solucion = False
-            st.session_state.ver_gramatica = False
             st.rerun()
-
-with col_nav_gram:
-    if st.button("💡 Gramática", use_container_width=True, key="btn_gramatica_arriba"):
-        st.session_state.ver_gramatica = not st.session_state.ver_gramatica
-        st.rerun()
 
 st.write("")
 
@@ -504,8 +496,10 @@ with col_c4:
     if st.button("🔵", use_container_width=True, key="btn_color_azul"):
         nuevo_estado = "Azul"
 
+# URL de la API de Google Apps Script
+WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzxuhVMl8swR7fJHyd5dXt0WCXTpHoSWUrLxxKpRF3Bcwt2lo09vSvkDiAeWymV3F7l/exec"
+
 if nuevo_estado:
-    WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzxuhVMl8swR7fJHyd5dXt0WCXTpHoSWUrLxxKpRF3Bcwt2lo09vSvkDiAeWymV3F7l/exec"
     try:
         requests.post(WEB_APP_URL, params={"row": indice_fila_google_sheet, "status": nuevo_estado})
     except Exception:
@@ -513,12 +507,10 @@ if nuevo_estado:
 
     st.cache_data.clear()
 
-    # Si no es la última frase de la rueda, avanzamos automáticamente
     if st.session_state.indice_actual < total_rueda_actual - 1:
         st.session_state.indice_actual += 1
 
     st.session_state.ver_solucion = False
-    st.session_state.ver_gramatica = False
     st.rerun()
 
 
@@ -757,15 +749,27 @@ with st.expander("📝 Modo Dictado"):
             """, unsafe_allow_html=True)
 
 
-# --- EXPLICACIÓN GRAMATICAL ---
-if st.session_state.ver_gramatica:
-    if 'Explicacion' in fila_actual and pd.notna(fila_actual['Explicacion']) and str(fila_actual['Explicacion']).strip() != "":
-        explicacion_formateada = formatear_lineas(str(fila_actual['Explicacion']))
-        st.markdown(f"""
-        <div class="bloque-gramatica">
-            <div class="texto-gramatica">
-                <b>💡 Explicación Gramatical:</b><br><br>
-                {explicacion_formateada}
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
+# --- BLOQUE FIJO: ANOTACIONES (Sincronizado con la columna 'Explicacion') ---
+anotacion_inicial = str(fila_actual['Explicacion']) if 'Explicacion' in fila_actual and pd.notna(fila_actual['Explicacion']) else ""
+
+st.markdown('<div class="bloque-anotaciones">', unsafe_allow_html=True)
+texto_anotaciones = st.text_area(
+    "📝 Anotaciones personales:",
+    value=anotacion_inicial,
+    key=f"input_anotaciones_{st.session_state.indice_actual}",
+    height=150
+)
+st.markdown('</div>', unsafe_allow_html=True)
+
+if st.button("💾 Guardar Anotaciones", use_container_width=True, key="btn_guardar_anotaciones"):
+    try:
+        # Enviamos la actualización usando el parámetro 'explanation' para mapear directamente a la columna Explicacion
+        res = requests.post(WEB_APP_URL, params={"row": indice_fila_google_sheet, "explanation": texto_anotaciones})
+        if res.status_code == 200:
+            st.success("¡Anotaciones guardadas correctamente en Google Sheets! 🚀")
+            st.cache_data.clear()
+            st.rerun()
+        else:
+            st.error("Error al guardar en el servidor remoto.")
+    except Exception as e:
+        st.error(f"No se pudo conectar con el servidor: {e}")
