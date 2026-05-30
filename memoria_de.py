@@ -65,7 +65,7 @@ def calcular_similitud_parcial(texto_usuario, texto_original):
 def formatear_lineas(texto):
     return "<br>".join(re.split(r'(?<=[.!?])\s+', texto.strip()))
 
-# Cargar los datos limpiando imperfecciones y previniendo KeyErrors
+# Cargar los datos respetando estrictamente las mayúsculas de tu Google Sheet
 @st.cache_data(ttl=1)
 def cargar_datos_sistema():
     try: 
@@ -76,18 +76,14 @@ def cargar_datos_sistema():
         else: 
             df = pd.DataFrame(columns=['Isla', 'Castellano', 'Aleman', 'Audio_ID', 'Situacion', 'Explicacion', 'Estado'])
     
-    # Normalizar nombres de columnas (Quitar espacios y forzar primera letra Mayúscula)
-    df.columns = df.columns.str.strip().str.capitalize()
-    
-    # Forzar que la columna Audio_id mantenga la nomenclatura exacta esperada más adelante
-    if 'Audio_id' in df.columns:
-        df = df.rename(columns={'Audio_id': 'Audio_ID'})
+    # Limpiar solo espacios en blanco de las cabeceras, sin alterar las letras
+    df.columns = df.columns.str.strip()
         
     for col in df.columns:
         if df[col].dtype == 'object': 
             df[col] = df[col].astype(str).str.strip()
             
-    # Escudo protector de columnas clave
+    # Asegurar que existan las columnas clave de forma exacta
     if 'Estado' not in df.columns: df['Estado'] = ""
     if 'Isla' not in df.columns: df['Isla'] = "Sin Isla"
     if 'Castellano' not in df.columns: df['Castellano'] = ""
@@ -155,15 +151,16 @@ if total_rueda_actual == 0:
     st.stop()
 
 fila_actual = df_en_rueda.iloc[st.session_state.indice_actual]
-castellano_texto = str(fila_actual['Castellano'])
+castash_raw = fila_actual['Castellano']
+castellano_texto = str(castash_raw)
 aleman_texto     = str(fila_actual['Aleman'])
 estado_actual    = str(fila_actual['Estado']).strip()
 
 if estado_actual == "nan" or not estado_actual:
     estado_actual = ""
 
-# Encontrar fila del Excel real para realizar la edición remota
-indices_match = df_total[df_total['Castellano'] == castellano_texto].index
+# Encontrar fila del Excel real para realizar la edición remota de forma exacta
+indices_match = df_total[df_total['Castellano'] == castash_raw].index
 indice_fila_excel = int(indices_match[0]) + 2 if len(indices_match) > 0 else 2
 
 audio_id_raw = fila_actual['Audio_ID'] if 'Audio_ID' in fila_actual else "sin_audio"
@@ -209,7 +206,7 @@ with col_c4:
 
 if nuevo_estado:
     try:
-        # Petición clásica directa a la Web App
+        # Envío directo tradicional
         requests.post(WEB_APP_URL, params={"row": indice_fila_excel, "status": nuevo_estado}, timeout=5)
     except Exception: pass
     
