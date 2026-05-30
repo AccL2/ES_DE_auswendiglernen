@@ -40,6 +40,7 @@ st.markdown("""
     .caja-dinamica-Naranja { background: var(--naranja-bg); border: 1px solid var(--naranja-borde); border-left: 5px solid var(--naranja); padding: 1.4rem 1.6rem; border-radius: var(--radio); margin-bottom: 1rem; }
     .caja-dinamica-Verde { background: var(--verde-bg); border: 1px solid var(--verde-borde); border-left: 5px solid var(--verde); padding: 1.4rem 1.6rem; border-radius: var(--radio); margin-bottom: 1rem; }
     .caja-dinamica- { background: var(--azul-bg); border: 1px solid var(--azul-borde); border-left: 5px solid var(--azul); padding: 1.4rem 1.6rem; border-radius: var(--radio); margin-bottom: 1rem; }
+    .caja-dinamica-nan { background: var(--azul-bg); border: 1px solid var(--azul-borde); border-left: 5px solid var(--azul); padding: 1.4rem 1.6rem; border-radius: var(--radio); margin-bottom: 1rem; }
 
     .bloque-verde { background: var(--verde-bg); border: 1px solid var(--verde-borde); border-left: 5px solid var(--verde); padding: 1.4rem 1.6rem; border-radius: var(--radio); margin-bottom: 1rem; }
     .bloque-gramatica { background: var(--rojo-bg); border: 1px solid var(--rojo-borde); border-left: 4px solid var(--rojo); padding: 1.4rem 1.6rem; border-radius: var(--radio); margin-top: 0.75rem; }
@@ -64,15 +65,34 @@ def calcular_similitud_parcial(texto_usuario, texto_original):
 def formatear_lineas(texto):
     return "<br>".join(re.split(r'(?<=[.!?])\s+', texto.strip()))
 
+# Cargar los datos limpiando imperfecciones y previniendo KeyErrors
 @st.cache_data(ttl=1)
 def cargar_datos_sistema():
-    try: df = pd.read_csv(SHEET_CSV_URL)
+    try: 
+        df = pd.read_csv(SHEET_CSV_URL)
     except Exception:
-        if os.path.exists("frases.xlsx"): df = pd.read_excel("frases.xlsx")
-        else: df = pd.DataFrame(columns=['Isla', 'Castellano', 'Aleman', 'Audio_ID', 'Situacion', 'Explicacion', 'Estado'])
-    df.columns = df.columns.str.strip()
+        if os.path.exists("frases.xlsx"): 
+            df = pd.read_excel("frases.xlsx")
+        else: 
+            df = pd.DataFrame(columns=['Isla', 'Castellano', 'Aleman', 'Audio_ID', 'Situacion', 'Explicacion', 'Estado'])
+    
+    # Normalizar nombres de columnas (Quitar espacios y forzar primera letra Mayúscula)
+    df.columns = df.columns.str.strip().str.capitalize()
+    
+    # Forzar que la columna Audio_id mantenga la nomenclatura exacta esperada más adelante
+    if 'Audio_id' in df.columns:
+        df = df.rename(columns={'Audio_id': 'Audio_ID'})
+        
     for col in df.columns:
-        if df[col].dtype == 'object': df[col] = df[col].astype(str).str.strip()
+        if df[col].dtype == 'object': 
+            df[col] = df[col].astype(str).str.strip()
+            
+    # Escudo protector de columnas clave
+    if 'Estado' not in df.columns: df['Estado'] = ""
+    if 'Isla' not in df.columns: df['Isla'] = "Sin Isla"
+    if 'Castellano' not in df.columns: df['Castellano'] = ""
+    if 'Aleman' not in df.columns: df['Aleman'] = ""
+        
     return df
 
 df_total = cargar_datos_sistema()
@@ -91,7 +111,7 @@ if 'isla_anterior' not in st.session_state or st.session_state.isla_anterior != 
     st.session_state.ver_solucion = False
     st.session_state.ver_gramatica = False
 
-# Filtrar Rueda
+# Filtrar Rueda desactivando las Aprendidas (Azul)
 df_activas = df_isla_completa[df_isla_completa['Estado'].astype(str).str.strip() != 'Azul'].copy()
 total_aprendidos = len(df_isla_completa[df_isla_completa['Estado'].astype(str).str.strip() == 'Azul'])
 df_en_rueda = df_activas.head(15).copy()
@@ -139,11 +159,14 @@ castellano_texto = str(fila_actual['Castellano'])
 aleman_texto     = str(fila_actual['Aleman'])
 estado_actual    = str(fila_actual['Estado']).strip()
 
-# Encontrar fila del Excel real
+if estado_actual == "nan" or not estado_actual:
+    estado_actual = ""
+
+# Encontrar fila del Excel real para realizar la edición remota
 indices_match = df_total[df_total['Castellano'] == castellano_texto].index
 indice_fila_excel = int(indices_match[0]) + 2 if len(indices_match) > 0 else 2
 
-audio_id_raw = fila_actual['Audio_ID']
+audio_id_raw = fila_actual['Audio_ID'] if 'Audio_ID' in fila_actual else "sin_audio"
 audio_id = "sin_audio" if pd.isna(audio_id_raw) else str(int(audio_id_raw)) if isinstance(audio_id_raw, float) else str(audio_id_raw).strip()
 situacion_texto = str(fila_actual['Situacion']).strip() if 'Situacion' in fila_actual and pd.notna(fila_actual['Situacion']) else ""
 
@@ -168,8 +191,7 @@ with col_nav_gram:
 
 # --- MUESTRA DE BLOQUE DE TEXTO CON COLOR DE BORDE SEGÚN SU ESTADO ---
 if not st.session_state.ver_solucion:
-    # Se inyecta la clase css dinámica (caja-dinamica-Rojo, caja-dinamica-Naranja, etc.)
-    st.markdown(f'<div class="caja-dinamica-{estado_actual}"><div class="texto-isla"><b>Castellano (Estado: {estado_actual if estado_actual else "Nuevo"}):</b><br><br>{formatear_lineas(castellano_texto)}</div></div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="caja-dinamica-{estado_actual}"><div class="texto-isla"><b>Castellano (Estado actual: {estado_actual if estado_actual else "Nuevo / Sin color"}):</b><br><br>{formatear_lineas(castellano_texto)}</div></div>', unsafe_allow_html=True)
 else:
     st.markdown(f'<div class="bloque-verde"><div class="texto-isla"><b>Solución en Alemán:</b><br><br>{formatear_lineas(aleman_texto)}</div></div>', unsafe_allow_html=True)
 
@@ -235,11 +257,11 @@ if st.session_state.ver_gramatica:
     exp = str(fila_actual['Explicacion']).strip() if 'Explicacion' in fila_actual and pd.notna(fila_actual['Explicacion']) else ""
     st.markdown(f'<div class="bloque-gramatica"><b>💡 Nota gramatical:</b><br><br>{formatear_lineas(exp) if exp else "Sin notas."}</div>', unsafe_allow_html=True)
 
-# --- 🔍 TABLA INFERIOR REVELADORA: VER TODA LA ISLA JUNTA ---
+# --- 🔍 VISUALIZADOR MAPA DE LA ISLA ---
 st.write("---")
 with st.expander("🔍 Ver toda la Isla (Mapa de colores de tus frases)"):
     st.write("Aquí tienes la lista completa de frases de esta isla con el color que guardaste para cada una:")
-    # Filtrar columnas bonitas para mostrar al usuario
-    tabla_bonita = df_isla_completa[['Castellano', 'Aleman', 'Estado']].copy()
-    tabla_bonita['Estado'] = tabla_bonita['Estado'].replace("", "Nuevo (Sin color todavía)")
+    columnas_visibles = [col for col in ['Castellano', 'Aleman', 'Estado'] if col in df_isla_completa.columns]
+    tabla_bonita = df_isla_completa[columnas_visibles].copy()
+    tabla_bonita['Estado'] = tabla_bonita['Estado'].replace({"": "Nuevo (Sin color)", "nan": "Nuevo (Sin color)"})
     st.dataframe(tabla_bonita, use_container_width=True, hide_index=True)
