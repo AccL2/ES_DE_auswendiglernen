@@ -157,6 +157,7 @@ total_jubiladas = len(df_jubiladas)
 st.sidebar.write("---")
 st.sidebar.markdown("### 📊 Progreso de la Isla")
 st.sidebar.metric("🏝️ Total Isla", f"{total_frases_isla}")
+
 # Construimos la Rueda de 15 activas (Rojo, Naranja, Verde)
 df_en_rueda = df_activas_y_pendientes[df_activas_y_pendientes['Estado'].isin(['Rojo', 'Naranja', 'Verde'])].copy()
 
@@ -246,13 +247,13 @@ with col_nav_gram:
 
 st.write("")
 
-# Renderizado de la Tarjeta (Castellano / Alemán)
+# Renderizado de la Tarjeta ORIGINAL recuperando Montserrat al 100%
 if not st.session_state.ver_solucion:
     castellano_formateado = formatear_lineas(castellano_texto)
     st.markdown(f"""
     <div class="bloque-azul">
         <div class="texto-isla">
-            <b>Castellano:</b><br><br>
+            <b>Castellano (Haz el 'Tapa y Escupe'):</b><br><br>
             {castellano_formateado}
         </div>
     </div>
@@ -262,7 +263,7 @@ else:
     st.markdown(f"""
     <div class="bloque-verde">
         <div class="texto-isla">
-            <b>Alemán:</b><br><br>
+            <b>Solución en Alemán:</b><br><br>
             {aleman_formateado}
         </div>
     </div>
