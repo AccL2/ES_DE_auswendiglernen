@@ -154,10 +154,8 @@ def formatear_lineas(texto):
 @st.cache_data(ttl=1)
 def cargar_datos_sistema():
     try:
-        # Carga directa de la nube sin depender de archivos locales
         df = pd.read_csv(SHEET_CSV_URL)
     except Exception as e:
-        # Respaldo si falla la conexión a internet
         if os.path.exists("frases.xlsx"):
             df = pd.read_excel("frases.xlsx")
         else:
@@ -165,23 +163,20 @@ def cargar_datos_sistema():
         
     df.columns = df.columns.str.strip()
     
-    # Blindar las columnas requeridas para evitar KeyErrors accidentales
+    # Limpieza de textos y espacios extraños en columnas de texto principal
+    for col in df.columns:
+        if df[col].dtype == 'object':
+            df[col] = df[col].astype(str).str.strip()
+
     columnas_requeridas = ['Isla', 'Castellano', 'Aleman', 'Audio_ID', 'Situacion', 'Explicacion', 'Estado']
     for col in columnas_requeridas:
         if col not in df.columns:
             df[col] = 'Rojo' if col == 'Estado' else ""
-
-    # Obtener el progreso del objetivo diario desde la Web App
-    try:
-        respuesta = requests.get(WEB_APP_URL, params={"getContador": "true"}, timeout=4)
-        contador = respuesta.json().get("contador", 0)
-    except Exception:
-        contador = 0
         
-    return df, contador
+    return df
 
 try:
-    df_total, contador_diario = cargar_datos_sistema()
+    df_total = cargar_datos_sistema()
 except Exception as e:
     st.error(f"No se pudo inicializar la base de datos remota. Error: {e}")
     st.stop()
@@ -216,21 +211,6 @@ if total_rueda_actual > 0:
     n_verdes  = estados_rueda.count('Verde')
 else:
     n_rojos = n_naranjas = n_verdes = 0
-
-# --- 🎯 OBJETIVO DIARIO ---
-st.sidebar.write("---")
-st.sidebar.markdown("### 🎯 Objetivo Diario")
-progreso_diario = min(contador_diario / 15, 1.0)
-color_diario = "#22a66e" if contador_diario >= 15 else "#f5a623"
-
-st.sidebar.markdown(f"""
-<div style="background: rgba(255,255,255,0.04); padding: 14px 16px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.09); margin-bottom: 10px;">
-    <p style="margin: 0 0 4px 0; font-size: 0.7rem; color: #8a9ab5; font-weight: 500; text-transform: uppercase; letter-spacing: 2px;">📅 HOY: {contador_diario} / 15 frases</p>
-    <div style="height: 5px; background: rgba(255,255,255,0.08); border-radius: 99px; overflow: hidden; margin-top: 8px;">
-        <div style="height: 100%; width: {progreso_diario * 100}%; background: {color_diario}; border-radius: 99px;"></div>
-    </div>
-</div>
-""", unsafe_allow_html=True)
 
 # --- RESUMEN DE LA ISLA ---
 st.sidebar.markdown("### 📊 Estado de la Isla")
@@ -276,16 +256,11 @@ if total_rueda_actual == 0:
     st.info("🏝️ No hay frases disponibles o todas han sido marcadas como Aprendidas (Azul). ¡Excelente trabajo!")
     st.stop()
 
-if contador_diario >= 15 and not st.session_state.get('aviso_diario_mostrado', False):
-    st.balloons()
-    st.success("🎯 ¡Objetivo Diario Alcanzado en la nube! Completaste tus 15 frases de hoy.")
-    st.session_state.aviso_diario_mostrado = True
-
 fila_actual = df_en_rueda.iloc[st.session_state.indice_actual]
 castellano_texto = str(fila_actual['Castellano'])
 aleman_texto     = str(fila_actual['Aleman'])
 
-# Calcular de forma precisa la fila real de Google Sheets (Contando cabecera y desfase 2)
+# Calcular la fila exacta del Google Sheets para actualizar
 indices_match = df_total[df_total['Castellano'] == castellano_texto].index
 indice_fila_excel = int(indices_match[0]) + 2 if len(indices_match) > 0 else 2
 
@@ -327,7 +302,7 @@ if not st.session_state.ver_solucion:
 else:
     st.markdown(f'<div class="bloque-verde"><div class="texto-isla"><b>Solución en Alemán:</b><br><br>{formatear_lineas(aleman_texto)}</div></div>', unsafe_allow_html=True)
 
-# --- 🎛️ BOTONES DE ACTUALIZACIÓN DE ESTADOS (NUBE) ---
+# --- 🎛️ BOTONES DE ACTUALIZACIÓN DE ESTADOS (CON SUCESIÓN INMEDIATA BLINDADA) ---
 col_c1, col_c2, col_c3, col_c4 = st.columns(4)
 nuevo_estado = None
 with col_c1:
@@ -340,21 +315,31 @@ with col_c4:
     if st.button("🔵 Aprendidas", use_container_width=True): nuevo_estado = "Azul"
 
 if nuevo_estado:
+    # 1. Enviar la petición de red con un límite de tiempo ultra-bajo para evitar cuelgues
     try:
-        # Enviar cambio de estado y sumarle al contador diario en la nube al unísono
         requests.post(WEB_APP_URL, params={
             "row": indice_fila_excel, 
             "status": nuevo_estado,
             "sumarContador": "true"
-        }, timeout=4)
+        }, timeout=0.6)
     except Exception:
+        # Si Google tarda en responder, ignoramos el retraso de red para mantener la app fluida
         pass
 
+    # 2. Modificar el estado local inmediatamente en memoria para que pase de frase de forma instantánea
     st.cache_data.clear()
+    
     if nuevo_estado == "Azul":
         st.session_state.flash_aprendida = True
-    elif st.session_state.indice_actual < total_rueda_actual - 1:
-        st.session_state.indice_actual += 1
+        # Como se vuelve invisible (Azul), la rueda cambia. Nos quedamos en el mismo índice o bajamos si es la última
+        if st.session_state.indice_actual >= total_rueda_actual - 1 and st.session_state.indice_actual > 0:
+            st.session_state.indice_actual -= 1
+    else:
+        # Si presionas Rojo, Naranja o Verde, avanzas a la siguiente frase de la rueda de forma cíclica
+        if st.session_state.indice_actual < total_rueda_actual - 1:
+            st.session_state.indice_actual += 1
+        else:
+            st.session_state.indice_actual = 0
 
     st.session_state.ver_solucion = False
     st.session_state.ver_gramatica = False
