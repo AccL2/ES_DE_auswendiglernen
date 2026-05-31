@@ -497,7 +497,7 @@ with col_c4:
         nuevo_estado = "Azul"
 
 # URL de la API de Google Apps Script
-WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzxuhVMl8swR7fJHyd5dXt0WCXTpHoSWUrLxxKpRF3Bcwt2lo09vSvkDiAeWymV3F7l/exec"
+WEB_APP_URL = "https://script.google.com/macros/s/AKfycbyFHYK4Pf9VkccG6m5rn0RokxQtTJ0d_8mE8PrsyYHRACn0efjo3G8lJ73VfhVwClrj/exec"
 
 if nuevo_estado:
     try:
