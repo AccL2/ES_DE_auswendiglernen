@@ -13,7 +13,7 @@ st.set_page_config(page_title="Entrenador de Idiomas por Islas", page_icon="🇩
 # Inyectar tipografías y estilos premium
 st.markdown("""
     <style>
-    @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght={300;400;500;600;700}&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&display=swap');
 
     /* ── Variables de color ── */
     :root {
@@ -30,9 +30,70 @@ st.markdown("""
         --radio:       12px;
     }
 
-    /* ── Fuente base para toda la app ── */
-    html, body, [class*="css"], .stMarkdown, .stTextArea, .stExpander,
-    .stButton button, .stSelectbox, .stSidebar, p, label, input, textarea {
+    /* ── Fuente base GLOBAL — cubre todos los elementos nativos de Streamlit ── */
+    html, body, * {
+        font-family: 'Montserrat', sans-serif !important;
+    }
+
+    /* Selectbox, radio, checkbox, slider, number_input, date_input */
+    .stSelectbox > div, .stSelectbox label,
+    .stRadio > div, .stRadio label,
+    .stCheckbox > div, .stCheckbox label,
+    .stSlider > div, .stSlider label,
+    .stNumberInput > div, .stNumberInput label,
+    .stDateInput > div, .stDateInput label,
+    .stTextInput > div, .stTextInput label,
+    .stTextArea > div, .stTextArea label,
+    div[data-testid="stSelectbox"] *,
+    div[data-testid="stTextInput"] *,
+    div[data-testid="stTextArea"] *,
+    div[data-testid="stNumberInput"] *,
+    div[data-testid="stDateInput"] * {
+        font-family: 'Montserrat', sans-serif !important;
+    }
+
+    /* Métricas */
+    div[data-testid="stMetric"] *,
+    div[data-testid="stMetricLabel"] *,
+    div[data-testid="stMetricValue"] *,
+    div[data-testid="stMetricDelta"] * {
+        font-family: 'Montserrat', sans-serif !important;
+    }
+
+    /* Tablas / dataframes */
+    .stDataFrame *, table, th, td {
+        font-family: 'Montserrat', sans-serif !important;
+    }
+
+    /* Alertas: info, success, warning, error */
+    div[data-testid="stAlert"] *,
+    div[role="alert"] * {
+        font-family: 'Montserrat', sans-serif !important;
+    }
+
+    /* Expander */
+    details > summary,
+    .streamlit-expanderHeader,
+    .streamlit-expanderHeader * {
+        font-family: 'Montserrat', sans-serif !important;
+    }
+
+    /* Sidebar completa */
+    section[data-testid="stSidebar"] *,
+    section[data-testid="stSidebar"] p,
+    section[data-testid="stSidebar"] span,
+    section[data-testid="stSidebar"] label,
+    section[data-testid="stSidebar"] input {
+        font-family: 'Montserrat', sans-serif !important;
+    }
+
+    /* Toast / notificaciones */
+    div[data-testid="stToast"] * {
+        font-family: 'Montserrat', sans-serif !important;
+    }
+
+    /* Botones */
+    button, .stButton button, button * {
         font-family: 'Montserrat', sans-serif !important;
     }
 
@@ -517,7 +578,7 @@ if nuevo_estado:
 # --- REPRODUCTOR DE AUDIO ---
 ruta_audio = f"Audios/{audio_id}.mp3"
 if os.path.exists(ruta_audio):
-    st.write("🎧 **Onda de audio interactiva:**")
+    st.markdown('<p style="font-family:\'Montserrat\',sans-serif; font-weight:600; font-size:0.95rem; margin-bottom:8px;">🎧 Onda de audio interactiva:</p>', unsafe_allow_html=True)
 
     with open(ruta_audio, "rb") as f:
         audio_bytes = f.read()
