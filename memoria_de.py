@@ -342,8 +342,9 @@ def formatear_lineas(texto):
     frases = re.split(r'(?<=[.!?])\s+', texto.strip())
     return "<br>".join(frases)
 
-# URL de tu Google Sheet
-SHEET_URL = "https://docs.google.com/spreadsheets/d/1hpP0J5qRrbx5p9W2nHWsoTDBA9hhvLZYblaU12Ln3w4/export?format=csv"
+# URLs
+SHEET_URL   = "https://docs.google.com/spreadsheets/d/1hpP0J5qRrbx5p9W2nHWsoTDBA9hhvLZYblaU12Ln3w4/export?format=csv"
+WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzUjhiwydEHUGfYaEJOXpvJf-00D1Yx3jHltLgGPpCXXc_08dL_4fugUmmY7u7EmXgM/exec"
 
 @st.cache_data(ttl=2)
 def cargar_datos_web():
@@ -443,7 +444,7 @@ castellano_texto = str(fila_actual['Castellano'])
 aleman_texto     = str(fila_actual['Aleman'])
 estado_actual    = str(fila_actual['Estado']).strip()
 
-indice_fila_google_sheet = int(df_isla_completa.index[df_isla_completa['Castellano'] == castellano_texto].tolist()[0]) + 2
+indice_fila_google_sheet = int(df_total.index[df_total['Castellano'] == castellano_texto].tolist()[0]) + 2
 
 audio_id_raw = fila_actual['Audio_ID']
 if pd.isna(audio_id_raw):
@@ -557,12 +558,9 @@ with col_c4:
     if st.button("🔵", use_container_width=True, key="btn_color_azul"):
         nuevo_estado = "Azul"
 
-# URL de la API de Google Apps Script
-WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzUjhiwydEHUGfYaEJOXpvJf-00D1Yx3jHltLgGPpCXXc_08dL_4fugUmmY7u7EmXgM/exec"
-
 if nuevo_estado:
     try:
-        requests.post(WEB_APP_URL, params={"row": indice_fila_google_sheet, "status": nuevo_estado})
+        requests.post(WEB_APP_URL, params={"row": indice_fila_google_sheet, "status": nuevo_estado, "sumarContador": "true"})
     except Exception:
         pass
 
