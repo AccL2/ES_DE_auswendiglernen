@@ -560,7 +560,11 @@ with col_c4:
 
 if nuevo_estado:
     try:
-        requests.post(WEB_APP_URL, params={"row": indice_fila_google_sheet, "status": nuevo_estado, "sumarContador": "true"})
+        requests.post(WEB_APP_URL, params={
+            "castellano": castellano_texto,
+            "status": nuevo_estado,
+            "sumarContador": "true"
+        })
     except Exception:
         pass
 
@@ -828,7 +832,7 @@ texto_anotaciones = st.text_area(
 
 if st.button("💾 Guardar Anotaciones", use_container_width=True, key="btn_guardar_anotaciones"):
     try:
-        res = requests.post(WEB_APP_URL, params={"row": indice_fila_google_sheet, "explanation": texto_anotaciones})
+        res = requests.post(WEB_APP_URL, params={"castellano": castellano_texto, "explanation": texto_anotaciones})
         if res.status_code == 200:
             st.success("¡Anotaciones guardadas correctamente en Google Sheets! 🚀")
             st.cache_data.clear()
