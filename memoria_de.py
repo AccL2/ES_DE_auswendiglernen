@@ -377,7 +377,7 @@ df_activas_y_pendientes = df_isla_completa[df_isla_completa['Estado'] != 'Azul']
 df_azul = df_isla_completa[df_isla_completa['Estado'] == 'Azul']
 total_aprendidos = len(df_azul)
 
-df_en_rueda = df_activas_y_pendientes.head(15).copy()
+df_en_rueda = df_activas_y_pendientes.copy()
 total_rueda_actual = len(df_en_rueda)
 
 estados_rueda = df_en_rueda['Estado'].fillna('Rojo').astype(str).str.strip().tolist()
