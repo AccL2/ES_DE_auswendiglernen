@@ -344,7 +344,7 @@ def formatear_lineas(texto):
 
 # URLs
 SHEET_URL   = "https://docs.google.com/spreadsheets/d/1hpP0J5qRrbx5p9W2nHWsoTDBA9hhvLZYblaU12Ln3w4/export?format=csv"
-WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzUjhiwydEHUGfYaEJOXpvJf-00D1Yx3jHltLgGPpCXXc_08dL_4fugUmmY7u7EmXgM/exec"
+WEB_APP_URL = "https://script.google.com/macros/s/AKfycbydhqou6szecDXXRATEggOJGJsSYdWHa5LgS7DhmhDZ1vDfxSodyFk2d-a4RbFbBI_H/exec"
 
 @st.cache_data(ttl=2)
 def cargar_datos_web():
