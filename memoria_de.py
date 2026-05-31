@@ -844,23 +844,25 @@ texto_anotaciones = st.text_area(
 
 if st.button("💾 Guardar Anotaciones", use_container_width=True, key="btn_guardar_anotaciones"):
     try:
-        # Usamos castellano_limpio para asegurar que encontramos la misma fila en el Excel
         castellano_limpio = " ".join(castellano_texto.split())
         
+        # Enviamos la anotación al script
         r = requests.post(
             WEB_APP_URL,
             params={
                 "castellano": castellano_limpio,
-                "explanation": texto_anotaciones,
-                "sumarContador": "false" # No queremos sumar contador aquí
+                "anotacion": texto_anotaciones,
+                "accion": "guardar_anotacion"
             },
             timeout=10
         )
         
         if r.status_code == 200:
-            st.toast("✅ Anotación guardada")
+            st.toast("✅ Anotaciones guardadas en el Excel")
         else:
             st.error(f"Error al guardar: {r.status_code}")
+    except Exception as e:
+        st.error(f"Error de conexión: {e}")
             
     except Exception as e:
         st.error(f"Error de conexión: {e}")
