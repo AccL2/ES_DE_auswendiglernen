@@ -562,15 +562,18 @@ if nuevo_estado:
 
     try:
 
-        r = requests.post(
-            WEB_APP_URL,
-            params={
-                "castellano": castellano_texto,
-                "status": nuevo_estado,
-                "sumarContador": "true"
-            },
-            timeout=10
-        )
+        # Asegúrate de limpiar el texto antes de enviarlo
+castellano_limpio = " ".join(castellano_texto.split())
+
+r = requests.post(
+    WEB_APP_URL,
+    params={
+        "castellano": castellano_limpio, # Usa la versión limpia
+        "status": nuevo_estado,
+        "sumarContador": "true"
+    },
+    timeout=10
+)
 
         if r.status_code == 200:
 
