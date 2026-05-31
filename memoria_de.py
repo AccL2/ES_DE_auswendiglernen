@@ -30,71 +30,30 @@ st.markdown("""
         --radio:       12px;
     }
 
-    /* ── Fuente base GLOBAL — cubre todos los elementos nativos de Streamlit ── */
-    html, body, * {
+    /* ── Fuente base GLOBAL ── */
+    html, body,
+    p, div, label, input, textarea, select, option,
+    h1, h2, h3, h4, h5, h6,
+    [class*="css"],
+    .stMarkdown, .stText, .stTextArea, .stTextInput,
+    .stButton button, .stSelectbox, .stSidebar {
         font-family: 'Montserrat', sans-serif !important;
     }
 
-    /* Selectbox, radio, checkbox, slider, number_input, date_input */
-    .stSelectbox > div, .stSelectbox label,
-    .stRadio > div, .stRadio label,
-    .stCheckbox > div, .stCheckbox label,
-    .stSlider > div, .stSlider label,
-    .stNumberInput > div, .stNumberInput label,
-    .stDateInput > div, .stDateInput label,
-    .stTextInput > div, .stTextInput label,
-    .stTextArea > div, .stTextArea label,
-    div[data-testid="stSelectbox"] *,
-    div[data-testid="stTextInput"] *,
-    div[data-testid="stTextArea"] *,
-    div[data-testid="stNumberInput"] *,
-    div[data-testid="stDateInput"] * {
+    /* Expander — fuente sin tocar el SVG de la flecha ── */
+    div[data-testid="stExpander"] summary p,
+    div[data-testid="stExpander"] p,
+    div[data-testid="stExpander"] div {
         font-family: 'Montserrat', sans-serif !important;
     }
 
-    /* Métricas */
-    div[data-testid="stMetric"] *,
-    div[data-testid="stMetricLabel"] *,
-    div[data-testid="stMetricValue"] *,
-    div[data-testid="stMetricDelta"] * {
-        font-family: 'Montserrat', sans-serif !important;
-    }
-
-    /* Tablas / dataframes */
-    .stDataFrame *, table, th, td {
-        font-family: 'Montserrat', sans-serif !important;
-    }
-
-    /* Alertas: info, success, warning, error */
-    div[data-testid="stAlert"] *,
-    div[role="alert"] * {
-        font-family: 'Montserrat', sans-serif !important;
-    }
-
-    /* Expander */
-    details > summary,
-    .streamlit-expanderHeader,
-    .streamlit-expanderHeader * {
-        font-family: 'Montserrat', sans-serif !important;
-    }
-
-    /* Sidebar completa */
-    section[data-testid="stSidebar"] *,
-    section[data-testid="stSidebar"] p,
-    section[data-testid="stSidebar"] span,
-    section[data-testid="stSidebar"] label,
-    section[data-testid="stSidebar"] input {
-        font-family: 'Montserrat', sans-serif !important;
-    }
-
-    /* Toast / notificaciones */
-    div[data-testid="stToast"] * {
-        font-family: 'Montserrat', sans-serif !important;
-    }
-
-    /* Botones */
-    button, .stButton button, button * {
-        font-family: 'Montserrat', sans-serif !important;
+    /* Ocultar el texto "arrow_down" / "arrow_up" del SVG del expander */
+    div[data-testid="stExpander"] summary svg title,
+    div[data-testid="stExpander"] summary > span:first-child {
+        display: none !important;
+        font-size: 0 !important;
+        width: 0 !important;
+        overflow: hidden !important;
     }
 
     /* ── Título principal ── */
@@ -344,7 +303,7 @@ def formatear_lineas(texto):
 
 # URLs
 SHEET_URL   = "https://docs.google.com/spreadsheets/d/1hpP0J5qRrbx5p9W2nHWsoTDBA9hhvLZYblaU12Ln3w4/export?format=csv"
-WEB_APP_URL = "https://script.google.com/macros/s/AKfycbydhqou6szecDXXRATEggOJGJsSYdWHa5LgS7DhmhDZ1vDfxSodyFk2d-a4RbFbBI_H/exec"
+WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzUjhiwydEHUGfYaEJOXpvJf-00D1Yx3jHltLgGPpCXXc_08dL_4fugUmmY7u7EmXgM/exec"
 
 @st.cache_data(ttl=2)
 def cargar_datos_web():
@@ -770,7 +729,7 @@ else:
 
 
 # --- MODO DICTADO ---
-with st.expander("Modo Dictado"):
+with st.expander("📝 Modo Dictado"):
     texto_usuario = st.text_area(
         "Escribe el texto en alemán:",
         key=f"input_dictado_{st.session_state.indice_actual}",
