@@ -559,42 +559,34 @@ with col_c4:
         nuevo_estado = "Azul"
 
 if nuevo_estado:
-
     try:
-
-        # Asegúrate de limpiar el texto antes de enviarlo
-castellano_limpio = " ".join(castellano_texto.split())
-
-r = requests.post(
-    WEB_APP_URL,
-    params={
-        "castellano": castellano_limpio, # Usa la versión limpia
-        "status": nuevo_estado,
-        "sumarContador": "true"
-    },
-    timeout=10
-)
+        # Aquí está la limpieza necesaria para evitar errores de comparación
+        castellano_limpio = " ".join(castellano_texto.split())
+        
+        r = requests.post(
+            WEB_APP_URL,
+            params={
+                "castellano": castellano_limpio,
+                "status": nuevo_estado,
+                "sumarContador": "true"
+            },
+            timeout=10
+        )
 
         if r.status_code == 200:
-
             st.toast(f"Estado cambiado a {nuevo_estado}")
-
             st.cache_data.clear()
-
+            
             if st.session_state.indice_actual < total_rueda_actual - 1:
                 st.session_state.indice_actual += 1
-
+            
             st.session_state.ver_solucion = False
-
             st.rerun()
-
         else:
-
             st.error(f"Error del servidor: {r.status_code}")
             st.write(r.text)
 
     except Exception as e:
-
         st.error(f"No se pudo conectar con Google Script: {e}")
 
 
