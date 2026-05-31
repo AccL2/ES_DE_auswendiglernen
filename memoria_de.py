@@ -13,7 +13,7 @@ st.set_page_config(page_title="Entrenador de Idiomas por Islas", page_icon="🇩
 # Inyectar tipografías y estilos premium
 st.markdown("""
     <style>
-    @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght={300;400;500;600;700}&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&display=swap');
 
     /* ── Variables de color ── */
     :root {
@@ -26,7 +26,6 @@ st.markdown("""
         --rojo:        #e05454;
         --rojo-bg:     rgba(224, 84, 84, 0.10);
         --rojo-borde:  rgba(224, 84, 84, 0.55);
-        --naranja:     #f5a623;
         --radio:       12px;
     }
 
@@ -64,19 +63,7 @@ st.markdown("""
         gap: 6px;
     }
 
-    /* ── Tarjetas y Tiras de Historial Pastel ── */
-    .tira-historial {
-        width: 100%;
-        padding: 5px 12px;
-        border-radius: 8px;
-        font-size: 0.70rem;
-        font-weight: 600;
-        text-transform: uppercase;
-        letter-spacing: 1.5px;
-        text-align: center;
-        margin-bottom: 12px;
-    }
-
+    /* ── Tarjetas ── */
     .texto-isla, .texto-isla *, .texto-isla p, .texto-isla b {
         font-family: 'Montserrat', sans-serif !important;
         font-weight: 400 !important;
@@ -115,23 +102,23 @@ st.markdown("""
     }
     .bloque-verde:hover { box-shadow: 0 4px 20px rgba(34,166,110,0.14); }
 
-    /* Estilo para el contenedor de Anotaciones */
-    .bloque-anotaciones {
-        background: var(--rojo-bg) !important;
-        border: 1px solid var(--rojo-borde) !important;
-        border-left: 4px solid var(--rojo) !important;
-        padding: 1.4rem 1.6rem !important;
-        border-radius: var(--radio) !important;
-        margin-top: 1.5rem !important;
-        margin-bottom: 0.5rem !important;
-        box-shadow: 0 2px 12px rgba(224,84,84,0.07) !important;
+    .bloque-gramatica {
+        background: var(--rojo-bg);
+        border: 1px solid var(--rojo-borde);
+        border-left: 4px solid var(--rojo);
+        padding: 1.4rem 1.6rem;
+        border-radius: var(--radio);
+        margin-top: 0.75rem;
+        margin-bottom: 1rem;
+        box-shadow: 0 2px 12px rgba(224,84,84,0.07);
     }
 
-    /* Forzar que el text_area interno de Streamlit sea transparente para que luzca integrado */
-    .bloque-anotaciones div[data-testid="stTextArea"] textarea {
-        background-color: transparent !important;
-        border: 1px solid rgba(255,255,255,0.08) !important;
-        color: #e8ecf2 !important;
+    .texto-gramatica {
+        font-family: 'Montserrat', sans-serif !important;
+        font-weight: 400 !important;
+        line-height: 1.8;
+        font-size: 1.2rem;
+        margin: 0; padding: 0;
     }
 
     /* ── Resultado dictado ── */
@@ -177,6 +164,25 @@ st.markdown("""
         text-align: right;
         letter-spacing: 1px;
         margin-bottom: 4px;
+    }
+
+    /* ── Flash aprendida ── */
+    @keyframes flash-aprendida {
+        0%   { background: rgba(34,166,110,0.0); }
+        30%  { background: rgba(34,166,110,0.25); }
+        100% { background: rgba(34,166,110,0.0); }
+    }
+    .flash-aprendida {
+        animation: flash-aprendida 1.2s ease-out forwards;
+        border-radius: var(--radio);
+        padding: 1rem 1.4rem;
+        text-align: center;
+        font-family: 'Montserrat', sans-serif;
+        font-size: 1.1rem;
+        font-weight: 600;
+        color: #22a66e;
+        border: 1px solid rgba(34,166,110,0.35);
+        margin-bottom: 1rem;
     }
 
     /* ── Botones de navegación ── */
@@ -309,8 +315,10 @@ if 'isla_anterior' not in st.session_state or st.session_state.isla_anterior != 
     st.session_state.indice_actual = 0
     st.session_state.isla_anterior = isla_seleccionada
     st.session_state.ver_solucion = False
+    st.session_state.ver_gramatica = False
+    st.session_state.flash_aprendida = False
 
-# --- CÁLCULO ESTABLE DE LA RUEDA DE 15 ---
+# --- LÓGICA DE LA RUEDA DE LOS 15 ---
 df_activas_y_pendientes = df_isla_completa[df_isla_completa['Estado'] != 'Azul'].copy()
 df_azul = df_isla_completa[df_isla_completa['Estado'] == 'Azul']
 total_aprendidos = len(df_azul)
@@ -318,7 +326,7 @@ total_aprendidos = len(df_azul)
 df_en_rueda = df_activas_y_pendientes.head(15).copy()
 total_rueda_actual = len(df_en_rueda)
 
-estados_rueda = df_en_rueda['Estado'].fillna('Rojo').astype(str).str.strip().tolist()
+estados_rueda = df_en_rueda['Estado'].fillna('Rojo').tolist()
 n_rojos   = estados_rueda.count('Rojo')
 n_naranjas = estados_rueda.count('Naranja')
 n_verdes  = estados_rueda.count('Verde')
@@ -380,7 +388,7 @@ st.title("🇩🇪 Método de Chunks & Islas")
 fila_actual = df_en_rueda.iloc[st.session_state.indice_actual]
 castellano_texto = str(fila_actual['Castellano'])
 aleman_texto     = str(fila_actual['Aleman'])
-estado_actual    = str(fila_actual['Estado']).strip()
+estado_actual    = str(fila_actual['Estado'])
 
 indice_fila_google_sheet = int(df_isla_completa.index[df_isla_completa['Castellano'] == castellano_texto].tolist()[0]) + 2
 
@@ -405,8 +413,8 @@ if situacion_texto:
     st.markdown(f'<div class="titulo-situacion">📍 {situacion_texto}</div>', unsafe_allow_html=True)
 
 
-# --- BARRA DE NAV / CONTROL (Botón Gramática eliminado) ---
-col_nav_sol, col_nav_ant, col_nav_sig = st.columns([0.34, 0.33, 0.33])
+# --- BARRA DE NAV / CONTROL ---
+col_nav_sol, col_nav_ant, col_nav_sig, col_nav_gram = st.columns([0.25, 0.25, 0.25, 0.25])
 
 with col_nav_sol:
     if not st.session_state.ver_solucion:
@@ -423,6 +431,8 @@ with col_nav_ant:
         if st.session_state.indice_actual > 0:
             st.session_state.indice_actual -= 1
             st.session_state.ver_solucion = False
+            st.session_state.ver_gramatica = False
+            st.session_state.flash_aprendida = False
             st.rerun()
 
 with col_nav_sig:
@@ -430,31 +440,21 @@ with col_nav_sig:
         if st.session_state.indice_actual < total_rueda_actual - 1:
             st.session_state.indice_actual += 1
             st.session_state.ver_solucion = False
+            st.session_state.ver_gramatica = False
+            st.session_state.flash_aprendida = False
             st.rerun()
+
+with col_nav_gram:
+    if st.button("💡 Gramática", use_container_width=True, key="btn_gramatica_arriba"):
+        st.session_state.ver_gramatica = not st.session_state.ver_gramatica
+        st.rerun()
 
 st.write("")
 
-
-# ── LÓGICA DE LA TIRA DE COLOR PASTEL SUPERIOR ──
-bg_tira = "rgba(59, 125, 216, 0.15)"
-color_texto_tira = "#3b7dd8" 
-
-if estado_actual == "Rojo":
-    bg_tira = "rgba(224, 84, 84, 0.15)"
-    color_texto_tira = "#e05454"
-elif estado_actual == "Naranja":
-    bg_tira = "rgba(245, 158, 11, 0.15)"
-    color_texto_tira = "#f59e0b"
-elif estado_actual == "Verde":
-    bg_tira = "rgba(34, 166, 110, 0.15)"
-    color_texto_tira = "#22a66e"
-
-st.markdown(f"""
-    <div class="tira-historial" style="background-color: {bg_tira}; color: {color_texto_tira}; border: 1px solid {color_texto_tira}44;">
-        ESTADO ACTUAL
-    </div>
-""", unsafe_allow_html=True)
-
+# ── Flash "aprendida" ──
+if st.session_state.get('flash_aprendida'):
+    st.markdown('<div class="flash-aprendida">✦ ¡Frase aprendida! 🔵</div>', unsafe_allow_html=True)
+    st.session_state.flash_aprendida = False
 
 # ── Tarjeta principal ──
 if not st.session_state.ver_solucion:
@@ -496,10 +496,8 @@ with col_c4:
     if st.button("🔵", use_container_width=True, key="btn_color_azul"):
         nuevo_estado = "Azul"
 
-# URL de la API de Google Apps Script (ACTUALIZADA CON TU NUEVA VERSIÓN)
-WEB_APP_URL = "https://script.google.com/macros/s/AKfycbyMpUxnYWLCceZpCIsILNWTywzT0MGnrctLFK0DKVkRBr0t1JDj3TagKVfi70zZHQzb/exec"
-
 if nuevo_estado:
+    WEB_APP_URL = "https://script.google.com/macros/s/AKfycbzxuhVMl8swR7fJHyd5dXt0WCXTpHoSWUrLxxKpRF3Bcwt2lo09vSvkDiAeWymV3F7l/exec"
     try:
         requests.post(WEB_APP_URL, params={"row": indice_fila_google_sheet, "status": nuevo_estado})
     except Exception:
@@ -507,10 +505,13 @@ if nuevo_estado:
 
     st.cache_data.clear()
 
-    if st.session_state.indice_actual < total_rueda_actual - 1:
+    if nuevo_estado == "Azul":
+        st.session_state.flash_aprendida = True
+    elif st.session_state.indice_actual < total_rueda_actual - 1:
         st.session_state.indice_actual += 1
 
     st.session_state.ver_solucion = False
+    st.session_state.ver_gramatica = False
     st.rerun()
 
 
@@ -749,32 +750,15 @@ with st.expander("📝 Modo Dictado"):
             """, unsafe_allow_html=True)
 
 
-# --- BLOQUE FIJO: ANOTACIONES (Diseño ultra limpio en mayúsculas) ---
-anotacion_inicial = str(fila_actual['Explicacion']) if 'Explicacion' in fila_actual and pd.notna(fila_actual['Explicacion']) else ""
-
-# Título simple en mayúsculas sin marcos ni cajas de color
-st.markdown("""
-    <div style="font-family: 'Montserrat', sans-serif; font-size: 0.85rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px; color: #8a9ab5; margin-top: 1.5rem; margin-bottom: 8px;">
-        ANOTACIONES
-    </div>
-""", unsafe_allow_html=True)
-
-texto_anotaciones = st.text_area(
-    "Anotaciones", 
-    value=anotacion_inicial,
-    key=f"input_anotaciones_{st.session_state.indice_actual}",
-    height=150,
-    label_visibility="collapsed" # Oculta el texto duplicado automático de Streamlit
-)
-
-if st.button("💾 Guardar Anotaciones", use_container_width=True, key="btn_guardar_anotaciones"):
-    try:
-        res = requests.post(WEB_APP_URL, params={"row": indice_fila_google_sheet, "explanation": texto_anotaciones})
-        if res.status_code == 200:
-            st.success("¡Anotaciones guardadas correctamente en Google Sheets! 🚀")
-            st.cache_data.clear()
-            st.rerun()
-        else:
-            st.error("Error al guardar en el servidor remoto.")
-    except Exception as e:
-        st.error(f"No se pudo conectar con el servidor: {e}")
+# --- EXPLICACIÓN GRAMATICAL ---
+if st.session_state.ver_gramatica:
+    if 'Explicacion' in fila_actual and pd.notna(fila_actual['Explicacion']) and str(fila_actual['Explicacion']).strip() != "":
+        explicacion_formateada = formatear_lineas(str(fila_actual['Explicacion']))
+        st.markdown(f"""
+        <div class="bloque-gramatica">
+            <div class="texto-gramatica">
+                <b>💡 Explicación Gramatical:</b><br><br>
+                {explicacion_formateada}
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
