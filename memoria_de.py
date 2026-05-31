@@ -825,10 +825,9 @@ with st.expander("📝 Modo Dictado"):
             """, unsafe_allow_html=True)
 
 
-# --- BLOQUE FIJO: ANOTACIONES (Diseño ultra limpio en mayúsculas) ---
+# --- BLOQUE FIJO: ANOTACIONES ---
 anotacion_inicial = str(fila_actual['Explicacion']) if 'Explicacion' in fila_actual and pd.notna(fila_actual['Explicacion']) else ""
 
-# Título simple en mayúsculas sin marcos ni cajas de color
 st.markdown("""
     <div style="font-family: 'Montserrat', sans-serif; font-size: 0.85rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px; color: #8a9ab5; margin-top: 1.5rem; margin-bottom: 8px;">
         ANOTACIONES
@@ -840,17 +839,28 @@ texto_anotaciones = st.text_area(
     value=anotacion_inicial,
     key=f"input_anotaciones_{st.session_state.indice_actual}",
     height=150,
-    label_visibility="collapsed" # Oculta el texto duplicado automático de Streamlit
+    label_visibility="collapsed"
 )
 
 if st.button("💾 Guardar Anotaciones", use_container_width=True, key="btn_guardar_anotaciones"):
     try:
-        res = requests.post(WEB_APP_URL, params={"castellano": castellano_texto, "explanation": texto_anotaciones})
-        if res.status_code == 200:
-            st.success("¡Anotaciones guardadas correctamente en Google Sheets! 🚀")
-            st.cache_data.clear()
-            st.rerun()
+        # Usamos castellano_limpio para asegurar que encontramos la misma fila en el Excel
+        castellano_limpio = " ".join(castellano_texto.split())
+        
+        r = requests.post(
+            WEB_APP_URL,
+            params={
+                "castellano": castellano_limpio,
+                "explanation": texto_anotaciones,
+                "sumarContador": "false" # No queremos sumar contador aquí
+            },
+            timeout=10
+        )
+        
+        if r.status_code == 200:
+            st.toast("✅ Anotación guardada")
         else:
-            st.error("Error al guardar en el servidor remoto.")
+            st.error(f"Error al guardar: {r.status_code}")
+            
     except Exception as e:
-        st.error(f"No se pudo conectar con el servidor: {e}")
+        st.error(f"Error de conexión: {e}")
