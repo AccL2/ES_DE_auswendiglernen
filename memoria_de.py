@@ -559,22 +559,40 @@ with col_c4:
         nuevo_estado = "Azul"
 
 if nuevo_estado:
+
     try:
-        requests.post(WEB_APP_URL, params={
-            "castellano": castellano_texto,
-            "status": nuevo_estado,
-            "sumarContador": "true"
-        })
-    except Exception:
-        pass
 
-    st.cache_data.clear()
+        r = requests.post(
+            WEB_APP_URL,
+            params={
+                "castellano": castellano_texto,
+                "status": nuevo_estado,
+                "sumarContador": "true"
+            },
+            timeout=10
+        )
 
-    if st.session_state.indice_actual < total_rueda_actual - 1:
-        st.session_state.indice_actual += 1
+        if r.status_code == 200:
 
-    st.session_state.ver_solucion = False
-    st.rerun()
+            st.toast(f"Estado cambiado a {nuevo_estado}")
+
+            st.cache_data.clear()
+
+            if st.session_state.indice_actual < total_rueda_actual - 1:
+                st.session_state.indice_actual += 1
+
+            st.session_state.ver_solucion = False
+
+            st.rerun()
+
+        else:
+
+            st.error(f"Error del servidor: {r.status_code}")
+            st.write(r.text)
+
+    except Exception as e:
+
+        st.error(f"No se pudo conectar con Google Script: {e}")
 
 
 # --- REPRODUCTOR DE AUDIO ---
