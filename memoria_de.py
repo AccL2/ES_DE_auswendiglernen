@@ -770,7 +770,7 @@ else:
 
 
 # --- MODO DICTADO ---
-with st.expander("📝 Modo Dictado"):
+with st.expander("📝  Modo Dictado"):
     texto_usuario = st.text_area(
         "Escribe el texto en alemán:",
         key=f"input_dictado_{st.session_state.indice_actual}",
