@@ -10,7 +10,6 @@ from difflib import SequenceMatcher
 st.set_page_config(page_title="Entrenador de Idiomas por Islas", page_icon="🇩🇪", layout="centered")
 
 # ── CONEXIÓN DIRECTA CON SUPABASE ──
-# Deja estas URLs así de limpias, sin barras "/" ni "rest/v1" al final
 SUPABASE_URL = "https://rmmkngictdwrkmnlefad.supabase.co"
 SUPABASE_KEY = "sb_publishable_YMdrOSBGEUZobOsW7MUbBQ_SWPbEaHK"
 
@@ -176,39 +175,16 @@ if df_total.empty:
     st.warning(f"La isla '{isla_seleccionada}' todavía no tiene tarjetas dentro.")
     st.stop()
 
-# 📊 TRATAMIENTO DE LOS ESTADOS COMO NÚMEROS LIMPIOS
+# TRATAMIENTO DE LOS ESTADOS COMO NÚMEROS LIMPIOS
 df_total['Estado'] = pd.to_numeric(df_total['Estado'], errors='coerce').fillna(1).astype(int)
 
 # Separar las tarjetas en rueda (1, 2, 3) de las aprendidas (4 = Azul)
 df_rueda = df_total[df_total['Estado'] != 4].copy()
-df_azul = df_total[df_total['Estado'] == 4]
+df_azul = df_total[df_total['Estado'] == 4].copy()
 
 total_frases_isla = len(df_total)
 total_aprendidos = len(df_azul)
 total_rueda_actual = len(df_rueda)
-
-# Si todo está dominado (todas en estado 4), se acabó la isla
-if total_aprendidos == total_frases_isla:
-    st.title("🇩🇪 Método de Chunks & Islas")
-    st.balloons()
-    st.success(f"🎉 ¡ESPECTACULAR! Has completado la isla '{isla_seleccionada}' al 100%.")
-    
-    st.write("")
-    st.markdown("### 🔄 ¿Quieres volver a estudiar esta isla?")
-    if st.button("♻️ Reiniciar progreso de la Isla", use_container_width=True):
-        # Llamada a la API de Supabase para resetear todas las tarjetas de esta isla a estado 1 (Rojo)
-        url_reset = f"{SUPABASE_URL}/rest/v1/tarjetas?Isla=ilike.{isla_seleccionada}"
-        requests.patch(url_reset, headers=headers, json={"Estado": 1})
-        
-        # Devolvemos el puntero a la primera tarjeta
-        actualizar_puntero_db(0)
-        if 'indice_actual' in st.session_state:
-            st.session_state.indice_actual = 0
-            
-        st.toast("🏝️ ¡Isla reseteada por completo! Volviendo a empezar...")
-        st.rerun()
-        
-    st.stop()
 
 # Sincronizar el puntero leyendo la base de datos
 if 'indice_actual' not in st.session_state:
@@ -243,6 +219,42 @@ st.sidebar.markdown(f"""
     </div>
 </div>
 """, unsafe_allow_html=True)
+
+# 📦 SECCIÓN DE RECUPERACIÓN / JUBILADAS EN LA BARRA LATERAL
+st.sidebar.write("---")
+st.sidebar.markdown("### 📦 Almacén de Jubiladas")
+if total_aprendidos == 0:
+    st.sidebar.caption("Aún no tienes tarjetas jubiladas en esta isla.")
+else:
+    with st.sidebar.expander(f"Ver jubiladas ({total_aprendidos})"):
+        for _, row in df_azul.iterrows():
+            st.markdown(f"**ES:** {row['Español']}")
+            st.markdown(f"*DE:* {row['Aleman']}")
+            # Botón único para recuperar esta frase
+            if st.button(f"♻️ Desjubilar", key=f"recup_{row['id']}", use_container_width=True):
+                actualizar_estado_tarjeta(int(row['id']), 1) # Devolver a Rojo (1)
+                st.toast("Tarjeta devuelta a la rueda activa")
+                st.rerun()
+            st.markdown("---")
+
+
+# ── COMPROBACIÓN DE FIN DE ISLA ──
+if total_aprendidos == total_frases_isla:
+    st.title("🇩🇪 Método de Chunks & Islas")
+    st.balloons()
+    st.success(f"🎉 ¡ESPECTACULAR! Has completado la isla '{isla_seleccionada}' al 100%.")
+    
+    st.write("")
+    st.markdown("### 🔄 ¿Quieres volver a estudiar esta isla?")
+    if st.button("♻️ Reiniciar progreso de la Isla", use_container_width=True):
+        url_reset = f"{SUPABASE_URL}/rest/v1/tarjetas?Isla=ilike.{isla_seleccionada}"
+        requests.patch(url_reset, headers=headers, json={"Estado": 1})
+        actualizar_puntero_db(0)
+        if 'indice_actual' in st.session_state:
+            st.session_state.indice_actual = 0
+        st.toast("Isla reseteada. ¡A por ella!")
+        st.rerun()
+    st.stop()
 
 
 # ── CONTENIDO PRINCIPAL DE LA APP ──
@@ -328,7 +340,7 @@ if nuevo_estado_num is not None:
     actualizar_estado_tarjeta(id_tarjeta, nuevo_estado_num)
     st.toast(f"Nivel {nuevo_estado_num} guardado en la nube")
     
-    # 🚀 ACTUALIZACIÓN EN VIVO: Modificamos el DataFrame local para reflejarlo en las estadísticas del Sidebar inmediatamente
+    # ACTUALIZACIÓN EN VIVO: Modificamos el DataFrame local
     df_total.loc[df_total['id'] == id_tarjeta, 'Estado'] = nuevo_estado_num
     
     # Avanzar inteligentemente de tarjeta
