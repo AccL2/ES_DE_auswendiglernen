@@ -135,9 +135,7 @@ def obtener_tarjetas_isla(isla):
     url = f"{SUPABASE_URL}/rest/v1/tarjetas?Isla=ilike.{isla}&order=id.asc"
     res = requests.get(url, headers=headers)
     
-    # 🔍 ESTO ES PARA DIAGNÓSTICO TEMPORAL:
-    st.write("Código de respuesta:", res.status_code)
-    st.write("Datos recibidos de Supabase:", res.json())
+    # Hemos quitado los st.write de diagnóstico para limpiar la interfaz
     
     return pd.DataFrame(res.json()) if res.status_code == 200 and res.json() else pd.DataFrame()
 
