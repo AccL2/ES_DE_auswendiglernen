@@ -133,7 +133,8 @@ def formatear_lineas(texto):
 
 # ── LOGICA DE LLAMADAS API SUPABASE ──
 def obtener_tarjetas_isla(isla):
-    url = f"{SUPABASE_URL}/rest/v1/tarjetas?Isla=eq.{isla}&order=id.asc"
+    # Cambiamos "eq." por "ilike." para ignorar mayúsculas y minúsculas
+    url = f"{SUPABASE_URL}/rest/v1/tarjetas?Isla=ilike.{isla}&order=id.asc"
     res = requests.get(url, headers=headers)
     return pd.DataFrame(res.json()) if res.status_code == 200 and res.json() else pd.DataFrame()
 
