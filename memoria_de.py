@@ -186,12 +186,16 @@ total_frases_isla = len(df_total)
 total_aprendidos = len(df_azul)
 total_rueda_actual = len(df_rueda)
 
-# Sincronizar el puntero leyendo la base de datos
+# Sincronizar el puntero leyendo la base de datos de forma segura
 if 'indice_actual' not in st.session_state:
     pos_db = obtener_puntero_actual()
     st.session_state.indice_actual = pos_db if pos_db < total_rueda_actual else 0
     st.session_state.ver_solucion = False
 
+# 🚨 LÍNEA DE SEGURIDAD EXTRA: Si el índice en memoria es mayor o igual al total actual, lo reseteamos a 0
+if st.session_state.indice_actual >= total_rueda_actual:
+    st.session_state.indice_actual = 0
+    
 # --- RENDIMIENTO Y RESUMEN SIDEBAR ---
 estados_lista = df_rueda['Estado'].tolist()
 n_rojos = estados_lista.count(1)
