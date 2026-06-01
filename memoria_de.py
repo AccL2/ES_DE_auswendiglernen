@@ -288,13 +288,24 @@ if abrir_modal_jubiladas:
                 st.markdown(f"*DE:* {row['Aleman']}")
             with col_btn:
                 if st.button("♻️ Traer", key=f"popup_rec_{row['id']}", use_container_width=True):
+                    # 1. Desjubilar la tarjeta poniéndola en estado 1 en Supabase
                     actualizar_estado_tarjeta(int(row['id']), 1)
-                    # Forzar regeneración limpia de la rueda metiéndola al final
+                    
+                    # 2. Leer la composición real de la rueda en la DB
                     _, actuales_ids = obtener_datos_puntero_db()
+                    
+                    # 3. BLINDAJE EFECTO MUELLE AUTOMÁTICO:
+                    # Traemos la tarjeta al principio/sitio de la rueda
                     if int(row['id']) not in actuales_ids:
-                        actuales_ids.append(int(row['id']))
+                        actuales_ids.insert(0, int(row['id']))
+                    
+                    # Si al meterla sumamos 16, REBANAMOS de forma estricta la última de la derecha (la más nueva)
+                    if len(actuales_ids) > 15:
+                        actuales_ids = actuales_ids[:15]
+                    
+                    # 4. Forzar el inicio de sesión visual al principio (tarjeta 1 de la mesa) y guardar
                     guardar_estado_puntero_db(0, actuales_ids)
-                    st.toast("¡Tarjeta devuelta al almacén activo!")
+                    st.toast("¡Tarjeta recuperada! La mesa mantiene el tope estricto de 15.")
                     st.rerun()
             st.write("---")
     mostrar_popup_jubiladas()
