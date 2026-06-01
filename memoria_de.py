@@ -220,22 +220,33 @@ st.sidebar.markdown(f"""
 </div>
 """, unsafe_allow_html=True)
 
-# 📦 SECCIÓN DE RECUPERACIÓN / JUBILADAS EN LA BARRA LATERAL
+# 📦 UN SÓLO BOTÓN DISCRETO EN LA SIDEBAR (SIN TEXTO ACUMULADO)
 st.sidebar.write("---")
-st.sidebar.markdown("### 📦 Almacén de Jubiladas")
+abrir_modal_jubiladas = st.sidebar.button("📦 Ver Almacén de Jubiladas", use_container_width=True, disabled=(total_aprendidos == 0))
 if total_aprendidos == 0:
-    st.sidebar.caption("Aún no tienes tarjetas jubiladas en esta isla.")
-else:
-    with st.sidebar.expander(f"Ver jubiladas ({total_aprendidos})"):
+    st.sidebar.caption("Aún no tienes tarjetas jubiladas.")
+
+
+# ── VENTANA MODAL (POPUP FLOTANTE) PARA REPASAR Y RECUPERAR JUBILADAS ──
+if abrir_modal_jubiladas:
+    @st.dialog("📦 Almacén de Frases Jubiladas")
+    def mostrar_popup_jubiladas():
+        st.write("Estas son tus frases guardadas en azul. Puedes repasarlas y, si quieres, devolverlas a la rueda activa:")
+        st.write("---")
         for _, row in df_azul.iterrows():
-            st.markdown(f"**ES:** {row['Español']}")
-            st.markdown(f"*DE:* {row['Aleman']}")
-            # Botón único para recuperar esta frase
-            if st.button(f"♻️ Desjubilar", key=f"recup_{row['id']}", use_container_width=True):
-                actualizar_estado_tarjeta(int(row['id']), 1) # Devolver a Rojo (1)
-                st.toast("Tarjeta devuelta a la rueda activa")
-                st.rerun()
-            st.markdown("---")
+            col_txt, col_btn = st.columns([0.75, 0.25])
+            with col_txt:
+                st.markdown(f"**ES:** {row['Español']}")
+                st.markdown(f"*DE:* {row['Aleman']}")
+            with col_btn:
+                # El botón de recuperar ahora va fino dentro de la ventana flotante
+                if st.button("♻️ Traer", key=f"popup_rec_{row['id']}", use_container_width=True):
+                    actualizar_estado_tarjeta(int(row['id']), 1)
+                    st.toast("¡Tarjeta devuelta a la rueda activa!")
+                    st.rerun()
+            st.write("---")
+            
+    mostrar_popup_jubiladas()
 
 
 # ── COMPROBACIÓN DE FIN DE ISLA ──
