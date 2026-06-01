@@ -131,7 +131,7 @@ def formatear_lineas(texto):
     return "<br>".join(re.split(r'(?<=[.!?])\s+', texto.strip()))
 
 # ── LOGICA DE LLAMADAS API SUPABASE ──
-def obtener_tarjetas_isla(isla):
+def obtener_todas_tarjetas_isla(isla):
     url = f"{SUPABASE_URL}/rest/v1/tarjetas?Isla=ilike.{isla}&order=id.asc"
     res = requests.get(url, headers=headers)
     return pd.DataFrame(res.json()) if res.status_code == 200 and res.json() else pd.DataFrame()
@@ -143,16 +143,21 @@ def obtener_islas_disponibles():
         return list(set([item['Isla'] for item in res.json()]))
     return ["Chunks"]
 
-def obtener_puntero_actual():
-    url = f"{SUPABASE_URL}/rest/v1/puntero?id=eq.1&select=posicion_actual"
+def obtener_datos_puntero_db():
+    url = f"{SUPABASE_URL}/rest/v1/puntero?id=eq.1"
     res = requests.get(url, headers=headers)
     if res.status_code == 200 and res.json():
-        return res.json()[0]['posicion_actual']
-    return 0
+        data = res.json()[0]
+        pos = data.get('posicion_actual', 0)
+        rueda_str = data.get('rueda_ids', "")
+        ids = [int(x.strip()) for x in rueda_str.split(',') if x.strip().isdigit()] if rueda_str else []
+        return pos, ids
+    return 0, []
 
-def actualizar_puntero_db(nueva_pos):
+def guardar_estado_puntero_db(pos, lista_ids):
     url = f"{SUPABASE_URL}/rest/v1/puntero?id=eq.1"
-    requests.patch(url, headers=headers, json={"posicion_actual": nueva_pos})
+    rueda_str = ",".join(map(str, lista_ids))
+    requests.patch(url, headers=headers, json={"posicion_actual": pos, "rueda_ids": rueda_str})
 
 def actualizar_estado_tarjeta(id_tarjeta, nuevo_estado_int):
     url = f"{SUPABASE_URL}/rest/v1/tarjetas?id=eq.{id_tarjeta}"
@@ -168,36 +173,78 @@ st.sidebar.title("Configuración")
 islas = obtener_islas_disponibles()
 isla_seleccionada = st.sidebar.selectbox("🏝️ Selecciona la Isla:", islas)
 
-# Cargar las frases de la isla elegida desde Supabase
-df_total = obtener_tarjetas_isla(isla_seleccionada)
+# Cargar todo el universo de tarjetas de la isla
+df_universo = obtener_todas_tarjetas_isla(isla_seleccionada)
 
-if df_total.empty:
+if df_universo.empty:
     st.warning(f"La isla '{isla_seleccionada}' todavía no tiene tarjetas dentro.")
     st.stop()
 
-# TRATAMIENTO DE LOS ESTADOS COMO NÚMEROS LIMPIOS
-df_total['Estado'] = pd.to_numeric(df_total['Estado'], errors='coerce').fillna(1).astype(int)
+df_universo['id'] = df_universo['id'].astype(int)
+df_universo['Estado'] = pd.to_numeric(df_universo['Estado'], errors='coerce').fillna(1).astype(int)
 
-# Separar las tarjetas en rueda (1, 2, 3) de las aprendidas (4 = Azul)
-df_rueda = df_total[df_total['Estado'] != 4].copy()
-df_azul = df_total[df_total['Estado'] == 4].copy()
+# 🔄 MULTIDISPOSITIVO VITAL: Leer foto de la mesa de trabajo en la nube
+pos_db, ids_rueda_db = obtener_datos_puntero_db()
 
-total_frases_isla = len(df_total)
-total_aprendidos = len(df_azul)
-total_rueda_actual = len(df_rueda)
+# Filtrar las tarjetas que están disponibles (Estado != 4) en toda la isla
+df_activas_universo = df_universo[df_universo['Estado'] != 4].copy()
+df_jubiladas_universo = df_universo[df_universo['Estado'] == 4].copy()
 
-# Sincronizar el puntero leyendo la base de datos de forma segura
-if 'indice_actual' not in st.session_state:
-    pos_db = obtener_puntero_actual()
-    st.session_state.indice_actual = pos_db if pos_db < total_rueda_actual else 0
+total_frases_isla = len(df_universo)
+total_aprendidos = len(df_jubiladas_universo)
+
+# REGLA DE CONSTRUCCIÓN / RECUPERACIÓN DE LA RUEDA DE 15
+ids_validos_rueda = []
+
+# Si ya había una rueda en la DB, filtramos que esas tarjetas sigan activas (no jubiladas en esta sesión)
+if ids_rueda_db:
+    for tid in ids_rueda_db:
+        if tid in df_activas_universo['id'].values:
+            ids_validos_rueda.append(tid)
+
+# Rellenar hasta 15 con el contenido disponible del universo si faltan huecos
+while len(ids_validos_rueda) < 15:
+    tarjetas_candidatas = [tid for tid in df_activas_universo['id'].values if tid not in ids_validos_rueda]
+    if not tarjetas_candidatas:
+        break  # No hay más tarjetas activas en toda la isla
+    ids_validos_rueda.append(tarjetas_candidatas[0])
+
+# Guardar la rueda optimizada si difiere o si venía vacía
+if ids_validos_rueda != ids_rueda_db:
+    if pos_db >= len(ids_validos_rueda):
+        pos_db = 0
+    guardar_estado_puntero_db(pos_db, ids_validos_rueda)
+
+# Si la isla entera se vacía de activas
+if not ids_validos_rueda:
+    st.title("🇩🇪 Método de Chunks & Islas")
+    st.balloons()
+    st.success(f"🎉 ¡ESPECTACULAR! Has completado la isla '{isla_seleccionada}' al 100%.")
+    st.write("")
+    if st.button("♻️ Reiniciar progreso de la Isla", use_container_width=True):
+        url_reset = f"{SUPABASE_URL}/rest/v1/tarjetas?Isla=ilike.{isla_seleccionada}"
+        requests.patch(url_reset, headers=headers, json={"Estado": 1})
+        guardar_estado_puntero_db(0, [])
+        st.rerun()
+    st.stop()
+
+# Garantizar que el puntero esté dentro de los límites de la rueda real calculada
+if pos_db >= len(ids_validos_rueda):
+    pos_db = 0
+    guardar_estado_puntero_db(0, ids_validos_rueda)
+
+# Sincronizar el estado de sesión local con la nube
+st.session_state.indice_actual = pos_db
+if 'ver_solucion' not in st.session_state:
     st.session_state.ver_solucion = False
 
-# 🚨 LÍNEA DE SEGURIDAD EXTRA: Si el índice en memoria es mayor o igual al total actual, lo reseteamos a 0
-if st.session_state.indice_actual >= total_rueda_actual:
-    st.session_state.indice_actual = 0
-    
+# Crear el DataFrame de la rueda activa respetando de forma estricta el orden guardado
+df_rueda = pd.DataFrame({'id': ids_validos_rueda}).merge(df_universo, on='id', how='left')
+total_rueda_actual = len(df_rueda)
+
+
 # --- RENDIMIENTO Y RESUMEN SIDEBAR ---
-estados_lista = df_rueda['Estado'].tolist()
+estados_lista = df_activas_universo['Estado'].tolist()
 n_rojos = estados_lista.count(1)
 n_naranjas = estados_lista.count(2)
 n_verdes = estados_lista.count(3)
@@ -207,7 +254,8 @@ st.sidebar.write("---")
 st.sidebar.markdown("### 📊 Estado de la Isla")
 st.sidebar.markdown(f"""
 <div style="background: rgba(255,255,255,0.04); padding: 16px 18px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.09);">
-    <p style="margin: 0 0 12px 0; font-size: 0.7rem; color: #8a9ab5; font-weight: 500; text-transform: uppercase; letter-spacing: 2px;">🔄 En rueda &nbsp;·&nbsp; {total_rueda_actual}</p>
+    <p style="margin: 0 0 4px 0; font-size: 0.7rem; color: #8a9ab5; font-weight: 500; text-transform: uppercase; letter-spacing: 2px;">🔄 En rueda activa &nbsp;·&nbsp; {total_rueda_actual} / 15</p>
+    <p style="margin: 0 0 12px 0; font-size: 0.65rem; color: #6b7c96; font-style: italic;">Pendientes en cola: {max(0, len(df_activas_universo) - total_rueda_actual)}</p>
     <div style="display: flex; flex-direction: column; gap: 8px;">
         <div style="display:flex; align-items:center; gap:10px; font-size:0.9rem;"><span style="width:10px;height:10px;border-radius:50%;background:#e05454;display:inline-block;"></span><span style="color:#e8ecf2;">{n_rojos} &nbsp;<span style="color:#8a9ab5;font-size:0.8rem;">Nuevas / Malas</span></span></div>
         <div style="display:flex; align-items:center; gap:10px; font-size:0.9rem;"><span style="width:10px;height:10px;border-radius:50%;background:#f5a623;display:inline-block;"></span><span style="color:#e8ecf2;">{n_naranjas} &nbsp;<span style="color:#8a9ab5;font-size:0.8rem;">A medias</span></span></div>
@@ -224,58 +272,37 @@ st.sidebar.markdown(f"""
 </div>
 """, unsafe_allow_html=True)
 
-# 📦 UN SÓLO BOTÓN DISCRETO EN LA SIDEBAR (SIN TEXTO ACUMULADO)
+# 📦 BOTÓN PARA VER JUBILADAS
 st.sidebar.write("---")
 abrir_modal_jubiladas = st.sidebar.button("📦 Ver Almacén de Jubiladas", use_container_width=True, disabled=(total_aprendidos == 0))
-if total_aprendidos == 0:
-    st.sidebar.caption("Aún no tienes tarjetas jubiladas.")
 
-
-# ── VENTANA MODAL (POPUP FLOTANTE) PARA REPASAR Y RECUPERAR JUBILADAS ──
 if abrir_modal_jubiladas:
     @st.dialog("📦 Almacén de Frases Jubiladas")
     def mostrar_popup_jubiladas():
-        st.write("Estas son tus frases guardadas en azul. Puedes repasarlas y, si quieres, devolverlas a la rueda activa:")
+        st.write("Estas son tus frases guardadas en azul. Puedes repasarlas y devolverlas a la rueda activa:")
         st.write("---")
-        for _, row in df_azul.iterrows():
+        for _, row in df_jubiladas_universo.iterrows():
             col_txt, col_btn = st.columns([0.75, 0.25])
             with col_txt:
                 st.markdown(f"**ES:** {row['Español']}")
                 st.markdown(f"*DE:* {row['Aleman']}")
             with col_btn:
-                # El botón de recuperar ahora va fino dentro de la ventana flotante
                 if st.button("♻️ Traer", key=f"popup_rec_{row['id']}", use_container_width=True):
                     actualizar_estado_tarjeta(int(row['id']), 1)
-                    st.toast("¡Tarjeta devuelta a la rueda activa!")
+                    # Forzar regeneración limpia de la rueda metiéndola al final
+                    _, actuales_ids = obtener_datos_puntero_db()
+                    if int(row['id']) not in actuales_ids:
+                        actuales_ids.append(int(row['id']))
+                    guardar_estado_puntero_db(0, actuales_ids)
+                    st.toast("¡Tarjeta devuelta al almacén activo!")
                     st.rerun()
             st.write("---")
-            
     mostrar_popup_jubiladas()
-
-
-# ── COMPROBACIÓN DE FIN DE ISLA ──
-if total_aprendidos == total_frases_isla:
-    st.title("🇩🇪 Método de Chunks & Islas")
-    st.balloons()
-    st.success(f"🎉 ¡ESPECTACULAR! Has completado la isla '{isla_seleccionada}' al 100%.")
-    
-    st.write("")
-    st.markdown("### 🔄 ¿Quieres volver a estudiar esta isla?")
-    if st.button("♻️ Reiniciar progreso de la Isla", use_container_width=True):
-        url_reset = f"{SUPABASE_URL}/rest/v1/tarjetas?Isla=ilike.{isla_seleccionada}"
-        requests.patch(url_reset, headers=headers, json={"Estado": 1})
-        actualizar_puntero_db(0)
-        if 'indice_actual' in st.session_state:
-            st.session_state.indice_actual = 0
-        st.toast("Isla reseteada. ¡A por ella!")
-        st.rerun()
-    st.stop()
 
 
 # ── CONTENIDO PRINCIPAL DE LA APP ──
 st.title("🇩🇪 Método de Chunks & Islas")
 
-# Extraer datos reales de la tarjeta actual de la rueda
 fila_actual = df_rueda.iloc[st.session_state.indice_actual]
 id_tarjeta       = int(fila_actual['id'])
 castellano_texto = str(fila_actual['Español'])
@@ -284,7 +311,7 @@ estado_actual    = int(fila_actual['Estado'])
 audio_id         = str(fila_actual['Audio_ID']).strip()
 situacion_texto  = str(fila_actual['Situacion']).strip() if pd.notna(fila_actual['Situacion']) else ""
 
-# Contador gráfico superior
+# Contador gráfico superior ajustado al tope de la rueda actual
 pos_pantalla = st.session_state.indice_actual + 1
 st.markdown(f'<div class="progreso-contador">{pos_pantalla} / {total_rueda_actual}</div>', unsafe_allow_html=True)
 st.progress(pos_pantalla / total_rueda_actual)
@@ -292,7 +319,8 @@ st.progress(pos_pantalla / total_rueda_actual)
 if situacion_texto and situacion_texto != "None":
     st.markdown(f'<div class="titulo-situacion">📍 {situacion_texto}</div>', unsafe_allow_html=True)
 
-# ── BOTONES DE NAVEGACIÓN ──
+
+# ── BOTONES DE NAVEGACIÓN (CAMBIAN EL PUNTERO EN LA NUBE SIN ALTERAR LA RUEDA) ──
 col_nav_sol, col_nav_ant, col_nav_sig = st.columns([0.34, 0.33, 0.33])
 
 with col_nav_sol:
@@ -307,23 +335,21 @@ with col_nav_sol:
 
 with col_nav_ant:
     if st.button("⬅️ Anterior", use_container_width=True):
-        if st.session_state.indice_actual > 0:
-            st.session_state.indice_actual -= 1
-            actualizar_puntero_db(st.session_state.indice_actual)
-            st.session_state.ver_solucion = False
-            st.rerun()
+        nuevo_ind = st.session_state.indice_actual - 1 if st.session_state.indice_actual > 0 else total_rueda_actual - 1
+        guardar_estado_puntero_db(nuevo_ind, ids_validos_rueda)
+        st.session_state.ver_solucion = False
+        st.rerun()
 
 with col_nav_sig:
     if st.button("Siguiente ➡️", use_container_width=True):
-        if st.session_state.indice_actual < total_rueda_actual - 1:
-            st.session_state.indice_actual += 1
-            actualizar_puntero_db(st.session_state.indice_actual)
-            st.session_state.ver_solucion = False
-            st.rerun()
+        nuevo_ind = st.session_state.indice_actual + 1 if st.session_state.indice_actual < total_rueda_actual - 1 else 0
+        guardar_estado_puntero_db(nuevo_ind, ids_validos_rueda)
+        st.session_state.ver_solucion = False
+        st.rerun()
 
 st.write("")
 
-# Tira de color pastel decorativa según su nivel numérico
+# Tira decorativa de nivel
 bg_tira, color_tira = "rgba(59, 125, 216, 0.15)", "#3b7dd8"
 if estado_actual == 1:   bg_tira, color_tira = "rgba(224, 84, 84, 0.15)", "#e05454"
 elif estado_actual == 2: bg_tira, color_tira = "rgba(245, 158, 11, 0.15)", "#f59e0b"
@@ -331,13 +357,13 @@ elif estado_actual == 3: bg_tira, color_tira = "rgba(34, 166, 110, 0.15)", "#22a
 
 st.markdown(f'<div class="tira-historial" style="background-color: {bg_tira}; color: {color_tira}; border: 1px solid {color_tira}44;">ESTADO ACTUAL</div>', unsafe_allow_html=True)
 
-# Bloque de contenido central (Pregunta o Solución)
 if not st.session_state.ver_solucion:
     st.markdown(f'<div class="bloque-azul"><div class="texto-isla"><b>Castellano (Lee y piensa):</b><br><br>{formatear_lineas(castellano_texto)}</div></div>', unsafe_allow_html=True)
 else:
     st.markdown(f'<div class="bloque-verde"><div class="texto-isla"><b>Solución en Alemán:</b><br><br>{formatear_lineas(aleman_texto)}</div></div>', unsafe_allow_html=True)
 
-# ── BOTONES PARA CAMBIAR EL ESTADO (PASANDO NÚMEROS DIRECTOS) ──
+
+# ── DETONANTE: ASIGNACIÓN DE COLOR/ESTADO ──
 col_c1, col_c2, col_c3, col_c4 = st.columns(4)
 nuevo_estado_num = None
 
@@ -351,26 +377,31 @@ with col_c4:
     if st.button("🔵", use_container_width=True): nuevo_estado_num = 4
 
 if nuevo_estado_num is not None:
-    # 1. Guardar en Supabase
+    # 1. Guardar el estado de la tarjeta en la DB
     actualizar_estado_tarjeta(id_tarjeta, nuevo_estado_num)
-    st.toast(f"Nivel {nuevo_estado_num} guardado en la nube")
+    st.toast(f"Estado actualizado en la nube")
     
-    # ACTUALIZACIÓN EN VIVO: Modificamos el DataFrame local
-    df_total.loc[df_total['id'] == id_tarjeta, 'Estado'] = nuevo_estado_num
-    
-    # Avanzar inteligentemente de tarjeta
-    if st.session_state.indice_actual < total_rueda_actual - 1:
-        if nuevo_estado_num != 4:
-            st.session_state.indice_actual += 1
+    # 2. Calcular siguiente índice de navegación
+    if nuevo_estado_num == 4:
+        # Si se jubila (Azul), la tarjeta saldrá automáticamente de la rueda.
+        # Nos quedamos en el mismo índice de posición física porque la rueda se encogerá/reemplazará.
+        nuevo_indice_puntero = st.session_state.indice_actual
+        # Quitar inmediatamente de nuestra lista local para la actualización sincronizada
+        if id_tarjeta in ids_validos_rueda:
+            ids_validos_rueda.remove(id_tarjeta)
     else:
-        st.session_state.indice_actual = 0
-        
-    actualizar_puntero_db(st.session_state.indice_actual)
+        # Si es rojo, naranja o verde, la tarjeta SE QUEDA en la rueda en su sitio exacto.
+        # Simplemente saltamos de forma natural a la siguiente posición.
+        nuevo_indice_puntero = st.session_state.indice_actual + 1 if st.session_state.indice_actual < total_rueda_actual - 1 else 0
+
+    # 3. Subir la foto exacta del puntero y la rueda recalculada a Supabase
+    guardar_estado_puntero_db(nuevo_indice_puntero, ids_validos_rueda)
+    
     st.session_state.ver_solucion = False
     st.rerun()
 
 
-# ── REPRODUCTOR DE AUDIO INTERACTIVO (WAVESURFER.JS) ──
+# ── REPRODUCTOR DE AUDIO INTERACTIVO ──
 ruta_audio = f"Audios/{audio_id}.mp3"
 if os.path.exists(ruta_audio):
     st.markdown('<p style="font-weight:600; font-size:0.95rem; margin-bottom:8px;">🎧 Onda de audio interactiva:</p>', unsafe_allow_html=True)
@@ -412,11 +443,9 @@ if os.path.exists(ruta_audio):
     </script>
     """
     st.components.v1.html(html_reproductor, height=215)
-else:
-    st.warning(f"⚠️ Audio no encontrado en local: `{ruta_audio}`")
 
 
-# ── MODO DICTADO (COMPARADOR DE TEXTO) ──
+# ── MODO DICTADO ──
 with st.expander("📝 Modo Dictado"):
     texto_usuario = st.text_area("Escribe el texto en alemán:", key=f"dictado_{id_tarjeta}", height=200)
     if st.button("🔍 Comprobar Dictado", use_container_width=True):
@@ -437,7 +466,6 @@ with st.expander("📝 Modo Dictado"):
 # ── ANOTACIONES EN VIVO ──
 anotacion_inicial = str(fila_actual['Explicacion']) if pd.notna(fila_actual['Explicacion']) else ""
 st.markdown('<div style="font-size: 0.85rem; font-weight: 700; text-transform: uppercase; color: #8a9ab5; margin-top: 1.5rem; margin-bottom: 8px;">ANOTACIONES</div>', unsafe_allow_html=True)
-
 texto_anotaciones = st.text_area("Notas", value=anotacion_inicial, key=f"notas_{id_tarjeta}", height=120, label_visibility="collapsed")
 
 if st.button("💾 Guardar Anotaciones", use_container_width=True):
