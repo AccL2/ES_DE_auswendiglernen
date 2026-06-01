@@ -306,8 +306,13 @@ with col_c4:
     if st.button("🔵", use_container_width=True): nuevo_estado = "Azul"
 
 if nuevo_estado:
+    # 1. Enviamos la actualización a la base de datos de Supabase
     actualizar_estado_tarjeta(id_tarjeta, nuevo_estado)
     st.toast(f"Estado cambiado a {nuevo_estado} en Supabase")
+    
+    # 🚀 TRUCO DE REACTIVIDAD TRASPASADA: 
+    # Forzamos la actualización en el dataframe local para que el Sidebar lo pinte bien tras el rerun
+    df_total.loc[df_total['id'] == id_tarjeta, 'Estado'] = nuevo_estado
     
     # Avanzar de forma inteligente si hay más en la rueda
     if st.session_state.indice_actual < total_rueda_actual - 1:
@@ -319,6 +324,8 @@ if nuevo_estado:
         
     actualizar_puntero_db(st.session_state.indice_actual)
     st.session_state.ver_solucion = False
+    
+    # Forzar recarga completa limpia
     st.rerun()
 
 
