@@ -192,6 +192,22 @@ if total_aprendidos == total_frases_isla:
     st.title("🇩🇪 Método de Chunks & Islas")
     st.balloons()
     st.success(f"🎉 ¡ESPECTACULAR! Has completado la isla '{isla_seleccionada}' al 100%.")
+    
+    st.write("")
+    st.markdown("### 🔄 ¿Quieres volver a estudiar esta isla?")
+    if st.button("♻️ Reiniciar progreso de la Isla", use_container_width=True):
+        # Llamada a la API de Supabase para resetear todas las tarjetas de esta isla a estado 1 (Rojo)
+        url_reset = f"{SUPABASE_URL}/rest/v1/tarjetas?Isla=ilike.{isla_seleccionada}"
+        requests.patch(url_reset, headers=headers, json={"Estado": 1})
+        
+        # Devolvemos el puntero a la primera tarjeta
+        actualizar_puntero_db(0)
+        if 'indice_actual' in st.session_state:
+            st.session_state.indice_actual = 0
+            
+        st.toast("🏝️ ¡Isla reseteada por completo! Volviendo a empezar...")
+        st.rerun()
+        
     st.stop()
 
 # Sincronizar el puntero leyendo la base de datos
