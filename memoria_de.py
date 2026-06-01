@@ -10,6 +10,7 @@ from difflib import SequenceMatcher
 st.set_page_config(page_title="Entrenador de Idiomas por Islas", page_icon="🇩🇪", layout="centered")
 
 # ── CONEXIÓN DIRECTA CON SUPABASE ──
+# Deja estas URLs así de limpias, sin barras "/" ni "rest/v1" al final
 SUPABASE_URL = "https://rmmkngictdwrkmnlefad.supabase.co"
 SUPABASE_KEY = "sb_publishable_YMdrOSBGEUZobOsW7MUbBQ_SWPbEaHK"
 
@@ -22,7 +23,7 @@ headers = {
 # ── INYECTAR TIPOGRAFÍAS Y ESTILOS PREMIUM ──
 st.markdown("""
     <style>
-    @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght=300;400;500;600;700&display=swap');
 
     :root {
         --azul:        #3b7dd8;
@@ -134,9 +135,6 @@ def formatear_lineas(texto):
 def obtener_tarjetas_isla(isla):
     url = f"{SUPABASE_URL}/rest/v1/tarjetas?Isla=ilike.{isla}&order=id.asc"
     res = requests.get(url, headers=headers)
-    
-    # Hemos quitado los st.write de diagnóstico para limpiar la interfaz
-    
     return pd.DataFrame(res.json()) if res.status_code == 200 and res.json() else pd.DataFrame()
 
 def obtener_islas_disponibles():
@@ -157,9 +155,9 @@ def actualizar_puntero_db(nueva_pos):
     url = f"{SUPABASE_URL}/rest/v1/puntero?id=eq.1"
     requests.patch(url, headers=headers, json={"posicion_actual": nueva_pos})
 
-def actualizar_estado_tarjeta(id_tarjeta, nuevo_estado):
+def actualizar_estado_tarjeta(id_tarjeta, nuevo_estado_int):
     url = f"{SUPABASE_URL}/rest/v1/tarjetas?id=eq.{id_tarjeta}"
-    requests.patch(url, headers=headers, json={"Estado": nuevo_estado})
+    requests.patch(url, headers=headers, json={"Estado": nuevo_estado_int})
 
 def actualizar_anotacion_tarjeta(id_tarjeta, texto_nota):
     url = f"{SUPABASE_URL}/rest/v1/tarjetas?id=eq.{id_tarjeta}"
@@ -178,31 +176,35 @@ if df_total.empty:
     st.warning(f"La isla '{isla_seleccionada}' todavía no tiene tarjetas dentro.")
     st.stop()
 
-# Dividir la rueda según los estados guardados en Supabase
-df_rueda = df_total[df_total['Estado'] != 'Azul'].copy()
-df_azul = df_total[df_total['Estado'] == 'Azul']
+# 📊 TRATAMIENTO DE LOS ESTADOS COMO NÚMEROS LIMPIOS
+df_total['Estado'] = pd.to_numeric(df_total['Estado'], errors='coerce').fillna(1).astype(int)
+
+# Separar las tarjetas en rueda (1, 2, 3) de las aprendidas (4 = Azul)
+df_rueda = df_total[df_total['Estado'] != 4].copy()
+df_azul = df_total[df_total['Estado'] == 4]
 
 total_frases_isla = len(df_total)
 total_aprendidos = len(df_azul)
 total_rueda_actual = len(df_rueda)
 
-# Si todo está en azul, se acabó el juego
+# Si todo está dominado (todas en estado 4), se acabó la isla
 if total_aprendidos == total_frases_isla:
     st.title("🇩🇪 Método de Chunks & Islas")
     st.balloons()
     st.success(f"🎉 ¡ESPECTACULAR! Has completado la isla '{isla_seleccionada}' al 100%.")
     st.stop()
 
-# Sincronizar la posición actual leyendo el puntero de la base de datos
+# Sincronizar el puntero leyendo la base de datos
 if 'indice_actual' not in st.session_state:
     pos_db = obtener_puntero_actual()
-    # Control de seguridad por si cambias de isla y tiene menos elementos
     st.session_state.indice_actual = pos_db if pos_db < total_rueda_actual else 0
     st.session_state.ver_solucion = False
 
 # --- RENDIMIENTO Y RESUMEN SIDEBAR ---
-estados = df_rueda['Estado'].astype(str).tolist()
-n_rojos, n_naranjas, n_verdes = estados.count('Rojo') + estados.count('1'), estados.count('Naranja'), estados.count('Verde')
+estados_lista = df_rueda['Estado'].tolist()
+n_rojos = estados_lista.count(1)
+n_naranjas = estados_lista.count(2)
+n_verdes = estados_lista.count(3)
 porcentaje_isla = round((total_aprendidos / total_frases_isla * 100)) if total_frases_isla > 0 else 0
 
 st.sidebar.write("---")
@@ -230,24 +232,24 @@ st.sidebar.markdown(f"""
 # ── CONTENIDO PRINCIPAL DE LA APP ──
 st.title("🇩🇪 Método de Chunks & Islas")
 
-# Obtener datos de la tarjeta actual apuntada en el índice de la rueda
+# Extraer datos reales de la tarjeta actual de la rueda
 fila_actual = df_rueda.iloc[st.session_state.indice_actual]
 id_tarjeta       = int(fila_actual['id'])
 castellano_texto = str(fila_actual['Español'])
 aleman_texto     = str(fila_actual['Aleman'])
-estado_actual    = str(fila_actual['Estado']).strip()
+estado_actual    = int(fila_actual['Estado'])
 audio_id         = str(fila_actual['Audio_ID']).strip()
 situacion_texto  = str(fila_actual['Situacion']).strip() if pd.notna(fila_actual['Situacion']) else ""
 
-# Contador + barra de progreso
+# Contador gráfico superior
 pos_pantalla = st.session_state.indice_actual + 1
 st.markdown(f'<div class="progreso-contador">{pos_pantalla} / {total_rueda_actual}</div>', unsafe_allow_html=True)
 st.progress(pos_pantalla / total_rueda_actual)
 
-if situacion_texto:
+if situacion_texto and situacion_texto != "None":
     st.markdown(f'<div class="titulo-situacion">📍 {situacion_texto}</div>', unsafe_allow_html=True)
 
-# ── BOTONES DE NAVEGACIÓN PRINCIPAL ──
+# ── BOTONES DE NAVEGACIÓN ──
 col_nav_sol, col_nav_ant, col_nav_sig = st.columns([0.34, 0.33, 0.33])
 
 with col_nav_sol:
@@ -278,54 +280,50 @@ with col_nav_sig:
 
 st.write("")
 
-# Tira de color pastel según el estado actual
+# Tira de color pastel decorativa según su nivel numérico
 bg_tira, color_tira = "rgba(59, 125, 216, 0.15)", "#3b7dd8"
-if estado_actual in ["Rojo", "1"]: bg_tira, color_tira = "rgba(224, 84, 84, 0.15)", "#e05454"
-elif estado_actual == "Naranja":    bg_tira, color_tira = "rgba(245, 158, 11, 0.15)", "#f59e0b"
-elif estado_actual == "Verde":      bg_tira, color_tira = "rgba(34, 166, 110, 0.15)", "#22a66e"
+if estado_actual == 1:   bg_tira, color_tira = "rgba(224, 84, 84, 0.15)", "#e05454"
+elif estado_actual == 2: bg_tira, color_tira = "rgba(245, 158, 11, 0.15)", "#f59e0b"
+elif estado_actual == 3: bg_tira, color_tira = "rgba(34, 166, 110, 0.15)", "#22a66e"
 
 st.markdown(f'<div class="tira-historial" style="background-color: {bg_tira}; color: {color_tira}; border: 1px solid {color_tira}44;">ESTADO ACTUAL</div>', unsafe_allow_html=True)
 
-# Bloque de la tarjeta (Solución / Enunciado)
+# Bloque de contenido central (Pregunta o Solución)
 if not st.session_state.ver_solucion:
     st.markdown(f'<div class="bloque-azul"><div class="texto-isla"><b>Castellano (Lee y piensa):</b><br><br>{formatear_lineas(castellano_texto)}</div></div>', unsafe_allow_html=True)
 else:
     st.markdown(f'<div class="bloque-verde"><div class="texto-isla"><b>Solución en Alemán:</b><br><br>{formatear_lineas(aleman_texto)}</div></div>', unsafe_allow_html=True)
 
-# ── BOTONES PARA CAMBIAR EL ESTADO (COLORES) ──
+# ── BOTONES PARA CAMBIAR EL ESTADO (PASANDO NÚMEROS DIRECTOS) ──
 col_c1, col_c2, col_c3, col_c4 = st.columns(4)
-nuevo_estado = None
+nuevo_estado_num = None
 
 with col_c1:
-    if st.button("🔴", use_container_width=True): nuevo_estado = "Rojo"
+    if st.button("🔴", use_container_width=True): nuevo_estado_num = 1
 with col_c2:
-    if st.button("🟠", use_container_width=True): nuevo_estado = "Naranja"
+    if st.button("🟠", use_container_width=True): nuevo_estado_num = 2
 with col_c3:
-    if st.button("🟢", use_container_width=True): nuevo_estado = "Verde"
+    if st.button("🟢", use_container_width=True): nuevo_estado_num = 3
 with col_c4:
-    if st.button("🔵", use_container_width=True): nuevo_estado = "Azul"
+    if st.button("🔵", use_container_width=True): nuevo_estado_num = 4
 
-if nuevo_estado:
-    # 1. Enviamos la actualización a la base de datos de Supabase
-    actualizar_estado_tarjeta(id_tarjeta, nuevo_estado)
-    st.toast(f"Estado cambiado a {nuevo_estado} en Supabase")
+if nuevo_estado_num is not None:
+    # 1. Guardar en Supabase
+    actualizar_estado_tarjeta(id_tarjeta, nuevo_estado_num)
+    st.toast(f"Nivel {nuevo_estado_num} guardado en la nube")
     
-    # 🚀 TRUCO DE REACTIVIDAD TRASPASADA: 
-    # Forzamos la actualización en el dataframe local para que el Sidebar lo pinte bien tras el rerun
-    df_total.loc[df_total['id'] == id_tarjeta, 'Estado'] = nuevo_estado
+    # 🚀 ACTUALIZACIÓN EN VIVO: Modificamos el DataFrame local para reflejarlo en las estadísticas del Sidebar inmediatamente
+    df_total.loc[df_total['id'] == id_tarjeta, 'Estado'] = nuevo_estado_num
     
-    # Avanzar de forma inteligente si hay más en la rueda
+    # Avanzar inteligentemente de tarjeta
     if st.session_state.indice_actual < total_rueda_actual - 1:
-        # Si se guardó como azul, la rueda encogerá en el siguiente reload, nos mantenemos en la misma posición numérica
-        if nuevo_estado != "Azul":
+        if nuevo_estado_num != 4:
             st.session_state.indice_actual += 1
     else:
         st.session_state.indice_actual = 0
         
     actualizar_puntero_db(st.session_state.indice_actual)
     st.session_state.ver_solucion = False
-    
-    # Forzar recarga completa limpia
     st.rerun()
 
 
@@ -375,7 +373,7 @@ else:
     st.warning(f"⚠️ Audio no encontrado en local: `{ruta_audio}`")
 
 
-# ── MODO DICTADO (COMPRADOR PALABRA A PALABRA) ──
+# ── MODO DICTADO (COMPARADOR DE TEXTO) ──
 with st.expander("📝 Modo Dictado"):
     texto_usuario = st.text_area("Escribe el texto en alemán:", key=f"dictado_{id_tarjeta}", height=200)
     if st.button("🔍 Comprobar Dictado", use_container_width=True):
@@ -393,7 +391,7 @@ with st.expander("📝 Modo Dictado"):
             """, unsafe_allow_html=True)
 
 
-# ── ANOTACIONES EN VIVO (GUARDADO DIRECTO EN SUPABASE) ──
+# ── ANOTACIONES EN VIVO ──
 anotacion_inicial = str(fila_actual['Explicacion']) if pd.notna(fila_actual['Explicacion']) else ""
 st.markdown('<div style="font-size: 0.85rem; font-weight: 700; text-transform: uppercase; color: #8a9ab5; margin-top: 1.5rem; margin-bottom: 8px;">ANOTACIONES</div>', unsafe_allow_html=True)
 
@@ -401,4 +399,4 @@ texto_anotaciones = st.text_area("Notas", value=anotacion_inicial, key=f"notas_{
 
 if st.button("💾 Guardar Anotaciones", use_container_width=True):
     actualizar_anotacion_tarjeta(id_tarjeta, texto_anotaciones)
-    st.toast("✅ Anotaciones sincronizadas en Supabase con éxito")
+    st.toast("✅ Anotaciones sincronizadas en Supabase")
