@@ -133,9 +133,13 @@ def formatear_lineas(texto):
 
 # ── LOGICA DE LLAMADAS API SUPABASE ──
 def obtener_tarjetas_isla(isla):
-    # Cambiamos "eq." por "ilike." para ignorar mayúsculas y minúsculas
     url = f"{SUPABASE_URL}/rest/v1/tarjetas?Isla=ilike.{isla}&order=id.asc"
     res = requests.get(url, headers=headers)
+    
+    # 🔍 ESTO ES PARA DIAGNÓSTICO TEMPORAL:
+    st.write("Código de respuesta:", res.status_code)
+    st.write("Datos recibidos de Supabase:", res.json())
+    
     return pd.DataFrame(res.json()) if res.status_code == 200 and res.json() else pd.DataFrame()
 
 def obtener_islas_disponibles():
