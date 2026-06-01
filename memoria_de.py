@@ -10,8 +10,7 @@ from difflib import SequenceMatcher
 st.set_page_config(page_title="Entrenador de Idiomas por Islas", page_icon="🇩🇪", layout="centered")
 
 # ── CONEXIÓN DIRECTA CON SUPABASE ──
-# TODO: Rellena esto con los datos de la pestaña "API" de tus ajustes de Supabase
-SUPABASE_URL = "https://rmmkngictdwrkmnlefad.supabase.co/rest/v1/"
+SUPABASE_URL = "https://rmmkngictdwrkmnlefad.supabase.co"
 SUPABASE_KEY = "sb_publishable_YMdrOSBGEUZobOsW7MUbBQ_SWPbEaHK"
 
 headers = {
