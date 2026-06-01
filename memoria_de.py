@@ -155,6 +155,9 @@ def obtener_datos_puntero_db():
     return 0, []
 
 def guardar_estado_puntero_db(pos, lista_ids):
+    # JUEZ SUPREMO DE CONTROL: Cortar estrictamente a un máximo de 15 antes de guardar en la DB
+    if len(lista_ids) > 15:
+        lista_ids = lista_ids[:15]
     url = f"{SUPABASE_URL}/rest/v1/puntero?id=eq.1"
     rueda_str = ",".join(map(str, lista_ids))
     requests.patch(url, headers=headers, json={"posicion_actual": pos, "rueda_ids": rueda_str})
@@ -202,12 +205,20 @@ if ids_rueda_db:
         if tid in df_activas_universo['id'].values:
             ids_validos_rueda.append(tid)
 
+# REBANADO PREVENTIVO EN VIVO: Si por desjubilar algo la lista supera 15, cortamos la última de la derecha ya mismo
+if len(ids_validos_rueda) > 15:
+    ids_validos_rueda = ids_validos_rueda[:15]
+
 # Rellenar hasta 15 con el contenido disponible del universo si faltan huecos
 while len(ids_validos_rueda) < 15:
     tarjetas_candidatas = [tid for tid in df_activas_universo['id'].values if tid not in ids_validos_rueda]
     if not tarjetas_candidatas:
         break  # No hay más tarjetas activas en toda la isla
     ids_validos_rueda.append(tarjetas_candidatas[0])
+
+# Asegurar tope estricto de 15 tras cualquier operación de rellenado
+if len(ids_validos_rueda) > 15:
+    ids_validos_rueda = ids_validos_rueda[:15]
 
 # Guardar la rueda optimizada si difiere o si venía vacía
 if ids_validos_rueda != ids_rueda_db:
@@ -294,16 +305,15 @@ if abrir_modal_jubiladas:
                     # 2. Leer la composición real de la rueda en la DB
                     _, actuales_ids = obtener_datos_puntero_db()
                     
-                    # 3. BLINDAJE EFECTO MUELLE AUTOMÁTICO:
-                    # Traemos la tarjeta al principio/sitio de la rueda
+                    # 3. Colocar la tarjeta desjubilada AL PRINCIPIO de la mesa de trabajo
                     if int(row['id']) not in actuales_ids:
                         actuales_ids.insert(0, int(row['id']))
                     
-                    # Si al meterla sumamos 16, REBANAMOS de forma estricta la última de la derecha (la más nueva)
+                    # 4. Forzar el rebanado estricto a 15 elementos eliminando la más nueva (última de la derecha)
                     if len(actuales_ids) > 15:
                         actuales_ids = actuales_ids[:15]
                     
-                    # 4. Forzar el inicio de sesión visual al principio (tarjeta 1 de la mesa) y guardar
+                    # 5. Guardar la mesa limpia en Supabase y poner el foco en la posición 0 (la tarjeta que acaba de entrar)
                     guardar_estado_puntero_db(0, actuales_ids)
                     st.toast("¡Tarjeta recuperada! La mesa mantiene el tope estricto de 15.")
                     st.rerun()
@@ -322,7 +332,7 @@ estado_actual    = int(fila_actual['Estado'])
 audio_id         = str(fila_actual['Audio_ID']).strip()
 situacion_texto  = str(fila_actual['Situacion']).strip() if pd.notna(fila_actual['Situacion']) else ""
 
-# Contador gráfico superior ajustado al tope de la rueda actual
+# Contador gráfico superior ajustado al tope de la rueda actual (SIEMPRE MÁXIMO 15)
 pos_pantalla = st.session_state.indice_actual + 1
 st.markdown(f'<div class="progreso-contador">{pos_pantalla} / {total_rueda_actual}</div>', unsafe_allow_html=True)
 st.progress(pos_pantalla / total_rueda_actual)
@@ -395,17 +405,14 @@ if nuevo_estado_num is not None:
     # 2. Calcular siguiente índice de navegación
     if nuevo_estado_num == 4:
         # Si se jubila (Azul), la tarjeta saldrá automáticamente de la rueda.
-        # Nos quedamos en el mismo índice de posición física porque la rueda se encogerá/reemplazará.
         nuevo_indice_puntero = st.session_state.indice_actual
-        # Quitar inmediatamente de nuestra lista local para la actualización sincronizada
         if id_tarjeta in ids_validos_rueda:
             ids_validos_rueda.remove(id_tarjeta)
     else:
         # Si es rojo, naranja o verde, la tarjeta SE QUEDA en la rueda en su sitio exacto.
-        # Simplemente saltamos de forma natural a la siguiente posición.
         nuevo_indice_puntero = st.session_state.indice_actual + 1 if st.session_state.indice_actual < total_rueda_actual - 1 else 0
 
-    # 3. Subir la foto exacta del puntero y la rueda recalculada a Supabase
+    # 3. Subir la foto exacta del puntero y la rueda recalculada a Supabase (el guardado aplica el tope de 15)
     guardar_estado_puntero_db(nuevo_indice_puntero, ids_validos_rueda)
     
     st.session_state.ver_solucion = False
