@@ -19,7 +19,7 @@ headers = {
     "Content-Type": "application/json"
 }
 
-# ── INYECTAR TIPOGRAFÍAS Y ESTILOS PREMIUM (CON TUNEADO DE SLIDER) ──
+# ── INYECTAR TIPOGRAFÍAS Y ESTILOS PREMIUM ──
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght=300;400;500;600;700&display=swap');
@@ -80,44 +80,12 @@ st.markdown("""
     .palabra-mal  { color: #e05454; font-weight: 500; text-decoration: underline wavy #e05454; }
     .palabra-extra { color: #f5a623; font-weight: 500; font-style: italic; }
 
-    .progreso-contador { font-size: 0.72rem; font-weight: 500; color: #8a9ab5; text-align: right; letter-spacing: 1px; margin-top: -4px; margin-bottom: 8px; }
+    .progreso-contador { font-size: 0.72rem; font-weight: 500; color: #8a9ab5; text-align: right; letter-spacing: 1px; margin-bottom: 4px; }
     
     .stButton button { border-radius: 8px !important; font-weight: 600 !important; font-size: 0.82rem !important; padding: 0.45rem 0.9rem !important; border: 1px solid rgba(255,255,255,0.08) !important; }
     section[data-testid="stSidebar"] { border-right: 1px solid rgba(255,255,255,0.06); }
     .streamlit-expanderHeader { font-weight: 500 !important; font-size: 0.95rem !important; border-radius: 8px !important; }
     hr { opacity: 0.15; }
-
-    /* ── TUNING PREMIUM PARA LA BARRA DESLIZANTE (SLIDER) ── */
-    div[data-testid="stSlider"] > div [data-testid="stThumbValue"] {
-        display: none !important; /* Oculta el número flotante feo al tocarlo */
-    }
-    div[data-testid="stSlider"] [data-className="stSlider"] {
-        padding-top: 4px;
-        padding-bottom: 4px;
-    }
-    /* Color del raíl de fondo (lo que queda por recorrer) */
-    div[data-testid="stSlider"] div[data-track="true"] {
-        background: rgba(255, 255, 255, 0.08) !important;
-        height: 4px !important;
-    }
-    /* Color del raíl activo (lo que ya has recorrido - Tu Azul Premium) */
-    div[data-testid="stSlider"] div[role="slider"] + div {
-        background: #3b7dd8 !important;
-        height: 4px !important;
-    }
-    /* La bolita / tirador interactivo */
-    div[data-testid="stSlider"] div[role="slider"] {
-        background-color: #3b7dd8 !important;
-        border: 2px solid #1e293b !important;
-        box-shadow: 0 0 8px rgba(59, 125, 216, 0.4) !important;
-        width: 14px !important;
-        height: 14px !important;
-        top: 12px !important;
-    }
-    /* Quitar textos sueltos o números en extremos que rompen el orden */
-    div[data-testid="stSlider"] div[data-testid="stWidgetLabel"] + div div {
-        font-family: 'Montserrat', sans-serif !important;
-    }
     </style>
 """, unsafe_allow_html=True)
 
@@ -338,9 +306,27 @@ estado_actual    = int(fila_actual['Estado'])
 audio_id         = str(fila_actual['Audio_ID']).strip()
 situacion_texto  = str(fila_actual['Situacion']).strip() if pd.notna(fila_actual['Situacion']) else ""
 
-# Contador gráfico superior ajustado al tope de la rueda actual (SIEMPRE MÁXIMO 15)
+# ── BARRA DESLIZANTE DE AVANCE RÁPIDO ORIGINAL ──
 pos_pantalla = st.session_state.indice_actual + 1
-st.markdown(f'<div class="progreso-contador">{pos_pantalla} / {total_rueda_actual}</div>', unsafe_allow_html=True)
+
+# El usuario interactúa con la barra nativa para saltar al instante
+nueva_pos_seleccionada = st.slider(
+    "Saltar a frase:", 
+    min_value=1, 
+    max_value=total_rueda_actual, 
+    value=pos_pantalla,
+    label_visibility="collapsed" # Escondemos el texto para mantenerlo limpio
+)
+
+# Si el usuario mueve la barra con el dedo/ratón, actualizamos la base de datos y saltamos
+if nueva_pos_seleccionada != pos_pantalla:
+    nuevo_ind = nueva_pos_seleccionada - 1
+    guardar_estado_puntero_db(nuevo_ind, ids_validos_rueda, nombre_isla=isla_seleccionada)
+    st.session_state.ver_solucion = False
+    st.rerun()
+
+# Dejamos un contador numérico discreto encima de la tarjeta
+st.markdown(f'<div class="progreso-contador">Frase {pos_pantalla} de {total_rueda_actual}</div>', unsafe_allow_html=True)
 
 if situacion_texto and situacion_texto != "None":
     st.markdown(f'<div class="titulo-situacion">📍 {situacion_texto}</div>', unsafe_allow_html=True)
