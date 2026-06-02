@@ -317,10 +317,27 @@ estado_actual    = int(fila_actual['Estado'])
 audio_id         = str(fila_actual['Audio_ID']).strip()
 situacion_texto  = str(fila_actual['Situacion']).strip() if pd.notna(fila_actual['Situacion']) else ""
 
-# Contador gráfico superior ajustado al tope de la rueda actual (SIEMPRE MÁXIMO 15)
+# ── CONTADOR INTERACTIVO CON BARRA DESLIZANTE (OPCIÓN 1) ──
 pos_pantalla = st.session_state.indice_actual + 1
-st.markdown(f'<div class="progreso-contador">{pos_pantalla} / {total_rueda_actual}</div>', unsafe_allow_html=True)
-st.progress(pos_pantalla / total_rueda_actual)
+
+# El usuario interactúa con la barra para saltar al instante
+nueva_pos_seleccionada = st.slider(
+    "Saltar a frase:", 
+    min_value=1, 
+    max_value=total_rueda_actual, 
+    value=pos_pantalla,
+    label_visibility="collapsed" # Escondemos el texto para mantenerlo limpio
+)
+
+# Si el usuario mueve la barra con el dedo/ratón, actualizamos la base de datos y saltamos
+if nueva_pos_seleccionada != pos_pantalla:
+    nuevo_ind = nueva_pos_seleccionada - 1
+    guardar_estado_puntero_db(nuevo_ind, ids_validos_rueda, nombre_isla=isla_seleccionada)
+    st.session_state.ver_solucion = False
+    st.rerun()
+
+# Dejamos un contador numérico discreto encima de la tarjeta
+st.markdown(f'<div class="progreso-contador">Frase {pos_pantalla} de {total_rueda_actual}</div>', unsafe_allow_html=True)
 
 if situacion_texto and situacion_texto != "None":
     st.markdown(f'<div class="titulo-situacion">📍 {situacion_texto}</div>', unsafe_allow_html=True)
