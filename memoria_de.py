@@ -19,7 +19,7 @@ headers = {
     "Content-Type": "application/json"
 }
 
-# ── INYECTAR TIPOGRAFÍAS Y ESTILOS PREMIUM (CORREGIDO) ──
+# ── INYECTAR TIPOGRAFÍAS Y ESTILOS PREMIUM (CON TUNEADO DE SLIDER) ──
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght=300;400;500;600;700&display=swap');
@@ -80,13 +80,44 @@ st.markdown("""
     .palabra-mal  { color: #e05454; font-weight: 500; text-decoration: underline wavy #e05454; }
     .palabra-extra { color: #f5a623; font-weight: 500; font-style: italic; }
 
-    .stProgress > div > div { height: 5px !important; border-radius: 99px !important; }
-    .progreso-contador { font-size: 0.72rem; font-weight: 500; color: #8a9ab5; text-align: right; letter-spacing: 1px; margin-bottom: 4px; }
+    .progreso-contador { font-size: 0.72rem; font-weight: 500; color: #8a9ab5; text-align: right; letter-spacing: 1px; margin-top: -4px; margin-bottom: 8px; }
     
     .stButton button { border-radius: 8px !important; font-weight: 600 !important; font-size: 0.82rem !important; padding: 0.45rem 0.9rem !important; border: 1px solid rgba(255,255,255,0.08) !important; }
     section[data-testid="stSidebar"] { border-right: 1px solid rgba(255,255,255,0.06); }
     .streamlit-expanderHeader { font-weight: 500 !important; font-size: 0.95rem !important; border-radius: 8px !important; }
     hr { opacity: 0.15; }
+
+    /* ── TUNING PREMIUM PARA LA BARRA DESLIZANTE (SLIDER) ── */
+    div[data-testid="stSlider"] > div [data-testid="stThumbValue"] {
+        display: none !important; /* Oculta el número flotante feo al tocarlo */
+    }
+    div[data-testid="stSlider"] [data-className="stSlider"] {
+        padding-top: 4px;
+        padding-bottom: 4px;
+    }
+    /* Color del raíl de fondo (lo que queda por recorrer) */
+    div[data-testid="stSlider"] div[data-track="true"] {
+        background: rgba(255, 255, 255, 0.08) !important;
+        height: 4px !important;
+    }
+    /* Color del raíl activo (lo que ya has recorrido - Tu Azul Premium) */
+    div[data-testid="stSlider"] div[role="slider"] + div {
+        background: #3b7dd8 !important;
+        height: 4px !important;
+    }
+    /* La bolita / tirador interactivo */
+    div[data-testid="stSlider"] div[role="slider"] {
+        background-color: #3b7dd8 !important;
+        border: 2px solid #1e293b !important;
+        box-shadow: 0 0 8px rgba(59, 125, 216, 0.4) !important;
+        width: 14px !important;
+        height: 14px !important;
+        top: 12px !important;
+    }
+    /* Quitar textos sueltos o números en extremos que rompen el orden */
+    div[data-testid="stSlider"] div[data-testid="stWidgetLabel"] + div div {
+        font-family: 'Montserrat', sans-serif !important;
+    }
     </style>
 """, unsafe_allow_html=True)
 
@@ -145,7 +176,7 @@ def obtener_datos_puntero_db():
         data = res.json()[0]
         pos = data.get('posicion_actual', 0)
         rueda_str = data.get('rueda_ids', "")
-        isla_guardada = data.get('isla_actual', None) # Leemos la isla guardada en Supabase
+        isla_guardada = data.get('isla_actual', None)
         ids = [int(x.strip()) for x in rueda_str.split(',') if x.strip().isdigit()] if rueda_str else []
         return pos, ids, isla_guardada
     return 0, [], None
@@ -158,7 +189,7 @@ def guardar_estado_puntero_db(pos, lista_ids, nombre_isla=None):
     
     body = {"posicion_actual": pos, "rueda_ids": rueda_str}
     if nombre_isla:
-        body["isla_actual"] = nombre_isla # Guardamos la isla activa para que el móvil lo sepa
+        body["isla_actual"] = nombre_isla
         
     requests.patch(url, headers=headers, json=body)
 
@@ -170,14 +201,12 @@ pos_db, ids_rueda_db, isla_guardada_db = obtener_datos_puntero_db()
 st.sidebar.title("Configuración")
 islas = obtener_islas_disponibles()
 
-# Si hay una isla guardada en la base de datos y existe en la lista, la seleccionamos por defecto
 indice_defecto = 0
 if isla_guardada_db and isla_guardada_db in islas:
     indice_defecto = islas.index(isla_guardada_db)
 
 isla_seleccionada = st.sidebar.selectbox("🏝️ Selecciona la Isla:", islas, index=indice_defecto)
 
-# Cargar todo el universo de tarjetas de la isla elegida
 df_universo = obtener_todas_tarjetas_isla(isla_seleccionada)
 
 if df_universo.empty:
@@ -187,17 +216,14 @@ if df_universo.empty:
 df_universo['id'] = df_universo['id'].astype(int)
 df_universo['Estado'] = pd.to_numeric(df_universo['Estado'], errors='coerce').fillna(1).astype(int)
 
-# Filtrar las tarjetas que están disponibles (Estado != 4) en toda la isla
 df_activas_universo = df_universo[df_universo['Estado'] != 4].copy()
 df_jubiladas_universo = df_universo[df_universo['Estado'] == 4].copy()
 
 total_frases_isla = len(df_universo)
 total_aprendidos = len(df_jubiladas_universo)
 
-# REGLA DE CONSTRUCCIÓN / RECUPERACIÓN DE LA RUEDA DE 15
 ids_validos_rueda = []
 
-# Solo leemos la rueda de la DB si corresponde a la isla en la que estamos trabajando actualmente
 if ids_rueda_db and isla_seleccionada == isla_guardada_db:
     for tid in ids_rueda_db:
         if tid in df_activas_universo['id'].values:
@@ -206,7 +232,6 @@ if ids_rueda_db and isla_seleccionada == isla_guardada_db:
 if len(ids_validos_rueda) > 15:
     ids_validos_rueda = ids_validos_rueda[:15]
 
-# Si cambiamos de isla o la rueda está vacía, la rellenamos desde cero para esa isla
 while len(ids_validos_rueda) < 15:
     tarjetas_candidatas = [tid for tid in df_activas_universo['id'].values if tid not in ids_validos_rueda]
     if not tarjetas_candidatas:
@@ -216,13 +241,11 @@ while len(ids_validos_rueda) < 15:
 if len(ids_validos_rueda) > 15:
     ids_validos_rueda = ids_validos_rueda[:15]
 
-# Guardar cambios y fijar la isla actual en la base de datos si detecta un cambio o inicio limpio
 if ids_validos_rueda != ids_rueda_db or isla_seleccionada != isla_guardada_db:
     if isla_seleccionada != isla_guardada_db:
-        pos_db = 0  # Reseteamos puntero local si saltamos manualmente de isla
+        pos_db = 0
     guardar_estado_puntero_db(pos_db, ids_validos_rueda, nombre_isla=isla_seleccionada)
 
-# Si la isla entera se vacía de activas
 if not ids_validos_rueda:
     st.title("🇩🇪 Método de Chunks & Islas")
     st.balloons()
@@ -243,7 +266,6 @@ st.session_state.indice_actual = pos_db
 if 'ver_solucion' not in st.session_state:
     st.session_state.ver_solucion = False
 
-# Crear el DataFrame de la rueda activa respetando de forma estricta el orden guardado
 df_rueda = pd.DataFrame({'id': ids_validos_rueda}).merge(df_universo, on='id', how='left')
 total_rueda_actual = len(df_rueda)
 
@@ -277,14 +299,13 @@ st.sidebar.markdown(f"""
 </div>
 """, unsafe_allow_html=True)
 
-# 📦 BOTÓN PARA VER JUBILADAS
 st.sidebar.write("---")
 abrir_modal_jubiladas = st.sidebar.button("📦 Ver Almacén de Jubiladas", use_container_width=True, disabled=(total_aprendidos == 0))
 
 if abrir_modal_jubiladas:
     @st.dialog("📦 Almacén de Frases Jubiladas")
     def mostrar_popup_jubiladas():
-        st.write("Estas son tus frases guardadas en azul. Puedes repasarlas y devolverlas a la rueda activa:")
+        st.write("Estas son tus frases guardadas in azul. Puedes repasarlas y devolverlas a la rueda activa:")
         st.write("---")
         for _, row in df_jubiladas_universo.iterrows():
             col_txt, col_btn = st.columns([0.75, 0.25])
@@ -317,26 +338,23 @@ estado_actual    = int(fila_actual['Estado'])
 audio_id         = str(fila_actual['Audio_ID']).strip()
 situacion_texto  = str(fila_actual['Situacion']).strip() if pd.notna(fila_actual['Situacion']) else ""
 
-# ── CONTADOR INTERACTIVO CON BARRA DESLIZANTE (OPCIÓN 1) ──
+# ── BARRA DESLIZANTE DE AVANCE RÁPIDO PREMIUM ──
 pos_pantalla = st.session_state.indice_actual + 1
 
-# El usuario interactúa con la barra para saltar al instante
 nueva_pos_seleccionada = st.slider(
     "Saltar a frase:", 
     min_value=1, 
     max_value=total_rueda_actual, 
     value=pos_pantalla,
-    label_visibility="collapsed" # Escondemos el texto para mantenerlo limpio
+    label_visibility="collapsed"
 )
 
-# Si el usuario mueve la barra con el dedo/ratón, actualizamos la base de datos y saltamos
 if nueva_pos_seleccionada != pos_pantalla:
     nuevo_ind = nueva_pos_seleccionada - 1
     guardar_estado_puntero_db(nuevo_ind, ids_validos_rueda, nombre_isla=isla_seleccionada)
     st.session_state.ver_solucion = False
     st.rerun()
 
-# Dejamos un contador numérico discreto encima de la tarjeta
 st.markdown(f'<div class="progreso-contador">Frase {pos_pantalla} de {total_rueda_actual}</div>', unsafe_allow_html=True)
 
 if situacion_texto and situacion_texto != "None":
@@ -372,7 +390,6 @@ with col_nav_sig:
 
 st.write("")
 
-# Tira decorativa de nivel
 bg_tira, color_tira = "rgba(59, 125, 216, 0.15)", "#3b7dd8"
 if estado_actual == 1:   bg_tira, color_tira = "rgba(224, 84, 84, 0.15)", "#e05454"
 elif estado_actual == 2: bg_tira, color_tira = "rgba(245, 158, 11, 0.15)", "#f59e0b"
