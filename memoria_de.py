@@ -39,7 +39,7 @@ st.markdown("""
     }
 
     /* Aplicamos Montserrat solo a contenedores de texto, respetando las fuentes de iconos nativas */
-    .stApp, .stSelectbox, .stTextArea, .stTextInput, .stButton button, .streamlit-expanderHeader {
+    .stApp, .stSelectbox, .stTextArea, .stTextInput, .stButton button, .streamlit-expanderHeader, .titulo-situacion, .tira-historial, .texto-isla, .resultado-porcentaje, .dictado-comparacion, .progreso-contador {
         font-family: 'Montserrat', sans-serif !important;
     }
 
@@ -47,7 +47,6 @@ st.markdown("""
     h2, h3 { font-family: 'Montserrat', sans-serif !important; font-weight: 600 !important; }
 
     .titulo-situacion {
-        font-family: 'Montserrat', sans-serif !important;
         font-weight: 500 !important; font-size: 0.75rem !important;
         text-transform: uppercase; letter-spacing: 2px; color: #8a9ab5;
         margin-bottom: 0.75rem; display: flex; align-items: center; gap: 6px;
@@ -60,8 +59,7 @@ st.markdown("""
     }
 
     .texto-isla, .texto-isla *, .texto-isla p, .texto-isla b {
-        font-family: 'Montserrat', sans-serif !important; font-weight: 400 !important;
-        line-height: 1.8 !important; font-size: 1.25rem !important;
+        font-weight: 400 !important; line-height: 1.8 !important; font-size: 1.25rem !important;
     }
     .texto-isla b { font-weight: 600 !important; font-size: 0.72rem !important; text-transform: uppercase; letter-spacing: 1.5px; opacity: 0.65; }
 
@@ -76,18 +74,18 @@ st.markdown("""
         box-shadow: 0 2px 12px rgba(34,166,110,0.07);
     }
 
-    .resultado-porcentaje { font-family: 'Montserrat', sans-serif; font-size: 1.5rem; font-weight: 400; text-align: center; padding: 14px 20px; border-radius: var(--radio); margin: 10px 0; }
-    .dictado-comparacion { font-family: 'Montserrat', sans-serif; font-size: 1.1rem; line-height: 1.9; padding: 1.2rem 1.4rem; border-radius: var(--radio); background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); margin-top: 12px; }
+    .resultado-porcentaje { font-size: 1.5rem; font-weight: 400; text-align: center; padding: 14px 20px; border-radius: var(--radio); margin: 10px 0; }
+    .dictado-comparacion { font-size: 1.1rem; line-height: 1.9; padding: 1.2rem 1.4rem; border-radius: var(--radio); background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); margin-top: 12px; }
     .palabra-ok   { color: #22a66e; font-weight: 500; }
     .palabra-mal  { color: #e05454; font-weight: 500; text-decoration: underline wavy #e05454; }
     .palabra-extra { color: #f5a623; font-weight: 500; font-style: italic; }
 
     .stProgress > div > div { height: 5px !important; border-radius: 99px !important; }
-    .progreso-contador { font-family: 'Montserrat', sans-serif; font-size: 0.72rem; font-weight: 500; color: #8a9ab5; text-align: right; letter-spacing: 1px; margin-bottom: 4px; }
+    .progreso-contador { font-size: 0.72rem; font-weight: 500; color: #8a9ab5; text-align: right; letter-spacing: 1px; margin-bottom: 4px; }
     
     .stButton button { border-radius: 8px !important; font-weight: 600 !important; font-size: 0.82rem !important; padding: 0.45rem 0.9rem !important; border: 1px solid rgba(255,255,255,0.08) !important; }
     section[data-testid="stSidebar"] { border-right: 1px solid rgba(255,255,255,0.06); }
-    .streamlit-expanderHeader { font-family: 'Montserrat', sans-serif !important; font-weight: 500 !important; font-size: 0.95rem !important; border-radius: 8px !important; }
+    .streamlit-expanderHeader { font-weight: 500 !important; font-size: 0.95rem !important; border-radius: 8px !important; }
     hr { opacity: 0.15; }
     </style>
 """, unsafe_allow_html=True)
@@ -137,7 +135,7 @@ def obtener_islas_disponibles():
     url = f"{SUPABASE_URL}/rest/v1/tarjetas?select=Isla"
     res = requests.get(url, headers=headers)
     if res.status_code == 200 and res.json():
-        return list(set([item['Isla'] for item in res.json()]))
+        return sorted(list(set([item['Isla'] for item in res.json()])))
     return ["Chunks"]
 
 def obtener_datos_puntero_db():
@@ -147,33 +145,39 @@ def obtener_datos_puntero_db():
         data = res.json()[0]
         pos = data.get('posicion_actual', 0)
         rueda_str = data.get('rueda_ids', "")
+        isla_guardada = data.get('isla_actual', None) # Leemos la isla guardada en Supabase
         ids = [int(x.strip()) for x in rueda_str.split(',') if x.strip().isdigit()] if rueda_str else []
-        return pos, ids
-    return 0, []
+        return pos, ids, isla_guardada
+    return 0, [], None
 
-def guardar_estado_puntero_db(pos, lista_ids):
-    # JUEZ SUPREMO DE CONTROL: Cortar estrictamente a un máximo de 15 antes de guardar en la DB
+def guardar_estado_puntero_db(pos, lista_ids, nombre_isla=None):
     if len(lista_ids) > 15:
         lista_ids = lista_ids[:15]
     url = f"{SUPABASE_URL}/rest/v1/puntero?id=eq.1"
     rueda_str = ",".join(map(str, lista_ids))
-    requests.patch(url, headers=headers, json={"posicion_actual": pos, "rueda_ids": rueda_str})
+    
+    body = {"posicion_actual": pos, "rueda_ids": rueda_str}
+    if nombre_isla:
+        body["isla_actual"] = nombre_isla # Guardamos la isla activa para que el móvil lo sepa
+        
+    requests.patch(url, headers=headers, json=body)
 
-def actualizar_estado_tarjeta(id_tarjeta, nuevo_estado_int):
-    url = f"{SUPABASE_URL}/rest/v1/tarjetas?id=eq.{id_tarjeta}"
-    requests.patch(url, headers=headers, json={"Estado": nuevo_estado_int})
 
-def actualizar_anotacion_tarjeta(id_tarjeta, texto_nota):
-    url = f"{SUPABASE_URL}/rest/v1/tarjetas?id=eq.{id_tarjeta}"
-    requests.patch(url, headers=headers, json={"Explicacion": texto_nota})
-
+# ── SINTONIZACIÓN MULTIDISPOSITIVO AL ARRANCAR ──
+pos_db, ids_rueda_db, isla_guardada_db = obtener_datos_puntero_db()
 
 # ── CONFIGURACIÓN BARRA LATERAL ──
 st.sidebar.title("Configuración")
 islas = obtener_islas_disponibles()
-isla_seleccionada = st.sidebar.selectbox("🏝️ Selecciona la Isla:", islas)
 
-# Cargar todo el universo de tarjetas de la isla
+# Si hay una isla guardada en la base de datos y existe en la lista, la seleccionamos por defecto
+indice_defecto = 0
+if isla_guardada_db and isla_guardada_db in islas:
+    indice_defecto = islas.index(isla_guardada_db)
+
+isla_seleccionada = st.sidebar.selectbox("🏝️ Selecciona la Isla:", islas, index=indice_defecto)
+
+# Cargar todo el universo de tarjetas de la isla elegida
 df_universo = obtener_todas_tarjetas_isla(isla_seleccionada)
 
 if df_universo.empty:
@@ -182,9 +186,6 @@ if df_universo.empty:
 
 df_universo['id'] = df_universo['id'].astype(int)
 df_universo['Estado'] = pd.to_numeric(df_universo['Estado'], errors='coerce').fillna(1).astype(int)
-
-# 🔄 MULTIDISPOSITIVO VITAL: Leer foto de la mesa de trabajo en la nube
-pos_db, ids_rueda_db = obtener_datos_puntero_db()
 
 # Filtrar las tarjetas que están disponibles (Estado != 4) en toda la isla
 df_activas_universo = df_universo[df_universo['Estado'] != 4].copy()
@@ -196,32 +197,30 @@ total_aprendidos = len(df_jubiladas_universo)
 # REGLA DE CONSTRUCCIÓN / RECUPERACIÓN DE LA RUEDA DE 15
 ids_validos_rueda = []
 
-# Si ya había una rueda en la DB, filtramos que esas tarjetas sigan activas (no jubiladas en esta sesión)
-if ids_rueda_db:
+# Solo leemos la rueda de la DB si corresponde a la isla en la que estamos trabajando actualmente
+if ids_rueda_db and isla_seleccionada == isla_guardada_db:
     for tid in ids_rueda_db:
         if tid in df_activas_universo['id'].values:
             ids_validos_rueda.append(tid)
 
-# REBANADO PREVENTIVO EN VIVO: Si por desjubilar algo la lista supera 15, cortamos la última de la derecha ya mismo
 if len(ids_validos_rueda) > 15:
     ids_validos_rueda = ids_validos_rueda[:15]
 
-# Rellenar hasta 15 con el contenido disponible del universo si faltan huecos
+# Si cambiamos de isla o la rueda está vacía, la rellenamos desde cero para esa isla
 while len(ids_validos_rueda) < 15:
     tarjetas_candidatas = [tid for tid in df_activas_universo['id'].values if tid not in ids_validos_rueda]
     if not tarjetas_candidatas:
-        break  # No hay más tarjetas activas en toda la isla
+        break
     ids_validos_rueda.append(tarjetas_candidatas[0])
 
-# Asegurar tope estricto de 15 tras cualquier operación de rellenado
 if len(ids_validos_rueda) > 15:
     ids_validos_rueda = ids_validos_rueda[:15]
 
-# Guardar la rueda optimizada si difiere o si venía vacía
-if ids_validos_rueda != ids_rueda_db:
-    if pos_db >= len(ids_validos_rueda):
-        pos_db = 0
-    guardar_estado_puntero_db(pos_db, ids_validos_rueda)
+# Guardar cambios y fijar la isla actual en la base de datos si detecta un cambio o inicio limpio
+if ids_validos_rueda != ids_rueda_db or isla_seleccionada != isla_guardada_db:
+    if isla_seleccionada != isla_guardada_db:
+        pos_db = 0  # Reseteamos puntero local si saltamos manualmente de isla
+    guardar_estado_puntero_db(pos_db, ids_validos_rueda, nombre_isla=isla_seleccionada)
 
 # Si la isla entera se vacía de activas
 if not ids_validos_rueda:
@@ -232,16 +231,14 @@ if not ids_validos_rueda:
     if st.button("♻️ Reiniciar progreso de la Isla", use_container_width=True):
         url_reset = f"{SUPABASE_URL}/rest/v1/tarjetas?Isla=ilike.{isla_seleccionada}"
         requests.patch(url_reset, headers=headers, json={"Estado": 1})
-        guardar_estado_puntero_db(0, [])
+        guardar_estado_puntero_db(0, [], nombre_isla=isla_seleccionada)
         st.rerun()
     st.stop()
 
-# Garantizar que el puntero esté dentro de los límites de la rueda real calculada
 if pos_db >= len(ids_validos_rueda):
     pos_db = 0
-    guardar_estado_puntero_db(0, ids_validos_rueda)
+    guardar_estado_puntero_db(0, ids_validos_rueda, nombre_isla=isla_seleccionada)
 
-# Sincronizar el estado de sesión local con la nube
 st.session_state.indice_actual = pos_db
 if 'ver_solucion' not in st.session_state:
     st.session_state.ver_solucion = False
@@ -296,22 +293,13 @@ if abrir_modal_jubiladas:
                 st.markdown(f"*DE:* {row['Aleman']}")
             with col_btn:
                 if st.button("♻️ Traer", key=f"popup_rec_{row['id']}", use_container_width=True):
-                    # 1. Desjubilar la tarjeta poniéndola en estado 1 en Supabase
                     actualizar_estado_tarjeta(int(row['id']), 1)
-                    
-                    # 2. Leer la composición real de la rueda en la DB
-                    _, actuales_ids = obtener_datos_puntero_db()
-                    
-                    # 3. Colocar la tarjeta desjubilada AL PRINCIPIO de la mesa de trabajo
+                    _, actuales_ids, _ = obtener_datos_puntero_db()
                     if int(row['id']) not in actuales_ids:
                         actuales_ids.insert(0, int(row['id']))
-                    
-                    # 4. Forzar el rebanado estricto a 15 elementos eliminando la más nueva (última de la derecha)
                     if len(actuales_ids) > 15:
                         actuales_ids = actuales_ids[:15]
-                    
-                    # 5. Guardar la mesa limpia en Supabase y poner el foco en la posición 0 (la tarjeta que acaba de entrar)
-                    guardar_estado_puntero_db(0, actuales_ids)
+                    guardar_estado_puntero_db(0, actuales_ids, nombre_isla=isla_seleccionada)
                     st.toast("¡Tarjeta recuperada! La mesa mantiene el tope estricto de 15.")
                     st.rerun()
             st.write("---")
@@ -338,7 +326,7 @@ if situacion_texto and situacion_texto != "None":
     st.markdown(f'<div class="titulo-situacion">📍 {situacion_texto}</div>', unsafe_allow_html=True)
 
 
-# ── BOTONES DE NAVEGACIÓN (CAMBIAN EL PUNTERO EN LA NUBE SIN ALTERAR LA RUEDA) ──
+# ── BOTONES DE NAVEGACIÓN ──
 col_nav_sol, col_nav_ant, col_nav_sig = st.columns([0.34, 0.33, 0.33])
 
 with col_nav_sol:
@@ -354,14 +342,14 @@ with col_nav_sol:
 with col_nav_ant:
     if st.button("⬅️ Anterior", use_container_width=True):
         nuevo_ind = st.session_state.indice_actual - 1 if st.session_state.indice_actual > 0 else total_rueda_actual - 1
-        guardar_estado_puntero_db(nuevo_ind, ids_validos_rueda)
+        guardar_estado_puntero_db(nuevo_ind, ids_validos_rueda, nombre_isla=isla_seleccionada)
         st.session_state.ver_solucion = False
         st.rerun()
 
 with col_nav_sig:
     if st.button("Siguiente ➡️", use_container_width=True):
         nuevo_ind = st.session_state.indice_actual + 1 if st.session_state.indice_actual < total_rueda_actual - 1 else 0
-        guardar_estado_puntero_db(nuevo_ind, ids_validos_rueda)
+        guardar_estado_puntero_db(nuevo_ind, ids_validos_rueda, nombre_isla=isla_seleccionada)
         st.session_state.ver_solucion = False
         st.rerun()
 
@@ -395,23 +383,17 @@ with col_c4:
     if st.button("🔵", use_container_width=True): nuevo_estado_num = 4
 
 if nuevo_estado_num is not None:
-    # 1. Guardar el estado de la tarjeta en la DB
     actualizar_estado_tarjeta(id_tarjeta, nuevo_estado_num)
     st.toast(f"Estado actualizado en la nube")
     
-    # 2. Calcular siguiente índice de navegación
     if nuevo_estado_num == 4:
-        # Si se jubila (Azul), la tarjeta saldrá automáticamente de la rueda.
         nuevo_indice_puntero = st.session_state.indice_actual
         if id_tarjeta in ids_validos_rueda:
             ids_validos_rueda.remove(id_tarjeta)
     else:
-        # Si es rojo, naranja o verde, la tarjeta SE QUEDA en la rueda en su sitio exacto.
         nuevo_indice_puntero = st.session_state.indice_actual + 1 if st.session_state.indice_actual < total_rueda_actual - 1 else 0
 
-    # 3. Subir la foto exacta del puntero y la rueda recalculada a Supabase (el guardado aplica el tope de 15)
-    guardar_estado_puntero_db(nuevo_indice_puntero, ids_validos_rueda)
-    
+    guardar_estado_puntero_db(nuevo_indice_puntero, ids_validos_rueda, nombre_isla=isla_seleccionada)
     st.session_state.ver_solucion = False
     st.rerun()
 
