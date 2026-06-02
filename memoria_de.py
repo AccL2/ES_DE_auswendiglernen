@@ -19,7 +19,7 @@ headers = {
     "Content-Type": "application/json"
 }
 
-# ── INYECTAR TIPOGRAFÍAS Y ESTILOS PREMIUM ──
+# ── INYECTAR TIPOGRAFÍAS Y ESTILOS PREMIUM (CORREGIDO) ──
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght=300;400;500;600;700&display=swap');
@@ -38,11 +38,8 @@ st.markdown("""
         --radio:       12px;
     }
 
-    html, body, * { font-family: 'Montserrat', sans-serif !important; }
-
-    .stSelectbox > div, .stSelectbox label, .stRadio > div, .stRadio label,
-    .stTextInput > div, .stTextInput label, .stTextArea > div, .stTextArea label,
-    div[data-testid="stSelectbox"] *, div[data-testid="stTextInput"] *, div[data-testid="stTextArea"] * {
+    /* Aplicamos Montserrat solo a contenedores de texto, respetando las fuentes de iconos nativas */
+    .stApp, .stSelectbox, .stTextArea, .stTextInput, .stButton button, .streamlit-expanderHeader {
         font-family: 'Montserrat', sans-serif !important;
     }
 
