@@ -19,7 +19,7 @@ headers = {
     "Content-Type": "application/json"
 }
 
-# ── INYECTAR TIPOGRAFÍAS Y ESTILOS PREMIUM ──
+# ── INYECTAR TIPOGRAFÍAS Y ESTILOS PREMIUM (CORREGIDO) ──
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght=300;400;500;600;700&display=swap');
@@ -39,7 +39,14 @@ st.markdown("""
     }
 
     /* Aplicamos Montserrat solo a contenedores de texto, respetando las fuentes de iconos nativas */
-    .stApp, .stSelectbox, .stTextArea, .stTextInput, .stButton button, .streamlit-expanderHeader, .titulo-situacion, .tira-historial, .texto-isla, .resultado-porcentaje, .dictado-comparacion, .progreso-contador {
+    .stApp, .stSelectbox, .stTextArea, .stTextInput, .stButton button, .streamlit-expanderHeader {
+        font-family: 'Montserrat', sans-serif !important;
+    }
+
+    /* ── TAMAÑO EXTRA PARA EL CUADRO DE ANOTACIONES ── */
+    div[data-testid="stTextArea"] textarea {
+        font-size: 1.15rem !important; /* Letra significativamente más grande */
+        line-height: 1.6 !important;
         font-family: 'Montserrat', sans-serif !important;
     }
 
@@ -47,6 +54,7 @@ st.markdown("""
     h2, h3 { font-family: 'Montserrat', sans-serif !important; font-weight: 600 !important; }
 
     .titulo-situacion {
+        font-family: 'Montserrat', sans-serif !important;
         font-weight: 500 !important; font-size: 0.75rem !important;
         text-transform: uppercase; letter-spacing: 2px; color: #8a9ab5;
         margin-bottom: 0.75rem; display: flex; align-items: center; gap: 6px;
@@ -59,7 +67,8 @@ st.markdown("""
     }
 
     .texto-isla, .texto-isla *, .texto-isla p, .texto-isla b {
-        font-weight: 400 !important; line-height: 1.8 !important; font-size: 1.25rem !important;
+        font-family: 'Montserrat', sans-serif !important; font-weight: 400 !important;
+        line-height: 1.8 !important; font-size: 1.25rem !important;
     }
     .texto-isla b { font-weight: 600 !important; font-size: 0.72rem !important; text-transform: uppercase; letter-spacing: 1.5px; opacity: 0.65; }
 
@@ -74,17 +83,18 @@ st.markdown("""
         box-shadow: 0 2px 12px rgba(34,166,110,0.07);
     }
 
-    .resultado-porcentaje { font-size: 1.5rem; font-weight: 400; text-align: center; padding: 14px 20px; border-radius: var(--radio); margin: 10px 0; }
-    .dictado-comparacion { font-size: 1.1rem; line-height: 1.9; padding: 1.2rem 1.4rem; border-radius: var(--radio); background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); margin-top: 12px; }
+    .resultado-porcentaje { font-family: 'Montserrat', sans-serif; font-size: 1.5rem; font-weight: 400; text-align: center; padding: 14px 20px; border-radius: var(--radio); margin: 10px 0; }
+    .dictado-comparacion { font-family: 'Montserrat', sans-serif; font-size: 1.1rem; line-height: 1.9; padding: 1.2rem 1.4rem; border-radius: var(--radio); background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); margin-top: 12px; }
     .palabra-ok   { color: #22a66e; font-weight: 500; }
     .palabra-mal  { color: #e05454; font-weight: 500; text-decoration: underline wavy #e05454; }
     .palabra-extra { color: #f5a623; font-weight: 500; font-style: italic; }
 
-    .progreso-contador { font-size: 0.72rem; font-weight: 500; color: #8a9ab5; text-align: right; letter-spacing: 1px; margin-bottom: 4px; }
+    .stProgress > div > div { height: 5px !important; border-radius: 99px !important; }
+    .progreso-contador { font-family: 'Montserrat', sans-serif; font-size: 0.72rem; font-weight: 500; color: #8a9ab5; text-align: right; letter-spacing: 1px; margin-bottom: 4px; }
     
     .stButton button { border-radius: 8px !important; font-weight: 600 !important; font-size: 0.82rem !important; padding: 0.45rem 0.9rem !important; border: 1px solid rgba(255,255,255,0.08) !important; }
     section[data-testid="stSidebar"] { border-right: 1px solid rgba(255,255,255,0.06); }
-    .streamlit-expanderHeader { font-weight: 500 !important; font-size: 0.95rem !important; border-radius: 8px !important; }
+    .streamlit-expanderHeader { font-family: 'Montserrat', sans-serif !important; font-weight: 500 !important; font-size: 0.95rem !important; border-radius: 8px !important; }
     hr { opacity: 0.15; }
     </style>
 """, unsafe_allow_html=True)
@@ -134,7 +144,7 @@ def obtener_islas_disponibles():
     url = f"{SUPABASE_URL}/rest/v1/tarjetas?select=Isla"
     res = requests.get(url, headers=headers)
     if res.status_code == 200 and res.json():
-        return sorted(list(set([item['Isla'] for item in res.json()])))
+        return list(set([item['Isla'] for item in res.json()]))
     return ["Chunks"]
 
 def obtener_datos_puntero_db():
@@ -144,36 +154,30 @@ def obtener_datos_puntero_db():
         data = res.json()[0]
         pos = data.get('posicion_actual', 0)
         rueda_str = data.get('rueda_ids', "")
-        isla_guardada = data.get('isla_actual', None)
         ids = [int(x.strip()) for x in rueda_str.split(',') if x.strip().isdigit()] if rueda_str else []
-        return pos, ids, isla_guardada
-    return 0, [], None
+        return pos, ids
+    return 0, []
 
-def guardar_estado_puntero_db(pos, lista_ids, nombre_isla=None):
+def guardar_estado_puntero_db(pos, lista_ids):
     if len(lista_ids) > 15:
         lista_ids = lista_ids[:15]
     url = f"{SUPABASE_URL}/rest/v1/puntero?id=eq.1"
     rueda_str = ",".join(map(str, lista_ids))
-    
-    body = {"posicion_actual": pos, "rueda_ids": rueda_str}
-    if nombre_isla:
-        body["isla_actual"] = nombre_isla
-        
-    requests.patch(url, headers=headers, json=body)
+    requests.patch(url, headers=headers, json={"posicion_actual": pos, "rueda_ids": rueda_str})
 
+def actualizar_estado_tarjeta(id_tarjeta, nuevo_estado_int):
+    url = f"{SUPABASE_URL}/rest/v1/tarjetas?id=eq.{id_tarjeta}"
+    requests.patch(url, headers=headers, json={"Estado": nuevo_estado_int})
 
-# ── SINTONIZACIÓN MULTIDISPOSITIVO AL ARRANCAR ──
-pos_db, ids_rueda_db, isla_guardada_db = obtener_datos_puntero_db()
+def actualizar_anotacion_tarjeta(id_tarjeta, texto_nota):
+    url = f"{SUPABASE_URL}/rest/v1/tarjetas?id=eq.{id_tarjeta}"
+    requests.patch(url, headers=headers, json={"Explicacion": texto_nota})
+
 
 # ── CONFIGURACIÓN BARRA LATERAL ──
 st.sidebar.title("Configuración")
 islas = obtener_islas_disponibles()
-
-indice_defecto = 0
-if isla_guardada_db and isla_guardada_db in islas:
-    indice_defecto = islas.index(isla_guardada_db)
-
-isla_seleccionada = st.sidebar.selectbox("🏝️ Selecciona la Isla:", islas, index=indice_defecto)
+isla_seleccionada = st.sidebar.selectbox("🏝️ Selecciona la Isla:", islas)
 
 df_universo = obtener_todas_tarjetas_isla(isla_seleccionada)
 
@@ -184,6 +188,8 @@ if df_universo.empty:
 df_universo['id'] = df_universo['id'].astype(int)
 df_universo['Estado'] = pd.to_numeric(df_universo['Estado'], errors='coerce').fillna(1).astype(int)
 
+pos_db, ids_rueda_db = obtener_datos_puntero_db()
+
 df_activas_universo = df_universo[df_universo['Estado'] != 4].copy()
 df_jubiladas_universo = df_universo[df_universo['Estado'] == 4].copy()
 
@@ -192,7 +198,7 @@ total_aprendidos = len(df_jubiladas_universo)
 
 ids_validos_rueda = []
 
-if ids_rueda_db and isla_seleccionada == isla_guardada_db:
+if ids_rueda_db:
     for tid in ids_rueda_db:
         if tid in df_activas_universo['id'].values:
             ids_validos_rueda.append(tid)
@@ -209,10 +215,10 @@ while len(ids_validos_rueda) < 15:
 if len(ids_validos_rueda) > 15:
     ids_validos_rueda = ids_validos_rueda[:15]
 
-if ids_validos_rueda != ids_rueda_db or isla_seleccionada != isla_guardada_db:
-    if isla_seleccionada != isla_guardada_db:
+if ids_validos_rueda != ids_rueda_db:
+    if pos_db >= len(ids_validos_rueda):
         pos_db = 0
-    guardar_estado_puntero_db(pos_db, ids_validos_rueda, nombre_isla=isla_seleccionada)
+    guardar_estado_puntero_db(pos_db, ids_validos_rueda)
 
 if not ids_validos_rueda:
     st.title("🇩🇪 Método de Chunks & Islas")
@@ -222,13 +228,13 @@ if not ids_validos_rueda:
     if st.button("♻️ Reiniciar progreso de la Isla", use_container_width=True):
         url_reset = f"{SUPABASE_URL}/rest/v1/tarjetas?Isla=ilike.{isla_seleccionada}"
         requests.patch(url_reset, headers=headers, json={"Estado": 1})
-        guardar_estado_puntero_db(0, [], nombre_isla=isla_seleccionada)
+        guardar_estado_puntero_db(0, [])
         st.rerun()
     st.stop()
 
 if pos_db >= len(ids_validos_rueda):
     pos_db = 0
-    guardar_estado_puntero_db(0, ids_validos_rueda, nombre_isla=isla_seleccionada)
+    guardar_estado_puntero_db(0, ids_validos_rueda)
 
 st.session_state.indice_actual = pos_db
 if 'ver_solucion' not in st.session_state:
@@ -273,7 +279,7 @@ abrir_modal_jubiladas = st.sidebar.button("📦 Ver Almacén de Jubiladas", use_
 if abrir_modal_jubiladas:
     @st.dialog("📦 Almacén de Frases Jubiladas")
     def mostrar_popup_jubiladas():
-        st.write("Estas son tus frases guardadas in azul. Puedes repasarlas y devolverlas a la rueda activa:")
+        st.write("Estas son tus frases guardadas en azul. Puedes repasarlas y devolverlas a la rueda activa:")
         st.write("---")
         for _, row in df_jubiladas_universo.iterrows():
             col_txt, col_btn = st.columns([0.75, 0.25])
@@ -283,12 +289,12 @@ if abrir_modal_jubiladas:
             with col_btn:
                 if st.button("♻️ Traer", key=f"popup_rec_{row['id']}", use_container_width=True):
                     actualizar_estado_tarjeta(int(row['id']), 1)
-                    _, actuales_ids, _ = obtener_datos_puntero_db()
+                    _, actuales_ids = obtener_datos_puntero_db()
                     if int(row['id']) not in actuales_ids:
                         actuales_ids.insert(0, int(row['id']))
                     if len(actuales_ids) > 15:
                         actuales_ids = actuales_ids[:15]
-                    guardar_estado_puntero_db(0, actuales_ids, nombre_isla=isla_seleccionada)
+                    guardar_estado_puntero_db(0, actuales_ids)
                     st.toast("¡Tarjeta recuperada! La mesa mantiene el tope estricto de 15.")
                     st.rerun()
             st.write("---")
@@ -306,27 +312,9 @@ estado_actual    = int(fila_actual['Estado'])
 audio_id         = str(fila_actual['Audio_ID']).strip()
 situacion_texto  = str(fila_actual['Situacion']).strip() if pd.notna(fila_actual['Situacion']) else ""
 
-# ── BARRA DESLIZANTE DE AVANCE RÁPIDO ORIGINAL ──
 pos_pantalla = st.session_state.indice_actual + 1
-
-# El usuario interactúa con la barra nativa para saltar al instante
-nueva_pos_seleccionada = st.slider(
-    "Saltar a frase:", 
-    min_value=1, 
-    max_value=total_rueda_actual, 
-    value=pos_pantalla,
-    label_visibility="collapsed" # Escondemos el texto para mantenerlo limpio
-)
-
-# Si el usuario mueve la barra con el dedo/ratón, actualizamos la base de datos y saltamos
-if nueva_pos_seleccionada != pos_pantalla:
-    nuevo_ind = nueva_pos_seleccionada - 1
-    guardar_estado_puntero_db(nuevo_ind, ids_validos_rueda, nombre_isla=isla_seleccionada)
-    st.session_state.ver_solucion = False
-    st.rerun()
-
-# Dejamos un contador numérico discreto encima de la tarjeta
-st.markdown(f'<div class="progreso-contador">Frase {pos_pantalla} de {total_rueda_actual}</div>', unsafe_allow_html=True)
+st.markdown(f'<div class="progreso-contador">{pos_pantalla} / {total_rueda_actual}</div>', unsafe_allow_html=True)
+st.progress(pos_pantalla / total_rueda_actual)
 
 if situacion_texto and situacion_texto != "None":
     st.markdown(f'<div class="titulo-situacion">📍 {situacion_texto}</div>', unsafe_allow_html=True)
@@ -348,14 +336,14 @@ with col_nav_sol:
 with col_nav_ant:
     if st.button("⬅️ Anterior", use_container_width=True):
         nuevo_ind = st.session_state.indice_actual - 1 if st.session_state.indice_actual > 0 else total_rueda_actual - 1
-        guardar_estado_puntero_db(nuevo_ind, ids_validos_rueda, nombre_isla=isla_seleccionada)
+        guardar_estado_puntero_db(nuevo_ind, ids_validos_rueda)
         st.session_state.ver_solucion = False
         st.rerun()
 
 with col_nav_sig:
     if st.button("Siguiente ➡️", use_container_width=True):
         nuevo_ind = st.session_state.indice_actual + 1 if st.session_state.indice_actual < total_rueda_actual - 1 else 0
-        guardar_estado_puntero_db(nuevo_ind, ids_validos_rueda, nombre_isla=isla_seleccionada)
+        guardar_estado_puntero_db(nuevo_ind, ids_validos_rueda)
         st.session_state.ver_solucion = False
         st.rerun()
 
@@ -398,7 +386,7 @@ if nuevo_estado_num is not None:
     else:
         nuevo_indice_puntero = st.session_state.indice_actual + 1 if st.session_state.indice_actual < total_rueda_actual - 1 else 0
 
-    guardar_estado_puntero_db(nuevo_indice_puntero, ids_validos_rueda, nombre_isla=isla_seleccionada)
+    guardar_estado_puntero_db(nuevo_indice_puntero, ids_validos_rueda)
     st.session_state.ver_solucion = False
     st.rerun()
 
@@ -468,7 +456,9 @@ with st.expander("📝 Modo Dictado"):
 # ── ANOTACIONES EN VIVO ──
 anotacion_inicial = str(fila_actual['Explicacion']) if pd.notna(fila_actual['Explicacion']) else ""
 st.markdown('<div style="font-size: 0.85rem; font-weight: 700; text-transform: uppercase; color: #8a9ab5; margin-top: 1.5rem; margin-bottom: 8px;">ANOTACIONES</div>', unsafe_allow_html=True)
-texto_anotaciones = st.text_area("Notas", value=anotacion_inicial, key=f"notas_{id_tarjeta}", height=120, label_visibility="collapsed")
+
+# Hemos subido el valor de 'height' a 240 para que sea el doble de alto por defecto
+texto_anotaciones = st.text_area("Notas", value=anotacion_inicial, key=f"notas_{id_tarjeta}", height=240, label_visibility="collapsed")
 
 if st.button("💾 Guardar Anotaciones", use_container_width=True):
     actualizar_anotacion_tarjeta(id_tarjeta, texto_anotaciones)
