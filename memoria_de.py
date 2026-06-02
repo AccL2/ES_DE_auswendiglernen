@@ -326,9 +326,21 @@ if situacion_texto and situacion_texto != "None":
     st.markdown(f'<div class="titulo-situacion">📍 {situacion_texto}</div>', unsafe_allow_html=True)
 
 
-# ── INTERRUPTOR INTERNO E INVISIBLE DE GIRO ──
-# Creamos un botón HTML camuflado nativo que capturará el evento del script táctil inteligente
-if st.button("Girar", key="btn_giro_oculto", help="Invisible", label_visibility="collapsed"):
+# ── INTERRUPTOR INTERNO E INVISIBLE DE GIRO (REPARADO) ──
+# Ocultamos el botón por CSS puro para evitar que rompa según la versión de Streamlit
+st.markdown("""
+    <style>
+    div[data-testid="stButton"] button:has(div p:contains("Girar")) {
+        display: none !important;
+    }
+    /* Alternativa por si la versión usa una estructura clásica */
+    button[key="btn_giro_oculto"] {
+        display: none !important;
+    }
+    </style>
+""", unsafe_allow_html=True)
+
+if st.button("Girar", key="btn_giro_oculto"):
     st.session_state.ver_solucion = not st.session_state.ver_solucion
     st.rerun()
 
