@@ -19,7 +19,7 @@ headers = {
     "Content-Type": "application/json"
 }
 
-# ── INYECTAR TIPOGRAFÍAS Y ESTILOS PREMIUM (CORREGIDO) ──
+# ── INYECTAR TIPOGRAFÍAS Y ESTILOS PREMIUM (CON CURSOR EN MANO PARA LA TARJETA) ──
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght=300;400;500;600;700&display=swap');
@@ -39,7 +39,7 @@ st.markdown("""
     }
 
     /* Aplicamos Montserrat solo a contenedores de texto, respetando las fuentes de iconos nativas */
-    .stApp, .stSelectbox, .stTextArea, .stTextInput, .stButton button, .streamlit-expanderHeader {
+    .stApp, .stSelectbox, .stTextArea, .stTextInput, .stButton button, .streamlit-expanderHeader, .titulo-situacion, .tira-historial, .texto-isla, .resultado-porcentaje, .dictado-comparacion, .progreso-contador {
         font-family: 'Montserrat', sans-serif !important;
     }
 
@@ -47,7 +47,6 @@ st.markdown("""
     h2, h3 { font-family: 'Montserrat', sans-serif !important; font-weight: 600 !important; }
 
     .titulo-situacion {
-        font-family: 'Montserrat', sans-serif !important;
         font-weight: 500 !important; font-size: 0.75rem !important;
         text-transform: uppercase; letter-spacing: 2px; color: #8a9ab5;
         margin-bottom: 0.75rem; display: flex; align-items: center; gap: 6px;
@@ -60,34 +59,40 @@ st.markdown("""
     }
 
     .texto-isla, .texto-isla *, .texto-isla p, .texto-isla b {
-        font-family: 'Montserrat', sans-serif !important; font-weight: 400 !important;
-        line-height: 1.8 !important; font-size: 1.25rem !important;
+        font-weight: 400 !important; line-height: 1.8 !important; font-size: 1.25rem !important;
     }
     .texto-isla b { font-weight: 600 !important; font-size: 0.72rem !important; text-transform: uppercase; letter-spacing: 1.5px; opacity: 0.65; }
 
+    /* Tarjetas interactivas inteligentes con efecto de mano */
+    .bloque-azul, .bloque-verde {
+        padding: 1.4rem 1.6rem; border-radius: var(--radio); margin-bottom: 1rem;
+        cursor: pointer; position: relative; transition: transform 0.1s ease, box-shadow 0.1s ease;
+        user-select: text; /* Permite que el texto interno sea seleccionable */
+    }
     .bloque-azul {
         background: var(--azul-bg); border: 1px solid var(--azul-borde); border-left: 4px solid var(--azul);
-        padding: 1.4rem 1.6rem; border-radius: var(--radio); margin-bottom: 1rem;
         box-shadow: 0 2px 12px rgba(59,125,216,0.07);
     }
+    .bloque-azul:active { transform: scale(0.99); }
+    
     .bloque-verde {
         background: var(--verde-bg); border: 1px solid var(--verde-borde); border-left: 4px solid var(--verde);
-        padding: 1.4rem 1.6rem; border-radius: var(--radio); margin-bottom: 1rem;
         box-shadow: 0 2px 12px rgba(34,166,110,0.07);
     }
+    .bloque-verde:active { transform: scale(0.99); }
 
-    .resultado-porcentaje { font-family: 'Montserrat', sans-serif; font-size: 1.5rem; font-weight: 400; text-align: center; padding: 14px 20px; border-radius: var(--radio); margin: 10px 0; }
-    .dictado-comparacion { font-family: 'Montserrat', sans-serif; font-size: 1.1rem; line-height: 1.9; padding: 1.2rem 1.4rem; border-radius: var(--radio); background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); margin-top: 12px; }
+    .resultado-porcentaje { font-size: 1.5rem; font-weight: 400; text-align: center; padding: 14px 20px; border-radius: var(--radio); margin: 10px 0; }
+    .dictado-comparacion { font-size: 1.1rem; line-height: 1.9; padding: 1.2rem 1.4rem; border-radius: var(--radio); background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); margin-top: 12px; }
     .palabra-ok   { color: #22a66e; font-weight: 500; }
     .palabra-mal  { color: #e05454; font-weight: 500; text-decoration: underline wavy #e05454; }
     .palabra-extra { color: #f5a623; font-weight: 500; font-style: italic; }
 
     .stProgress > div > div { height: 5px !important; border-radius: 99px !important; }
-    .progreso-contador { font-family: 'Montserrat', sans-serif; font-size: 0.72rem; font-weight: 500; color: #8a9ab5; text-align: right; letter-spacing: 1px; margin-bottom: 4px; }
+    .progreso-contador { font-size: 0.72rem; font-weight: 500; color: #8a9ab5; text-align: right; letter-spacing: 1px; margin-bottom: 4px; }
     
     .stButton button { border-radius: 8px !important; font-weight: 600 !important; font-size: 0.82rem !important; padding: 0.45rem 0.9rem !important; border: 1px solid rgba(255,255,255,0.08) !important; }
     section[data-testid="stSidebar"] { border-right: 1px solid rgba(255,255,255,0.06); }
-    .streamlit-expanderHeader { font-family: 'Montserrat', sans-serif !important; font-weight: 500 !important; font-size: 0.95rem !important; border-radius: 8px !important; }
+    .streamlit-expanderHeader { font-weight: 500 !important; font-size: 0.95rem !important; border-radius: 8px !important; }
     hr { opacity: 0.15; }
     </style>
 """, unsafe_allow_html=True)
@@ -152,7 +157,6 @@ def obtener_datos_puntero_db():
     return 0, []
 
 def guardar_estado_puntero_db(pos, lista_ids):
-    # JUEZ SUPREMO DE CONTROL: Cortar estrictamente a un máximo de 15 antes de guardar en la DB
     if len(lista_ids) > 15:
         lista_ids = lista_ids[:15]
     url = f"{SUPABASE_URL}/rest/v1/puntero?id=eq.1"
@@ -196,28 +200,23 @@ total_aprendidos = len(df_jubiladas_universo)
 # REGLA DE CONSTRUCCIÓN / RECUPERACIÓN DE LA RUEDA DE 15
 ids_validos_rueda = []
 
-# Si ya había una rueda en la DB, filtramos que esas tarjetas sigan activas (no jubiladas en esta sesión)
 if ids_rueda_db:
     for tid in ids_rueda_db:
         if tid in df_activas_universo['id'].values:
             ids_validos_rueda.append(tid)
 
-# REBANADO PREVENTIVO EN VIVO: Si por desjubilar algo la lista supera 15, cortamos la última de la derecha ya mismo
 if len(ids_validos_rueda) > 15:
     ids_validos_rueda = ids_validos_rueda[:15]
 
-# Rellenar hasta 15 con el contenido disponible del universo si faltan huecos
 while len(ids_validos_rueda) < 15:
     tarjetas_candidatas = [tid for tid in df_activas_universo['id'].values if tid not in ids_validos_rueda]
     if not tarjetas_candidatas:
-        break  # No hay más tarjetas activas en toda la isla
+        break
     ids_validos_rueda.append(tarjetas_candidatas[0])
 
-# Asegurar tope estricto de 15 tras cualquier operación de rellenado
 if len(ids_validos_rueda) > 15:
     ids_validos_rueda = ids_validos_rueda[:15]
 
-# Guardar la rueda optimizada si difiere o si venía vacía
 if ids_validos_rueda != ids_rueda_db:
     if pos_db >= len(ids_validos_rueda):
         pos_db = 0
@@ -236,12 +235,10 @@ if not ids_validos_rueda:
         st.rerun()
     st.stop()
 
-# Garantizar que el puntero esté dentro de los límites de la rueda real calculada
 if pos_db >= len(ids_validos_rueda):
     pos_db = 0
     guardar_estado_puntero_db(0, ids_validos_rueda)
 
-# Sincronizar el estado de sesión local con la nube
 st.session_state.indice_actual = pos_db
 if 'ver_solucion' not in st.session_state:
     st.session_state.ver_solucion = False
@@ -296,21 +293,12 @@ if abrir_modal_jubiladas:
                 st.markdown(f"*DE:* {row['Aleman']}")
             with col_btn:
                 if st.button("♻️ Traer", key=f"popup_rec_{row['id']}", use_container_width=True):
-                    # 1. Desjubilar la tarjeta poniéndola en estado 1 en Supabase
                     actualizar_estado_tarjeta(int(row['id']), 1)
-                    
-                    # 2. Leer la composición real de la rueda en la DB
                     _, actuales_ids = obtener_datos_puntero_db()
-                    
-                    # 3. Colocar la tarjeta desjubilada AL PRINCIPIO de la mesa de trabajo
                     if int(row['id']) not in actuales_ids:
                         actuales_ids.insert(0, int(row['id']))
-                    
-                    # 4. Forzar el rebanado estricto a 15 elementos eliminando la más nueva (última de la derecha)
                     if len(actuales_ids) > 15:
                         actuales_ids = actuales_ids[:15]
-                    
-                    # 5. Guardar la mesa limpia en Supabase y poner el foco en la posición 0 (la tarjeta que acaba de entrar)
                     guardar_estado_puntero_db(0, actuales_ids)
                     st.toast("¡Tarjeta recuperada! La mesa mantiene el tope estricto de 15.")
                     st.rerun()
@@ -338,18 +326,15 @@ if situacion_texto and situacion_texto != "None":
     st.markdown(f'<div class="titulo-situacion">📍 {situacion_texto}</div>', unsafe_allow_html=True)
 
 
-# ── BOTONES DE NAVEGACIÓN (CAMBIAN EL PUNTERO EN LA NUBE SIN ALTERAR LA RUEDA) ──
-col_nav_sol, col_nav_ant, col_nav_sig = st.columns([0.34, 0.33, 0.33])
+# ── INTERRUPTOR INTERNO E INVISIBLE DE GIRO ──
+# Creamos un botón HTML camuflado nativo que capturará el evento del script táctil inteligente
+if st.button("Girar", key="btn_giro_oculto", help="Invisible", label_visibility="collapsed"):
+    st.session_state.ver_solucion = not st.session_state.ver_solucion
+    st.rerun()
 
-with col_nav_sol:
-    if not st.session_state.ver_solucion:
-        if st.button("👁️ Solución", use_container_width=True):
-            st.session_state.ver_solucion = True
-            st.rerun()
-    else:
-        if st.button("🔄 Ocultar", use_container_width=True):
-            st.session_state.ver_solucion = False
-            st.rerun()
+
+# ── BOTONES DE NAVEGACIÓN SIMÉTRICOS (SIN EL BOTÓN ANTIGUO DE SOLUCIÓN) ──
+col_nav_ant, col_nav_sig = st.columns(2)
 
 with col_nav_ant:
     if st.button("⬅️ Anterior", use_container_width=True):
@@ -375,10 +360,71 @@ elif estado_actual == 3: bg_tira, color_tira = "rgba(34, 166, 110, 0.15)", "#22a
 
 st.markdown(f'<div class="tira-historial" style="background-color: {bg_tira}; color: {color_tira}; border: 1px solid {color_tira}44;">ESTADO ACTUAL</div>', unsafe_allow_html=True)
 
+
+# ── RENDERIZADO CON LA TARJETA INTELIGENTE (TAP PARA GIRAR / SELECCIONAR PARA COPIAR) ──
+# El script calcula si la distancia del ratón entre bajar y subir el dedo es menor a 6 píxeles. Si es menor, es un toque limpio y voltea la tarjeta. Si es mayor, te deja seleccionar texto.
 if not st.session_state.ver_solucion:
-    st.markdown(f'<div class="bloque-azul"><div class="texto-isla"><b>Castellano (Lee y piensa):</b><br><br>{formatear_lineas(castellano_texto)}</div></div>', unsafe_allow_html=True)
+    texto_html = f'<div class="texto-isla"><b>Castellano (Lee y piensa):</b><br><br>{formatear_lineas(castellano_texto)}</div>'
+    clase_tarjeta = "bloque-azul"
 else:
-    st.markdown(f'<div class="bloque-verde"><div class="texto-isla"><b>Solución en Alemán:</b><br><br>{formatear_lineas(aleman_texto)}</div></div>', unsafe_allow_html=True)
+    texto_html = f'<div class="texto-isla"><b>Solución en Alemán:</b><br><br>{formatear_lineas(aleman_texto)}</div>'
+    clase_tarjeta = "bloque-verde"
+
+st.components.v1.html(f"""
+    <div id="wrapper_tarjeta" class="{clase_tarjeta}" style="margin:0; font-family:'Montserrat', sans-serif;">
+        {texto_html}
+    </div>
+    
+    <script>
+    const el = document.getElementById('wrapper_tarjeta');
+    let startX, startY;
+    
+    el.addEventListener('mousedown', (e) => {{
+        startX = e.clientX;
+        startY = e.clientY;
+    }});
+    
+    el.addEventListener('mouseup', (e) => {{
+        const diffX = Math.abs(e.clientX - startX);
+        const diffY = Math.abs(e.clientY - startY);
+        // Si el movimiento es insignificante (menos de 6px), la intención es un toque limpio para girar
+        if (diffX < 6 && diffY < 6) {{
+            // Buscamos el botón oculto en la ventana superior (Streamlit principal) y provocamos el clic
+            window.parent.document.querySelector('button[data-testid="baseButton-secondary"]').click();
+        }}
+    }});
+    
+    // Compatibilidad total con gestos táctiles en móviles y tablets
+    el.addEventListener('touchstart', (e) => {{
+        if(e.touches.length === 1) {{
+            startX = e.touches[0].clientX;
+            startY = e.touches[0].clientY;
+        }}
+    }}, {{passive: true}});
+    
+    el.addEventListener('touchend', (e) => {{
+        if(e.changedTouches.length === 1) {{
+            const diffX = Math.abs(e.changedTouches[0].clientX - startX);
+            const diffY = Math.abs(e.changedTouches[0].clientY - startY);
+            if (diffX < 6 && diffY < 6) {{
+                window.parent.document.querySelector('button[data-testid="baseButton-secondary"]').click();
+            }}
+        }}
+    }}, {{passive: true}});
+    </script>
+    
+    <style>
+    @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght=300;400;500;600;700&display=swap');
+    .bloque-azul, .bloque-verde {{
+        font-family: 'Montserrat', sans-serif !important;
+        padding: 1.4rem 1.6rem; border-radius: 12px; cursor: pointer; transition: transform 0.1s ease;
+    }}
+    .bloque-azul {{ background: rgba(59, 125, 216, 0.10); border: 1px solid rgba(59, 125, 216, 0.55); border-left: 4px solid #3b7dd8; color: #e8ecf2; }}
+    .bloque-verde {{ background: rgba(34, 166, 110, 0.10); border: 1px solid rgba(34, 166, 110, 0.55); border-left: 4px solid #22a66e; color: #e8ecf2; }}
+    .texto-isla b {{ font-size: 0.72rem; text-transform: uppercase; letter-spacing: 1.5px; opacity: 0.65; font-weight: 600; }}
+    .texto-isla {{ font-size: 1.25rem; line-height: 1.8; font-weight: 400; }}
+    </style>
+""", height=160)
 
 
 # ── DETONANTE: ASIGNACIÓN DE COLOR/ESTADO ──
@@ -395,23 +441,17 @@ with col_c4:
     if st.button("🔵", use_container_width=True): nuevo_estado_num = 4
 
 if nuevo_estado_num is not None:
-    # 1. Guardar el estado de la tarjeta en la DB
     actualizar_estado_tarjeta(id_tarjeta, nuevo_estado_num)
     st.toast(f"Estado actualizado en la nube")
     
-    # 2. Calcular siguiente índice de navegación
     if nuevo_estado_num == 4:
-        # Si se jubila (Azul), la tarjeta saldrá automáticamente de la rueda.
         nuevo_indice_puntero = st.session_state.indice_actual
         if id_tarjeta in ids_validos_rueda:
             ids_validos_rueda.remove(id_tarjeta)
     else:
-        # Si es rojo, naranja o verde, la tarjeta SE QUEDA en la rueda en su sitio exacto.
         nuevo_indice_puntero = st.session_state.indice_actual + 1 if st.session_state.indice_actual < total_rueda_actual - 1 else 0
 
-    # 3. Subir la foto exacta del puntero y la rueda recalculada a Supabase (el guardado aplica el tope de 15)
     guardar_estado_puntero_db(nuevo_indice_puntero, ids_validos_rueda)
-    
     st.session_state.ver_solucion = False
     st.rerun()
 
