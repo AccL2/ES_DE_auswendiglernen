@@ -4,6 +4,7 @@ import os
 import re
 import base64
 import requests
+from datetime import datetime, timezone
 from difflib import SequenceMatcher
 
 # ── CONFIGURACIÓN DE LA PÁGINA ──
@@ -38,14 +39,13 @@ st.markdown("""
         --radio:       12px;
     }
 
-    /* Aplicamos Montserrat a contenedores de texto principales */
     .stApp, .stSelectbox, .stTextArea, .stTextInput, .stButton button, .streamlit-expanderHeader, .titulo-situacion, .tira-historial, .texto-isla, .resultado-porcentaje, .dictado-comparacion, .progreso-contador {
         font-family: 'Montserrat', sans-serif !important;
     }
 
-    /* ── TEXTAREA DE ANOTACIONES ULTRA VISIBLE ── */
+    /* TEXTAREA DE ANOTACIONES ULTRA VISIBLE */
     div[data-testid="stTextArea"] textarea {
-        font-size: 1.25rem !important; /* Letra grande para leer sin dejarse los ojos */
+        font-size: 1.25rem !important;
         font-weight: 500 !important;
         line-height: 1.6 !important;
         color: #e8ecf2 !important;
@@ -83,6 +83,13 @@ st.markdown("""
         box-shadow: 0 2px 12px rgba(34,166,110,0.07);
     }
 
+    /* INFO DE TIEMPOS ESTILO NOTA DISCRETA */
+    .info-tiempos {
+        display: flex; gap: 14px; background: rgba(255,255,255,0.03); 
+        padding: 6px 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.05);
+        font-size: 0.78rem; color: #a0aec0; margin-bottom: 12px; font-weight: 500;
+    }
+
     .resultado-porcentaje { font-size: 1.5rem; font-weight: 400; text-align: center; padding: 14px 20px; border-radius: var(--radio); margin: 10px 0; }
     .dictado-comparacion { font-size: 1.1rem; line-height: 1.9; padding: 1.2rem 1.4rem; border-radius: var(--radio); background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); margin-top: 12px; }
     .palabra-ok   { color: #22a66e; font-weight: 500; }
@@ -98,7 +105,44 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# ── FUNCIONES AUXILIARES DE DICTADO Y TEXTO ──
+# ── FUNCIONES AUXILIARES DE TIEMPOS Y TEXTO ──
+def formatear_antiguedad(fecha_entrada_str, segundos_banco=0):
+    if not fecha_entrada_str:
+        return "⏳ Nuevo hoy"
+    try:
+        fecha_entrada = datetime.fromisoformat(fecha_entrada_str.replace("Z", "+00:00"))
+        ahora = datetime.now(timezone.utc)
+        segundos_activos = (ahora - fecha_entrada).total_seconds()
+        total_segundos = max(0, segundos_activos + (segundos_banco or 0))
+        dias = total_segundos / 86400
+        if dias < 1:
+            return "⏳ Entró hoy a la rueda"
+        elif dias < 2:
+            return "⏳ Lleva 1 día en la rueda"
+        return f"⏳ Lleva {int(dias)} días en la rueda"
+    except:
+        return "⏳ Nuevo hoy"
+
+def formatear_ultimo_click(fecha_click_str):
+    if not fecha_click_str:
+        return "👀 Sin repasar hoy"
+    try:
+        fecha_click = datetime.fromisoformat(fecha_click_str.replace("Z", "+00:00"))
+        ahora = datetime.now(timezone.utc)
+        dif_segundos = (ahora - fecha_click).total_seconds()
+        
+        if dif_segundos < 60:
+            return "👀 Repasado ahora mismo"
+        minutos = dif_segundos / 60
+        if minutos < 60:
+            return f"👀 Visto hace {int(minutos)} min"
+        horas = minutos / 60
+        if horas < 24:
+            return f"👀 Visto hace {int(horas)} h"
+        return f"👀 Visto hace {int(horas/24)} días"
+    except:
+        return "👀 Sin repasar hoy"
+
 def calcular_similitud_parcial(texto_usuario, texto_original):
     def limpiar(t): return re.sub(r'[.,!?¿¡"\'\s\n\r\t]', '', t.strip().lower())
     u_limpio, o_limpio = limpiar(texto_usuario), limpiar(texto_original)
@@ -163,16 +207,41 @@ def guardar_estado_puntero_db(pos, lista_ids, nombre_isla=None):
         lista_ids = lista_ids[:15]
     url = f"{SUPABASE_URL}/rest/v1/puntero?id=eq.1"
     rueda_str = ",".join(map(str, lista_ids))
-    
     body = {"posicion_actual": pos, "rueda_ids": rueda_str}
     if nombre_isla:
         body["isla_actual"] = nombre_isla
-        
     requests.patch(url, headers=headers, json=body)
 
-def actualizar_estado_tarjeta(id_tarjeta, nuevo_estado_int):
+def actualizar_estado_tarjeta(id_tarjeta, nuevo_estado_int, estampar_click=False):
     url = f"{SUPABASE_URL}/rest/v1/tarjetas?id=eq.{id_tarjeta}"
-    requests.patch(url, headers=headers, json={"Estado": nuevo_estado_int})
+    body = {"Estado": nuevo_estado_int}
+    if estampar_click:
+        body["fecha_ultimo_click"] = datetime.now(timezone.utc).isoformat()
+    requests.patch(url, headers=headers, json=body)
+
+def inicializar_fecha_entrada_rueda(id_tarjeta):
+    url = f"{SUPABASE_URL}/rest/v1/tarjetas?id=eq.{id_tarjeta}"
+    requests.patch(url, headers=headers, json={
+        "fecha_entrada_rueda": datetime.now(timezone.utc).isoformat(),
+        "segundos_acumulados_banco": 0
+    })
+
+def congelar_temporizador_banquillo(id_tarjeta, fecha_entrada_str, segundos_banco_actuales=0):
+    if not fecha_entrada_str:
+        return
+    try:
+        fecha_entrada = datetime.fromisoformat(fecha_entrada_str.replace("Z", "+00:00"))
+        ahora = datetime.now(timezone.utc)
+        segundos_en_esta_ronda = (ahora - fecha_entrada).total_seconds()
+        nuevo_total_acumulado = int(segundos_en_esta_ronda + (segundos_banco_actuales or 0))
+        
+        url = f"{SUPABASE_URL}/rest/v1/tarjetas?id=eq.{id_tarjeta}"
+        requests.patch(url, headers=headers, json={
+            "fecha_entrada_rueda": None,
+            "segundos_acumulados_banco": nuevo_total_acumulado
+        })
+    except:
+        pass
 
 def actualizar_anotacion_tarjeta(id_tarjeta, texto_nota):
     url = f"{SUPABASE_URL}/rest/v1/tarjetas?id=eq.{id_tarjeta}"
@@ -208,7 +277,6 @@ total_frases_isla = len(df_universo)
 total_aprendidos = len(df_jubiladas_universo)
 
 ids_validos_rueda = []
-
 if ids_rueda_db and isla_seleccionada == isla_guardada_db:
     for tid in ids_rueda_db:
         if tid in df_activas_universo['id'].values:
@@ -217,19 +285,30 @@ if ids_rueda_db and isla_seleccionada == isla_guardada_db:
 if len(ids_validos_rueda) > 15:
     ids_validos_rueda = ids_validos_rueda[:15]
 
+# Si faltan tarjetas para completar las 15, metemos las nuevas y marcamos su fecha de nacimiento
+tarjetas_inyectadas = []
 while len(ids_validos_rueda) < 15:
     tarjetas_candidatas = [tid for tid in df_activas_universo['id'].values if tid not in ids_validos_rueda]
     if not tarjetas_candidatas:
         break
-    ids_validos_rueda.append(tarjetas_candidatas[0])
+    nueva_id = tarjetas_candidatas[0]
+    ids_validos_rueda.append(nueva_id)
+    tarjetas_inyectadas.append(nueva_id)
 
 if len(ids_validos_rueda) > 15:
     ids_validos_rueda = ids_validos_rueda[:15]
+
+# Ejecutamos las marcas de fecha de nacimiento si ha entrado aire fresco
+for tid in tarjetas_inyectadas:
+    fila_raw = df_universo[df_universo['id'] == tid].iloc[0]
+    if pd.isna(fila_raw.get('fecha_entrada_rueda')) or fila_raw.get('fecha_entrada_rueda') is None:
+        inicializar_fecha_entrada_rueda(tid)
 
 if ids_validos_rueda != ids_rueda_db or isla_seleccionada != isla_guardada_db:
     if isla_seleccionada != isla_guardada_db:
         pos_db = 0
     guardar_estado_puntero_db(pos_db, ids_validos_rueda, nombre_isla=isla_seleccionada)
+    st.rerun()
 
 if not ids_validos_rueda:
     st.title("🇩🇪 Método de Chunks & Islas")
@@ -238,7 +317,7 @@ if not ids_validos_rueda:
     st.write("")
     if st.button("♻️ Reiniciar progreso de la Isla", use_container_width=True):
         url_reset = f"{SUPABASE_URL}/rest/v1/tarjetas?Isla=ilike.{isla_seleccionada}"
-        requests.patch(url_reset, headers=headers, json={"Estado": 1})
+        requests.patch(url_reset, headers=headers, json={"Estado": 1, "fecha_entrada_rueda": None, "segundos_acumulados_banco": 0, "fecha_ultimo_click": None})
         guardar_estado_puntero_db(0, [], nombre_isla=isla_seleccionada)
         st.rerun()
     st.stop()
@@ -299,14 +378,28 @@ if abrir_modal_jubiladas:
                 st.markdown(f"*DE:* {row['Aleman']}")
             with col_btn:
                 if st.button("♻️ Traer", key=f"popup_rec_{row['id']}", use_container_width=True):
+                    # 1. Traer la desjubilada poniéndola en rojo y reiniciando su reloj desde cero
                     actualizar_estado_tarjeta(int(row['id']), 1)
+                    inicializar_fecha_entrada_rueda(int(row['id']))
+                    
                     _, actuales_ids, _ = obtener_datos_puntero_db()
+                    
+                    # 2. Si la mesa estaba llena (15), congelamos el cronómetro de la última antes de mandarla al banquillo
+                    if len(actuales_ids) >= 15:
+                        id_expulsada = actuales_ids[-1]
+                        fila_expulsada = df_universo[df_universo['id'] == id_expulsada].iloc[0]
+                        congelar_temporizador_banquillo(
+                            id_expulsada, 
+                            fila_expulsada.get('fecha_entrada_rueda'), 
+                            fila_expulsada.get('segundos_acumulados_banco', 0)
+                        )
+                        actuales_ids = actuales_ids[:14] # Hacemos sitio
+
                     if int(row['id']) not in actuales_ids:
                         actuales_ids.insert(0, int(row['id']))
-                    if len(actuales_ids) > 15:
-                        actuales_ids = actuales_ids[:15]
+                        
                     guardar_estado_puntero_db(0, actuales_ids, nombre_isla=isla_seleccionada)
-                    st.toast("¡Tarjeta recuperada! La mesa mantiene el tope estricto de 15.")
+                    st.toast("¡Tarjeta recuperada desde cero! La última se congeló en el banquillo.")
                     st.rerun()
             st.write("---")
     mostrar_popup_jubiladas()
@@ -323,7 +416,17 @@ estado_actual    = int(fila_actual['Estado'])
 audio_id         = str(fila_actual['Audio_ID']).strip()
 situacion_texto  = str(fila_actual['Situacion']).strip() if pd.notna(fila_actual['Situacion']) else ""
 
-# ── BARRA DESLIZANTE DE AVANCE RÁPIDO ORIGINAL ──
+# Valores de tiempo de la tarjeta actual
+fecha_entrada_raw = fila_actual.get('fecha_entrada_rueda')
+segundos_banco_raw = fila_actual.get('segundos_acumulados_banco', 0)
+fecha_click_raw = fila_actual.get('fecha_ultimo_click')
+
+# Asegurar que las tarjetas que ya están en juego tengan su marca si venían vacías
+if pd.isna(fecha_entrada_raw) or fecha_entrada_raw is None:
+    inicializar_fecha_entrada_rueda(id_tarjeta)
+    fecha_entrada_raw = datetime.now(timezone.utc).isoformat()
+
+# ── BARRA DESLIZANTE DE AVANCE RÁPIDO ──
 pos_pantalla = st.session_state.indice_actual + 1
 
 nueva_pos_seleccionada = st.slider(
@@ -341,6 +444,17 @@ if nueva_pos_seleccionada != pos_pantalla:
     st.rerun()
 
 st.markdown(f'<div class="progreso-contador">Frase {pos_pantalla} de {total_rueda_actual}</div>', unsafe_allow_html=True)
+
+# ── LETRERO DISCRETO DE CRONÓMETROS E INFO DE TIEMPOS ──
+txt_antiguedad = formatear_antiguedad(fecha_entrada_raw, segundos_banco_raw)
+txt_click = formatear_ultimo_click(fecha_click_raw)
+st.markdown(f"""
+<div class="info-tiempos">
+    <span>{txt_antiguedad}</span>
+    <span>•</span>
+    <span>{txt_click}</span>
+</div>
+""", unsafe_allow_html=True)
 
 if situacion_texto and situacion_texto != "None":
     st.markdown(f'<div class="titulo-situacion">📍 {situacion_texto}</div>', unsafe_allow_html=True)
@@ -388,7 +502,7 @@ else:
     st.markdown(f'<div class="bloque-verde"><div class="texto-isla"><b>Solución en Alemán:</b><br><br>{formatear_lineas(aleman_texto)}</div></div>', unsafe_allow_html=True)
 
 
-# ── DETONANTE: ASIGNACIÓN DE COLOR/ESTADO ──
+# ── DETONANTE: ASIGNACIÓN DE COLOR Y ACTUALIZACIÓN DE FECHAS ──
 col_c1, col_c2, col_c3, col_c4 = st.columns(4)
 nuevo_estado_num = None
 
@@ -402,10 +516,12 @@ with col_c4:
     if st.button("🔵", use_container_width=True): nuevo_estado_num = 4
 
 if nuevo_estado_num is not None:
-    actualizar_estado_tarjeta(id_tarjeta, nuevo_estado_num)
-    st.toast(f"Estado actualizado en la nube")
+    # Marcamos la fecha de click solo para repasos normales (rojo, naranja, verde)
+    estampar = True if nuevo_estado_num in [1, 2, 3] else False
+    actualizar_estado_tarjeta(id_tarjeta, nuevo_estado_num, estampar_click=estampar)
+    st.toast(f"Estado sincronizado")
     
-    if nuevo_estado_num == 4:
+    if nuevo_estado_num == 4: # Jubilación conscientemente al azul
         nuevo_indice_puntero = st.session_state.indice_actual
         if id_tarjeta in ids_validos_rueda:
             ids_validos_rueda.remove(id_tarjeta)
