@@ -43,14 +43,15 @@ st.markdown("""
         font-family: 'Montserrat', sans-serif !important;
     }
 
-    /* TEXTAREA DE ANOTACIONES 100% BLINDADA CON MÁXIMO CONTRASTE */
+    /* TEXTAREA DE ANOTACIONES ULTRA ADAPTATIVA Y DE ALTO CONTRASTE */
     div[data-testid="stTextArea"] textarea {
         font-size: 1.25rem !important;
-        font-weight: 500 !important; /* Volvemos al grosor normal para que NO salga todo en negrita */
+        font-weight: 500 !important; 
         line-height: 1.6 !important;
         font-family: 'Montserrat', sans-serif !important;
-        background-color: #ffffff !important; /* Fondo blanco puro fijo */
-        color: #111111 !important; /* Letra negra carbón fija, ultra legible */
+        background-color: rgba(255, 255, 255, 0.05) !important; /* Un fondo sutil transparente que se adapta a todo */
+        color: inherit !important; /* ¡Truco clave! Hereda el color de letra del tema (blanco en oscuro, negro en claro) */
+        border: 1px solid rgba(255, 255, 255, 0.12) !important;
     }
 
     h1 { font-family: 'Montserrat', sans-serif !important; font-weight: 700 !important; font-size: 1.85rem !important; letter-spacing: -0.5px !important; margin-bottom: 0.25rem !important; }
