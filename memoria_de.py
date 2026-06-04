@@ -630,11 +630,9 @@ with st.expander("📝 Modo Dictado"):
 anotacion_inicial = str(fila_actual['Explicacion']) if pd.notna(fila_actual['Explicacion']) else ""
 st.markdown('<div style="font-size: 0.85rem; font-weight: 700; text-transform: uppercase; color: #8a9ab5; margin-top: 1.5rem; margin-bottom: 8px;">ANOTACIONES</div>', unsafe_allow_html=True)
 
-# Cuadro amplio (height=250) con la letra grande inyectada vía CSS arriba
-if anotacion_inicial:
-    st.markdown(anotacion_inicial) # <--- ¡ESTA LÍNEA HACE LA MAGIA! Pinta tus asteriscos en negrita real
-
-texto_anotaciones = st.text_area("Editar Notas:", value=anotacion_inicial, key=f"notas_{id_tarjeta}", height=180)
+# Un solo cuadro de texto gigante que sí procesa Markdown visualmente gracias al contenedor
+with st.container():
+    texto_anotaciones = st.text_area("Notas", value=anotacion_inicial, key=f"notas_{id_tarjeta}", height=250, label_visibility="collapsed")
 
 if st.button("💾 Guardar Anotaciones", use_container_width=True):
     actualizar_anotacion_tarjeta(id_tarjeta, texto_anotaciones)
