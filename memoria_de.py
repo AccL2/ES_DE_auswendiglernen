@@ -50,6 +50,8 @@ st.markdown("""
         line-height: 1.6 !important;
         color: #e8ecf2 !important;
         font-family: 'Montserrat', sans-serif !important;
+        div[data-testid="stTextArea"] {
+        font-variant-numeric: normal;
     }
 
     h1 { font-family: 'Montserrat', sans-serif !important; font-weight: 700 !important; font-size: 1.85rem !important; letter-spacing: -0.5px !important; margin-bottom: 0.25rem !important; }
