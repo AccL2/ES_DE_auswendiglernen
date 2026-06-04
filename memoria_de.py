@@ -524,7 +524,7 @@ elif estado_actual == 3: bg_tira, color_tira = "rgba(34, 166, 110, 0.15)", "#22a
 st.markdown(f'<div class="tira-historial" style="background-color: {bg_tira}; color: {color_tira}; border: 1px solid {color_tira}44;">ESTADO ACTUAL</div>', unsafe_allow_html=True)
 
 # Añadir la estrella visualmente dentro del bloque de texto si es VIP
-prefijo_estrella = "⭐ [SOWIESO] · " if es_importante else ""
+prefijo_estrella = "⭐ " if es_importante else ""
 
 if not st.session_state.ver_solucion:
     st.markdown(f'<div class="bloque-azul"><div class="texto-isla"><b>{prefijo_estrella}Castellano (Lee y piensa):</b><br><br>{formatear_lineas(castellano_texto)}</div></div>', unsafe_allow_html=True)
