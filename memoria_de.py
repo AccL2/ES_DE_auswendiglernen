@@ -136,7 +136,7 @@ def formatear_ultimo_click(fecha_click_str):
         minutos = dif_segundos / 60
         if minutos < 60:
             return f"👀 Visto hace {int(minutos)} min"
-        horas = minutos / 60
+        horas = minutes = minutos / 60
         if horas < 24:
             return f"👀 Visto hace {int(horas)} h"
         return f"👀 Visto hace {int(horas/24)} días"
@@ -219,6 +219,10 @@ def actualizar_estado_tarjeta(id_tarjeta, nuevo_estado_int, estampar_click=False
         body["fecha_ultimo_click"] = datetime.now(timezone.utc).isoformat()
     requests.patch(url, headers=headers, json=body)
 
+def cambiar_importancia_tarjeta(id_tarjeta, estado_bool):
+    url = f"{SUPABASE_URL}/rest/v1/tarjetas?id=eq.{id_tarjeta}"
+    requests.patch(url, headers=headers, json={"importante": estado_bool})
+
 def inicializar_fecha_entrada_rueda(id_tarjeta):
     url = f"{SUPABASE_URL}/rest/v1/tarjetas?id=eq.{id_tarjeta}"
     requests.patch(url, headers=headers, json={
@@ -261,6 +265,9 @@ if isla_guardada_db and isla_guardada_db in islas:
 
 isla_seleccionada = st.sidebar.selectbox("🏝️ Selecciona la Isla:", islas, index=indice_defecto)
 
+# Checkbox opcional en el sidebar para ver de un vistazo tus favoritas jubiladas
+filtrar_favoritas_sidebar = st.sidebar.checkbox("⭐ Ver solo VIPs en el Almacén")
+
 df_universo = obtener_todas_tarjetas_isla(isla_seleccionada)
 
 if df_universo.empty:
@@ -269,9 +276,19 @@ if df_universo.empty:
 
 df_universo['id'] = df_universo['id'].astype(int)
 df_universo['Estado'] = pd.to_numeric(df_universo['Estado'], errors='coerce').fillna(1).astype(int)
+# Asegurar mapeo booleano limpio para la columna importante
+if 'importante' in df_universo.columns:
+    df_universo['importante'] = df_universo['importante'].fillna(False).astype(bool)
+else:
+    df_universo['importante'] = False
 
 df_activas_universo = df_universo[df_universo['Estado'] != 4].copy()
 df_jubiladas_universo = df_universo[df_universo['Estado'] == 4].copy()
+
+if filtrar_favoritas_sidebar:
+    df_jubiladas_muestra = df_jubiladas_universo[df_jubiladas_universo['importante'] == True].copy()
+else:
+    df_jubiladas_muestra = df_jubiladas_universo.copy()
 
 total_frases_isla = len(df_universo)
 total_aprendidos = len(df_jubiladas_universo)
@@ -285,7 +302,6 @@ if ids_rueda_db and isla_seleccionada == isla_guardada_db:
 if len(ids_validos_rueda) > 15:
     ids_validos_rueda = ids_validos_rueda[:15]
 
-# Si faltan tarjetas para completar las 15, metemos las nuevas y marcamos su fecha de nacimiento
 tarjetas_inyectadas = []
 while len(ids_validos_rueda) < 15:
     tarjetas_candidatas = [tid for tid in df_activas_universo['id'].values if tid not in ids_validos_rueda]
@@ -298,7 +314,6 @@ while len(ids_validos_rueda) < 15:
 if len(ids_validos_rueda) > 15:
     ids_validos_rueda = ids_validos_rueda[:15]
 
-# Ejecutamos las marcas de fecha de nacimiento si ha entrado aire fresco
 for tid in tarjetas_inyectadas:
     fila_raw = df_universo[df_universo['id'] == tid].iloc[0]
     if pd.isna(fila_raw.get('fecha_entrada_rueda')) or fila_raw.get('fecha_entrada_rueda') is None:
@@ -317,7 +332,7 @@ if not ids_validos_rueda:
     st.write("")
     if st.button("♻️ Reiniciar progreso de la Isla", use_container_width=True):
         url_reset = f"{SUPABASE_URL}/rest/v1/tarjetas?Isla=ilike.{isla_seleccionada}"
-        requests.patch(url_reset, headers=headers, json={"Estado": 1, "fecha_entrada_rueda": None, "segundos_acumulados_banco": 0, "fecha_ultimo_click": None})
+        requests.patch(url_reset, headers=headers, json={"Estado": 1, "fecha_entrada_rueda": None, "segundos_acumulados_banco": 0, "fecha_ultimo_click": None, "importante": False})
         guardar_estado_puntero_db(0, [], nombre_isla=isla_seleccionada)
         st.rerun()
     st.stop()
@@ -364,27 +379,25 @@ st.sidebar.markdown(f"""
 """, unsafe_allow_html=True)
 
 st.sidebar.write("---")
-abrir_modal_jubiladas = st.sidebar.button("📦 Ver Almacén de Jubiladas", use_container_width=True, disabled=(total_aprendidos == 0))
+abrir_modal_jubiladas = st.sidebar.button("📦 Ver Almacén de Jubiladas", use_container_width=True, disabled=(len(df_jubiladas_muestra) == 0))
 
 if abrir_modal_jubiladas:
     @st.dialog("📦 Almacén de Frases Jubiladas")
     def mostrar_popup_jubiladas():
         st.write("Estas son tus frases guardadas en azul. Puedes repasarlas y devolverlas a la rueda activa:")
         st.write("---")
-        for _, row in df_jubiladas_universo.iterrows():
+        for _, row in df_jubiladas_muestra.iterrows():
             col_txt, col_btn = st.columns([0.75, 0.25])
             with col_txt:
-                st.markdown(f"**ES:** {row['Español']}")
+                marca_vip = "⭐ " if row.get('importante') else ""
+                st.markdown(f"**{marca_vip}ES:** {row['Español']}")
                 st.markdown(f"*DE:* {row['Aleman']}")
             with col_btn:
                 if st.button("♻️ Traer", key=f"popup_rec_{row['id']}", use_container_width=True):
-                    # 1. Traer la desjubilada poniéndola en rojo y reiniciando su reloj desde cero
                     actualizar_estado_tarjeta(int(row['id']), 1)
                     inicializar_fecha_entrada_rueda(int(row['id']))
-                    
                     _, actuales_ids, _ = obtener_datos_puntero_db()
                     
-                    # 2. Si la mesa estaba llena (15), congelamos el cronómetro de la última antes de mandarla al banquillo
                     if len(actuales_ids) >= 15:
                         id_expulsada = actuales_ids[-1]
                         fila_expulsada = df_universo[df_universo['id'] == id_expulsada].iloc[0]
@@ -393,13 +406,13 @@ if abrir_modal_jubiladas:
                             fila_expulsada.get('fecha_entrada_rueda'), 
                             fila_expulsada.get('segundos_acumulados_banco', 0)
                         )
-                        actuales_ids = actuales_ids[:14] # Hacemos sitio
+                        actuales_ids = actuales_ids[:14]
 
                     if int(row['id']) not in actuales_ids:
                         actuales_ids.insert(0, int(row['id']))
                         
                     guardar_estado_puntero_db(0, actuales_ids, nombre_isla=isla_seleccionada)
-                    st.toast("¡Tarjeta recuperada desde cero! La última se congeló en el banquillo.")
+                    st.toast("¡Tarjeta recuperada desde cero! La última se congeló.")
                     st.rerun()
             st.write("---")
     mostrar_popup_jubiladas()
@@ -415,13 +428,13 @@ aleman_texto     = str(fila_actual['Aleman'])
 estado_actual    = int(fila_actual['Estado'])
 audio_id         = str(fila_actual['Audio_ID']).strip()
 situacion_texto  = str(fila_actual['Situacion']).strip() if pd.notna(fila_actual['Situacion']) else ""
+es_importante    = bool(fila_actual.get('importante', False))
 
 # Valores de tiempo de la tarjeta actual
 fecha_entrada_raw = fila_actual.get('fecha_entrada_rueda')
 segundos_banco_raw = fila_actual.get('segundos_acumulados_banco', 0)
 fecha_click_raw = fila_actual.get('fecha_ultimo_click')
 
-# Asegurar que las tarjetas que ya están en juego tengan su marca si venían vacías
 if pd.isna(fecha_entrada_raw) or fecha_entrada_raw is None:
     inicializar_fecha_entrada_rueda(id_tarjeta)
     fecha_entrada_raw = datetime.now(timezone.utc).isoformat()
@@ -456,8 +469,22 @@ st.markdown(f"""
 </div>
 """, unsafe_allow_html=True)
 
-if situacion_texto and situacion_texto != "None":
-    st.markdown(f'<div class="titulo-situacion">📍 {situacion_texto}</div>', unsafe_allow_html=True)
+
+# ── SECCIÓN DE LA FRASE ACTIVA CON BOTÓN ESTRELLA (GMAIL STYLE) ──
+col_encabezado_frase, col_encabezado_estrella = st.columns([0.85, 0.15])
+
+with col_encabezado_frase:
+    if situacion_texto and situacion_texto != "None":
+        st.markdown(f'<div class="titulo-situacion" style="margin-top:6px;">📍 {situacion_texto}</div>', unsafe_allow_html=True)
+    else:
+        st.write("")
+
+with col_encabezado_estrella:
+    label_estrella = "⭐ VIP" if es_importante else "☆ Marcar"
+    if st.button(label_estrella, key=f"star_{id_tarjeta}", use_container_width=True):
+        cambiar_importancia_tarjeta(id_tarjeta, not es_importante)
+        st.toast("Prioridad guardada" if not es_importante else "Marcada como SÚPER importante 🔥")
+        st.rerun()
 
 
 # ── BOTONES DE NAVEGACIÓN ──
@@ -496,10 +523,13 @@ elif estado_actual == 3: bg_tira, color_tira = "rgba(34, 166, 110, 0.15)", "#22a
 
 st.markdown(f'<div class="tira-historial" style="background-color: {bg_tira}; color: {color_tira}; border: 1px solid {color_tira}44;">ESTADO ACTUAL</div>', unsafe_allow_html=True)
 
+# Añadir la estrella visualmente dentro del bloque de texto si es VIP
+prefijo_estrella = "⭐ [SOWIESO] · " if es_importante else ""
+
 if not st.session_state.ver_solucion:
-    st.markdown(f'<div class="bloque-azul"><div class="texto-isla"><b>Castellano (Lee y piensa):</b><br><br>{formatear_lineas(castellano_texto)}</div></div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="bloque-azul"><div class="texto-isla"><b>{prefijo_estrella}Castellano (Lee y piensa):</b><br><br>{formatear_lineas(castellano_texto)}</div></div>', unsafe_allow_html=True)
 else:
-    st.markdown(f'<div class="bloque-verde"><div class="texto-isla"><b>Solución en Alemán:</b><br><br>{formatear_lineas(aleman_texto)}</div></div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="bloque-verde"><div class="texto-isla"><b>{prefijo_estrella}Solución en Alemán:</b><br><br>{formatear_lineas(aleman_texto)}</div></div>', unsafe_allow_html=True)
 
 
 # ── DETONANTE: ASIGNACIÓN DE COLOR Y ACTUALIZACIÓN DE FECHAS ──
@@ -516,12 +546,11 @@ with col_c4:
     if st.button("🔵", use_container_width=True): nuevo_estado_num = 4
 
 if nuevo_estado_num is not None:
-    # Marcamos la fecha de click solo para repasos normales (rojo, naranja, verde)
     estampar = True if nuevo_estado_num in [1, 2, 3] else False
     actualizar_estado_tarjeta(id_tarjeta, nuevo_estado_num, estampar_click=estampar)
     st.toast(f"Estado sincronizado")
     
-    if nuevo_estado_num == 4: # Jubilación conscientemente al azul
+    if nuevo_estado_num == 4:
         nuevo_indice_puntero = st.session_state.indice_actual
         if id_tarjeta in ids_validos_rueda:
             ids_validos_rueda.remove(id_tarjeta)
