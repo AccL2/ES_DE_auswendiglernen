@@ -187,7 +187,9 @@ def obtener_islas_disponibles():
     url = f"{SUPABASE_URL}/rest/v1/tarjetas?select=Isla"
     res = requests.get(url, headers=headers)
     if res.status_code == 200 and res.json():
-        return sorted(list(set([item['Isla'] for item in res.json()])))
+        # Filtramos para quedarnos solo con las tarjetas que SI tienen la isla rellena y evitar el NULL
+        islas_limpias = [item['Isla'] for item in res.json() if item.get('Isla')]
+        return sorted(list(set(islas_limpias)))
     return ["Chunks"]
 
 def obtener_datos_puntero_db():
