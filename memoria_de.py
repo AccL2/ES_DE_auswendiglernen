@@ -43,21 +43,14 @@ st.markdown("""
         font-family: 'Montserrat', sans-serif !important;
     }
 
-    /* TEXTAREA DE ANOTACIONES ULTRA VISIBLE Y ADAPTATIVA */
+    /* TEXTAREA DE ANOTACIONES 100% BLINDADA CON MÁXIMO CONTRASTE */
     div[data-testid="stTextArea"] textarea {
         font-size: 1.25rem !important;
-        font-weight: 600 !important; /* Un pelín más gruesa para que destaque */
+        font-weight: 500 !important; /* Volvemos al grosor normal para que NO salga todo en negrita */
         line-height: 1.6 !important;
         font-family: 'Montserrat', sans-serif !important;
-        background-color: var(--st-textarea-background, rgba(255,255,255,0.05)) !important;
-        color: #1a202c !important; /* <--- Color oscuro por defecto para que en fondo claro se lea de locos */
-    }
-
-    /* Si el usuario tiene la app en modo oscuro, cambiamos el texto a blanco */
-    @media (prefers-color-scheme: dark) {
-        div[data-testid="stTextArea"] textarea {
-            color: #e8ecf2 !important;
-        }
+        background-color: #ffffff !important; /* Fondo blanco puro fijo */
+        color: #111111 !important; /* Letra negra carbón fija, ultra legible */
     }
 
     h1 { font-family: 'Montserrat', sans-serif !important; font-weight: 700 !important; font-size: 1.85rem !important; letter-spacing: -0.5px !important; margin-bottom: 0.25rem !important; }
