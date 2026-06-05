@@ -116,12 +116,19 @@ def formatear_antiguedad(fecha_entrada_str, segundos_banco=0):
         ahora = datetime.now(timezone.utc)
         segundos_activos = (ahora - fecha_entrada).total_seconds()
         total_segundos = max(0, segundos_activos + (segundos_banco or 0))
-        dias = total_segundos / 86400
-        if dias < 1:
+        
+        # Calculamos las horas totales en la rueda
+        horas = total_segundos / 3600
+        
+        if horas < 12:
             return "⏳ Entró hoy a la rueda"
-        elif dias < 2:
-            return "⏳ Lleva 1 día en la rueda"
-        return f"⏳ Lleva {int(dias)} días en la rueda"
+        elif horas < 24:
+            return "⏳ Entró ayer a la rueda"
+        else:
+            dias = int(total_segundos / 86400)
+            if dias == 1:
+                return "⏳ Lleva 1 día en la rueda"
+            return f"⏳ Lleva {dias} días en la rueda"
     except:
         return "⏳ Nuevo hoy"
 
