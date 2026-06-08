@@ -49,8 +49,8 @@ st.markdown("""
         font-weight: 500 !important; 
         line-height: 1.6 !important;
         font-family: 'Montserrat', sans-serif !important;
-        background-color: rgba(255, 255, 255, 0.05) !important; /* Un fondo sutil transparente que se adapta a todo */
-        color: inherit !important; /* ¡Truco clave! Hereda el color de letra del tema (blanco en oscuro, negro en claro) */
+        background-color: rgba(255, 255, 255, 0.05) !important;
+        color: inherit !important;
         border: 1px solid rgba(255, 255, 255, 0.12) !important;
     }
 
@@ -85,7 +85,6 @@ st.markdown("""
         box-shadow: 0 2px 12px rgba(34,166,110,0.07);
     }
 
-    /* INFO DE TIEMPOS ESTILO NOTA DISCRETA */
     .info-tiempos {
         display: flex; gap: 14px; background: rgba(255,255,255,0.03); 
         padding: 6px 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.05);
@@ -117,7 +116,6 @@ def formatear_antiguedad(fecha_entrada_str, segundos_banco=0):
         segundos_activos = (ahora - fecha_entrada).total_seconds()
         total_segundos = max(0, segundos_activos + (segundos_banco or 0))
         
-        # Calculamos las horas totales en la rueda
         horas = total_segundos / 3600
         
         if horas < 12:
@@ -145,7 +143,7 @@ def formatear_ultimo_click(fecha_click_str):
         minutos = dif_segundos / 60
         if minutos < 60:
             return f"👀 Visto hace {int(minutos)} min"
-        horas = minutes = minutos / 60
+        horas = minutos / 60
         if horas < 24:
             return f"👀 Visto hace {int(horas)} h"
         return f"👀 Visto hace {int(horas/24)} días"
@@ -196,7 +194,6 @@ def obtener_islas_disponibles():
     url = f"{SUPABASE_URL}/rest/v1/tarjetas?select=Isla"
     res = requests.get(url, headers=headers)
     if res.status_code == 200 and res.json():
-        # Filtramos para quedarnos solo con las tarjetas que SI tienen la isla rellena y evitar el NULL
         islas_limpias = [item['Isla'] for item in res.json() if item.get('Isla')]
         return sorted(list(set(islas_limpias)))
     return ["Chunks"]
@@ -276,7 +273,6 @@ if isla_guardada_db and isla_guardada_db in islas:
 
 isla_seleccionada = st.sidebar.selectbox("🏝️ Selecciona la Isla:", islas, index=indice_defecto)
 
-# Checkbox opcional en el sidebar para ver de un vistazo tus favoritas jubiladas
 filtrar_favoritas_sidebar = st.sidebar.checkbox("⭐ Ver solo VIPs en el Almacén")
 
 df_universo = obtener_todas_tarjetas_isla(isla_seleccionada)
@@ -287,7 +283,6 @@ if df_universo.empty:
 
 df_universo['id'] = df_universo['id'].astype(int)
 df_universo['Estado'] = pd.to_numeric(df_universo['Estado'], errors='coerce').fillna(1).astype(int)
-# Asegurar mapeo booleano limpio para la columna importante
 if 'importante' in df_universo.columns:
     df_universo['importante'] = df_universo['importante'].fillna(False).astype(bool)
 else:
@@ -359,6 +354,9 @@ if 'ver_solucion' not in st.session_state:
 df_rueda = pd.DataFrame({'id': ids_validos_rueda}).merge(df_universo, on='id', how='left')
 total_rueda_actual = len(df_rueda)
 
+# Identificar las frases que están en cola (Activas pero fuera de las 15 de la rueda)
+df_cola = df_activas_universo[~df_activas_universo['id'].isin(ids_validos_rueda)].copy()
+
 
 # --- RENDIMIENTO Y RESUMEN SIDEBAR ---
 estados_lista = df_activas_universo['Estado'].tolist()
@@ -372,7 +370,7 @@ st.sidebar.markdown("### 📊 Estado de la Isla")
 st.sidebar.markdown(f"""
 <div style="background: rgba(255,255,255,0.04); padding: 16px 18px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.09);">
     <p style="margin: 0 0 4px 0; font-size: 0.7rem; color: #8a9ab5; font-weight: 500; text-transform: uppercase; letter-spacing: 2px;">🔄 En rueda activa &nbsp;·&nbsp; {total_rueda_actual} / 15</p>
-    <p style="margin: 0 0 12px 0; font-size: 0.65rem; color: #6b7c96; font-style: italic;">Pendientes en cola: {max(0, len(df_activas_universo) - total_rueda_actual)}</p>
+    <p style="margin: 0 0 12px 0; font-size: 0.65rem; color: #6b7c96; font-style: italic;">Pendientes en cola: {len(df_cola)}</p>
     <div style="display: flex; flex-direction: column; gap: 8px;">
         <div style="display:flex; align-items:center; gap:10px; font-size:0.9rem;"><span style="width:10px;height:10px;border-radius:50%;background:#e05454;display:inline-block;"></span><span style="color:#e8ecf2;">{n_rojos} &nbsp;<span style="color:#8a9ab5;font-size:0.8rem;">Nuevas / Malas</span></span></div>
         <div style="display:flex; align-items:center; gap:10px; font-size:0.9rem;"><span style="width:10px;height:10px;border-radius:50%;background:#f5a623;display:inline-block;"></span><span style="color:#e8ecf2;">{n_naranjas} &nbsp;<span style="color:#8a9ab5;font-size:0.8rem;">A medias</span></span></div>
@@ -391,6 +389,7 @@ st.sidebar.markdown(f"""
 
 st.sidebar.write("---")
 abrir_modal_jubiladas = st.sidebar.button("📦 Ver Almacén de Jubiladas", use_container_width=True, disabled=(len(df_jubiladas_muestra) == 0))
+abrir_modal_cola = st.sidebar.button("⏳ Ver Frases en Cola", use_container_width=True, disabled=(len(df_cola) == 0))
 
 if abrir_modal_jubiladas:
     @st.dialog("📦 Almacén de Frases Jubiladas")
@@ -428,6 +427,18 @@ if abrir_modal_jubiladas:
             st.write("---")
     mostrar_popup_jubiladas()
 
+if abrir_modal_cola:
+    @st.dialog("⏳ Almacén de Frases en Cola")
+    def mostrar_popup_cola():
+        st.write("Estas son las próximas frases que entrarán a la rueda a medida que jubiles las actuales:")
+        st.write("---")
+        for _, row in df_cola.iterrows():
+            marca_vip = "⭐ " if row.get('importante') else ""
+            st.markdown(f"**{marca_vip}ES:** {row['Español']}")
+            st.markdown(f"*DE:* {row['Aleman']}")
+            st.write("---")
+    mostrar_popup_cola()
+
 
 # ── CONTENIDO PRINCIPAL DE LA APP ──
 st.title("🇩🇪 Método de Chunks & Islas")
@@ -441,7 +452,6 @@ audio_id         = str(fila_actual['Audio_ID']).strip()
 situacion_texto  = str(fila_actual['Situacion']).strip() if pd.notna(fila_actual['Situacion']) else ""
 es_importante    = bool(fila_actual.get('importante', False))
 
-# Valores de tiempo de la tarjeta actual
 fecha_entrada_raw = fila_actual.get('fecha_entrada_rueda')
 segundos_banco_raw = fila_actual.get('segundos_acumulados_banco', 0)
 fecha_click_raw = fila_actual.get('fecha_ultimo_click')
@@ -534,7 +544,6 @@ elif estado_actual == 3: bg_tira, color_tira = "rgba(34, 166, 110, 0.15)", "#22a
 
 st.markdown(f'<div class="tira-historial" style="background-color: {bg_tira}; color: {color_tira}; border: 1px solid {color_tira}44;">ESTADO ACTUAL</div>', unsafe_allow_html=True)
 
-# Añadir la estrella visualmente dentro del bloque de texto si es VIP
 prefijo_estrella = "⭐ " if es_importante else ""
 
 if not st.session_state.ver_solucion:
@@ -639,7 +648,6 @@ with st.expander("📝 Modo Dictado"):
 anotacion_inicial = str(fila_actual['Explicacion']) if pd.notna(fila_actual['Explicacion']) else ""
 st.markdown('<div style="font-size: 0.85rem; font-weight: 700; text-transform: uppercase; color: #8a9ab5; margin-top: 1.5rem; margin-bottom: 8px;">ANOTACIONES</div>', unsafe_allow_html=True)
 
-# Cuadro amplio (height=250) con la letra grande inyectada vía CSS arriba
 texto_anotaciones = st.text_area("Notas", value=anotacion_inicial, key=f"notas_{id_tarjeta}", height=250, label_visibility="collapsed")
 
 if st.button("💾 Guardar Anotaciones", use_container_width=True):
