@@ -150,7 +150,7 @@ def formatear_ultimo_click(fecha_click_str):
     except:
         return "👀 Sin repasar hoy"
 
-def calcular_similitud_parcial(texto_usuario, texto_original):
+def calcular_similitul_parcial(texto_usuario, texto_original):
     def limpiar(t): return re.sub(r'[.,!?¿¡"\'\s\n\r\t]', '', t.strip().lower())
     u_limpio, o_limpio = limpiar(texto_usuario), limpiar(texto_original)
     if not u_limpio or not o_limpio: return 0
@@ -512,7 +512,6 @@ col_nav_sol, col_nav_ant, col_nav_sig = st.columns([0.34, 0.33, 0.33])
 
 with col_nav_sol:
     if not st.session_state.ver_solucion:
-        # Añadido key fijo para el script de atajos de teclado
         if st.button("👁️ Solución", key="btn_solucion", use_container_width=True):
             st.session_state.ver_solucion = True
             st.rerun()
@@ -546,9 +545,13 @@ st.markdown(f'<div class="tira-historial" style="background-color: {bg_tira}; co
 
 prefijo_estrella = "⭐ " if es_importante else ""
 
-# Bloque del Castellano (Siempre visible al principio)
+# Control de sincronización entre el botón del ratón y el teclado
+disp_castellano = "none" if st.session_state.ver_solucion else "block"
+disp_solucion = "block" if st.session_state.ver_solucion else "none"
+
+# Bloque del Castellano
 st.markdown(f'''
-<div class="bloque-azul">
+<div id="bloque-castellano" class="bloque-azul" style="display: {disp_castellano};">
     <div class="texto-isla">
         <b>{prefijo_estrella}Castellano (Lee y piensa):</b><br><br>
         {formatear_lineas(castellano_texto)}
@@ -556,9 +559,9 @@ st.markdown(f'''
 </div>
 ''', unsafe_allow_html=True)
 
-# Bloque de la Solución (Oculto por defecto mediante CSS 'display:none')
+# Bloque de la Solución en Alemán
 st.markdown(f'''
-<div id="bloque-solucion" class="bloque-verde" style="display: none;">
+<div id="bloque-solucion" class="bloque-verde" style="display: {disp_solucion};">
     <div class="texto-isla">
         <b>{prefijo_estrella}Solución en Alemán:</b><br><br>
         {formatear_lineas(aleman_texto)}
@@ -646,7 +649,7 @@ with st.expander("📝 Modo Dictado"):
     texto_usuario = st.text_area("Escribe el texto en alemán:", key=f"dictado_{id_tarjeta}", height=200)
     if st.button("🔍 Comprobar Dictado", use_container_width=True):
         if texto_usuario:
-            porcentaje = calcular_similitud_parcial(texto_usuario, aleman_texto)
+            porcentaje = calcular_similitul_parcial(texto_usuario, aleman_texto)
             bg, tx = ("rgba(16, 185, 129, 0.15)", "#10b981") if porcentaje >= 90 else (("rgba(245, 158, 11, 0.15)", "#f59e0b") if porcentaje >= 50 else ("rgba(239, 68, 68, 0.15)", "#ef4444"))
             st.markdown(f'<div class="resultado-porcentaje" style="background-color:{bg}; color:{tx}; border:1px solid {tx};">De lo que has escrito: {porcentaje:.0f}% bien</div>', unsafe_allow_html=True)
             
@@ -670,7 +673,7 @@ if st.button("💾 Guardar Anotaciones", use_container_width=True):
     st.toast("✅ Anotaciones sincronizadas en Supabase")
 
 
-# ── SCRIPT INVISIBLE: ATAJOS ULTRA-RÁPIDOS SIN RECARGA DE SERVIDOR ──
+# ── SCRIPT INVISIBLE: ATAJOS ULTRA-RÁPIDOS CON INTERCAMBIO LIMPIO ──
 html_teclas = """
 <script>
 const doc = window.parent.document;
@@ -683,19 +686,22 @@ doc.addEventListener('keydown', function(e) {
     
     let clickTarget = null;
     
-    // ACCIÓN INMEDIATA: Mostrar/Ocultar solución sin recargar la página
+    // INTERCAMBIO INSTANTÁNEO: Esconde uno y muestra el otro sin recarga
     if (e.key.toLowerCase() === 'a') {
         e.preventDefault();
+        const cas = doc.getElementById('bloque-castellano');
         const sol = doc.getElementById('bloque-solucion');
-        if (sol) {
+        if (cas && sol) {
             if (sol.style.display === 'none') {
                 sol.style.display = 'block';
+                cas.style.display = 'none';
                 sol.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
             } else {
                 sol.style.display = 'none';
+                cas.style.display = 'block';
             }
         }
-        return; // Cortamos aquí para evitar recargas molestas
+        return;
     }
     
     // Acciones del resto de botones (Navegación y Colores)
