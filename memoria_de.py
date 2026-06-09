@@ -546,10 +546,25 @@ st.markdown(f'<div class="tira-historial" style="background-color: {bg_tira}; co
 
 prefijo_estrella = "⭐ " if es_importante else ""
 
-if not st.session_state.ver_solucion:
-    st.markdown(f'<div class="bloque-azul"><div class="texto-isla"><b>{prefijo_estrella}Castellano (Lee y piensa):</b><br><br>{formatear_lineas(castellano_texto)}</div></div>', unsafe_allow_html=True)
-else:
-    st.markdown(f'<div class="bloque-verde"><div class="texto-isla"><b>{prefijo_estrella}Solución en Alemán:</b><br><br>{formatear_lineas(aleman_texto)}</div></div>', unsafe_allow_html=True)
+# Bloque del Castellano (Siempre visible al principio)
+st.markdown(f'''
+<div class="bloque-azul">
+    <div class="texto-isla">
+        <b>{prefijo_estrella}Castellano (Lee y piensa):</b><br><br>
+        {formatear_lineas(castellano_texto)}
+    </div>
+</div>
+''', unsafe_allow_html=True)
+
+# Bloque de la Solución (Oculto por defecto mediante CSS 'display:none')
+st.markdown(f'''
+<div id="bloque-solucion" class="bloque-verde" style="display: none;">
+    <div class="texto-isla">
+        <b>{prefijo_estrella}Solución en Alemán:</b><br><br>
+        {formatear_lineas(aleman_texto)}
+    </div>
+</div>
+''', unsafe_allow_html=True)
 
 
 # ── DETONANTE: ASIGNACIÓN DE COLOR Y ACTUALIZACIÓN DE FECHAS ──
@@ -655,31 +670,36 @@ if st.button("💾 Guardar Anotaciones", use_container_width=True):
     st.toast("✅ Anotaciones sincronizadas en Supabase")
 
 
-# ── SCRIPT INVISIBLE: ATAJOS DE TECLADO INTELIGENTES ──
-# Este script escucha el teclado y hace clic real en el HTML interno de Streamlit.
-# Evita activarse si estás escribiendo dentro de las notas o del dictado para que no salte.
+# ── SCRIPT INVISIBLE: ATAJOS ULTRA-RÁPIDOS SIN RECARGA DE SERVIDOR ──
 html_teclas = """
 <script>
 const doc = window.parent.document;
+
 doc.addEventListener('keydown', function(e) {
-    // Si el usuario está escribiendo en un cuadro de texto o notas, no hacemos nada
+    // Si estás escribiendo en las notas o dictado, no hacemos nada
     if (doc.activeElement.tagName === 'TEXTAREA' || doc.activeElement.tagName === 'INPUT') {
         return;
     }
     
     let clickTarget = null;
     
+    // ACCIÓN INMEDIATA: Mostrar/Ocultar solución sin recargar la página
     if (e.key.toLowerCase() === 'a') {
-        clickTarget = doc.querySelector('button[data-testid="stBaseButton-secondary"]');
-        // Filtro específico para encontrar el botón Solución/Ocultar
-        const buttons = doc.querySelectorAll('button');
-        for (let btn of buttons) {
-            if (btn.innerText.includes('👁️ Solución') || btn.innerText.includes('🔄 Ocultar')) {
-                clickTarget = btn;
-                break;
+        e.preventDefault();
+        const sol = doc.getElementById('bloque-solucion');
+        if (sol) {
+            if (sol.style.display === 'none') {
+                sol.style.display = 'block';
+                sol.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            } else {
+                sol.style.display = 'none';
             }
         }
-    } else if (e.key === 'ArrowRight') {
+        return; // Cortamos aquí para evitar recargas molestas
+    }
+    
+    // Acciones del resto de botones (Navegación y Colores)
+    if (e.key === 'ArrowRight') {
         const buttons = doc.querySelectorAll('button');
         for (let btn of buttons) { if (btn.innerText.includes('Siguiente')) { clickTarget = btn; break; } }
     } else if (e.key === 'ArrowLeft') {
