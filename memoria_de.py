@@ -507,18 +507,28 @@ with col_encabezado_estrella:
         st.rerun()
 
 
-# ── BOTONES DE NAVEGACIÓN ──
+# ── BOTONES DE NAVEGACIÓN (CON SOLUCIÓN INSTANTÁNEA POR RATÓN Y TECLADO) ──
 col_nav_sol, col_nav_ant, col_nav_sig = st.columns([0.34, 0.33, 0.33])
 
 with col_nav_sol:
-    if not st.session_state.ver_solucion:
-        if st.button("👁️ Solución", key="btn_solucion", use_container_width=True):
-            st.session_state.ver_solucion = True
-            st.rerun()
-    else:
-        if st.button("🔄 Ocultar", key="btn_solucion", use_container_width=True):
-            st.session_state.ver_solucion = False
-            st.rerun()
+    # Dibujamos un botón HTML interactivo con un diseño idéntico al de Streamlit
+    st.markdown('''
+        <button id="boton-solucion-html" style="
+            width: 100%; 
+            border-radius: 8px; 
+            font-weight: 600; 
+            font-size: 0.82rem; 
+            padding: 0.52rem 0.9rem; 
+            border: 1px solid rgba(255,255,255,0.08);
+            background-color: rgba(255, 255, 255, 0.05);
+            color: #e8ecf2;
+            cursor: pointer;
+            font-family: 'Montserrat', sans-serif;
+            transition: background-color 0.2s;
+        " onmouseover="this.style.backgroundColor='rgba(255,255,255,0.1)'" onmouseout="this.style.backgroundColor='rgba(255,255,255,0.05)'">
+            👁️ Solución / Ocultar
+        </button>
+    ''', unsafe_allow_html=True)
 
 with col_nav_ant:
     if st.button("⬅️ Anterior", key="btn_anterior", use_container_width=True):
@@ -673,38 +683,45 @@ if st.button("💾 Guardar Anotaciones", use_container_width=True):
     st.toast("✅ Anotaciones sincronizadas en Supabase")
 
 
-# ── SCRIPT INVISIBLE: ATAJOS ULTRA-RÁPIDOS CON INTERCAMBIO LIMPIO ──
+# ── SCRIPT INVISIBLE: CONTROL TOTAL ULTRA-RÁPIDO (TECLADO + RATÓN) ──
 html_teclas = """
 <script>
 const doc = window.parent.document;
 
+// Función centralizada para intercambiar bloques al instante sin recargar la página
+function conmutarSolucion() {
+    const cas = doc.getElementById('bloque-castellano');
+    const sol = doc.getElementById('bloque-solucion');
+    const btnText = doc.getElementById('boton-solucion-html');
+    
+    if (cas && sol) {
+        if (sol.style.display === 'none') {
+            sol.style.display = 'block';
+            cas.style.display = 'none';
+            if (btnText) btnText.innerHTML = "🔄 Ocultar Frase";
+            sol.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        } else {
+            sol.style.display = 'none';
+            cas.style.display = 'block';
+            if (btnText) btnText.innerHTML = "👁️ Solución / Ocultar";
+        }
+    }
+}
+
+// 1. Escuchar la tecla 'A'
 doc.addEventListener('keydown', function(e) {
-    // Si estás escribiendo en las notas o dictado, no hacemos nada
     if (doc.activeElement.tagName === 'TEXTAREA' || doc.activeElement.tagName === 'INPUT') {
         return;
     }
     
     let clickTarget = null;
     
-    // INTERCAMBIO INSTANTÁNEO: Esconde uno y muestra el otro sin recarga
     if (e.key.toLowerCase() === 'a') {
         e.preventDefault();
-        const cas = doc.getElementById('bloque-castellano');
-        const sol = doc.getElementById('bloque-solucion');
-        if (cas && sol) {
-            if (sol.style.display === 'none') {
-                sol.style.display = 'block';
-                cas.style.display = 'none';
-                sol.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-            } else {
-                sol.style.display = 'none';
-                cas.style.display = 'block';
-            }
-        }
+        conmutarSolucion();
         return;
     }
     
-    // Acciones del resto de botones (Navegación y Colores)
     if (e.key === 'ArrowRight') {
         const buttons = doc.querySelectorAll('button');
         for (let btn of buttons) { if (btn.innerText.includes('Siguiente')) { clickTarget = btn; break; } }
@@ -730,6 +747,21 @@ doc.addEventListener('keydown', function(e) {
         clickTarget.click();
     }
 });
+
+// 2. Vincular el clic del ratón del nuevo botón HTML (Esperamos un instante a que se renderice)
+setTimeout(() => {
+    const btnHtml = doc.getElementById('boton-solucion-html');
+    if (btnHtml) {
+        // Clonamos para evitar duplicar eventos si el script se vuelve a ejecutar
+        const btnClon = btnHtml.cloneNode(true);
+        btnHtml.parentNode.replaceChild(btnClon, btnHtml);
+        
+        btnClon.addEventListener('click', function(e) {
+            e.preventDefault();
+            conmutarSolucion();
+        });
+    }
+}, 250);
 </script>
 """
 st.components.v1.html(html_teclas, height=0, width=0)
