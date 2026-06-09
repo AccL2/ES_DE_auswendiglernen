@@ -354,7 +354,6 @@ if 'ver_solucion' not in st.session_state:
 df_rueda = pd.DataFrame({'id': ids_validos_rueda}).merge(df_universo, on='id', how='left')
 total_rueda_actual = len(df_rueda)
 
-# Identificar las frases que están en cola (Activas pero fuera de las 15 de la rueda)
 df_cola = df_activas_universo[~df_activas_universo['id'].isin(ids_validos_rueda)].copy()
 
 
@@ -491,7 +490,7 @@ st.markdown(f"""
 """, unsafe_allow_html=True)
 
 
-# ── SECCIÓN DE LA FRASE ACTIVA CON BOTÓN ESTRELLA (GMAIL STYLE) ──
+# ── SECCIÓN DE LA FRASE ACTIVA CON BOTÓN ESTRELLA ──
 col_encabezado_frase, col_encabezado_estrella = st.columns([0.85, 0.15])
 
 with col_encabezado_frase:
@@ -513,23 +512,24 @@ col_nav_sol, col_nav_ant, col_nav_sig = st.columns([0.34, 0.33, 0.33])
 
 with col_nav_sol:
     if not st.session_state.ver_solucion:
-        if st.button("👁️ Solución", use_container_width=True):
+        # Añadido key fijo para el script de atajos de teclado
+        if st.button("👁️ Solución", key="btn_solucion", use_container_width=True):
             st.session_state.ver_solucion = True
             st.rerun()
     else:
-        if st.button("🔄 Ocultar", use_container_width=True):
+        if st.button("🔄 Ocultar", key="btn_solucion", use_container_width=True):
             st.session_state.ver_solucion = False
             st.rerun()
 
 with col_nav_ant:
-    if st.button("⬅️ Anterior", use_container_width=True):
+    if st.button("⬅️ Anterior", key="btn_anterior", use_container_width=True):
         nuevo_ind = st.session_state.indice_actual - 1 if st.session_state.indice_actual > 0 else total_rueda_actual - 1
         guardar_estado_puntero_db(nuevo_ind, ids_validos_rueda, nombre_isla=isla_seleccionada)
         st.session_state.ver_solucion = False
         st.rerun()
 
 with col_nav_sig:
-    if st.button("Siguiente ➡️", use_container_width=True):
+    if st.button("Siguiente ➡️", key="btn_siguiente", use_container_width=True):
         nuevo_ind = st.session_state.indice_actual + 1 if st.session_state.indice_actual < total_rueda_actual - 1 else 0
         guardar_estado_puntero_db(nuevo_ind, ids_validos_rueda, nombre_isla=isla_seleccionada)
         st.session_state.ver_solucion = False
@@ -557,13 +557,13 @@ col_c1, col_c2, col_c3, col_c4 = st.columns(4)
 nuevo_estado_num = None
 
 with col_c1:
-    if st.button("🔴", use_container_width=True): nuevo_estado_num = 1
+    if st.button("🔴", key="btn_color1", use_container_width=True): nuevo_estado_num = 1
 with col_c2:
-    if st.button("🟠", use_container_width=True): nuevo_estado_num = 2
+    if st.button("🟠", key="btn_color2", use_container_width=True): nuevo_estado_num = 2
 with col_c3:
-    if st.button("🟢", use_container_width=True): nuevo_estado_num = 3
+    if st.button("🟢", key="btn_color3", use_container_width=True): nuevo_estado_num = 3
 with col_c4:
-    if st.button("🔵", use_container_width=True): nuevo_estado_num = 4
+    if st.button("🔵", key="btn_color4", use_container_width=True): nuevo_estado_num = 4
 
 if nuevo_estado_num is not None:
     estampar = True if nuevo_estado_num in [1, 2, 3] else False
@@ -653,3 +653,57 @@ texto_anotaciones = st.text_area("Notas", value=anotacion_inicial, key=f"notas_{
 if st.button("💾 Guardar Anotaciones", use_container_width=True):
     actualizar_anotacion_tarjeta(id_tarjeta, texto_anotaciones)
     st.toast("✅ Anotaciones sincronizadas en Supabase")
+
+
+# ── SCRIPT INVISIBLE: ATAJOS DE TECLADO INTELIGENTES ──
+# Este script escucha el teclado y hace clic real en el HTML interno de Streamlit.
+# Evita activarse si estás escribiendo dentro de las notas o del dictado para que no salte.
+html_teclas = """
+<script>
+const doc = window.parent.document;
+doc.addEventListener('keydown', function(e) {
+    // Si el usuario está escribiendo en un cuadro de texto o notas, no hacemos nada
+    if (doc.activeElement.tagName === 'TEXTAREA' || doc.activeElement.tagName === 'INPUT') {
+        return;
+    }
+    
+    let clickTarget = null;
+    
+    if (e.key.toLowerCase() === 'a') {
+        clickTarget = doc.querySelector('button[data-testid="stBaseButton-secondary"]');
+        // Filtro específico para encontrar el botón Solución/Ocultar
+        const buttons = doc.querySelectorAll('button');
+        for (let btn of buttons) {
+            if (btn.innerText.includes('👁️ Solución') || btn.innerText.includes('🔄 Ocultar')) {
+                clickTarget = btn;
+                break;
+            }
+        }
+    } else if (e.key === 'ArrowRight') {
+        const buttons = doc.querySelectorAll('button');
+        for (let btn of buttons) { if (btn.innerText.includes('Siguiente')) { clickTarget = btn; break; } }
+    } else if (e.key === 'ArrowLeft') {
+        const buttons = doc.querySelectorAll('button');
+        for (let btn of buttons) { if (btn.innerText.includes('Anterior')) { clickTarget = btn; break; } }
+    } else if (e.key === '1') {
+        const buttons = doc.querySelectorAll('button');
+        for (let btn of buttons) { if (btn.innerText === '🔴') { clickTarget = btn; break; } }
+    } else if (e.key === '2') {
+        const buttons = doc.querySelectorAll('button');
+        for (let btn of buttons) { if (btn.innerText === '🟠') { clickTarget = btn; break; } }
+    } else if (e.key === '3') {
+        const buttons = doc.querySelectorAll('button');
+        for (let btn of buttons) { if (btn.innerText === '🟢') { clickTarget = btn; break; } }
+    } else if (e.key === '4') {
+        const buttons = doc.querySelectorAll('button');
+        for (let btn of buttons) { if (btn.innerText === '🔵') { clickTarget = btn; break; } }
+    }
+    
+    if (clickTarget) {
+        e.preventDefault();
+        clickTarget.click();
+    }
+});
+</script>
+"""
+st.components.v1.html(html_teclas, height=0, width=0)
