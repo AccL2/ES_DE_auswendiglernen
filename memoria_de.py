@@ -85,14 +85,6 @@ st.markdown("""
         box-shadow: 0 2px 12px rgba(34,166,110,0.07);
     }
 
-    /* Línea sutil personalizada para separar las frases dentro de las tarjetas */
-    .linea-sutil {
-        border: 0;
-        height: 1px;
-        background-color: rgba(255, 255, 255, 0.07);
-        margin: 14px 0;
-    }
-
     .info-tiempos {
         display: flex; gap: 14px; background: rgba(255,255,255,0.03); 
         padding: 6px 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.05);
@@ -190,10 +182,7 @@ def comparar_palabras(texto_usuario, texto_original):
     return ' '.join(html_u), ' '.join(html_o)
 
 def formatear_lineas(texto):
-    # Separa saltos por frases y coloca la línea sutil debajo de cada una
-    frases = re.split(r'(?<=[.!?])\s+', texto.strip())
-    # Unimos las frases inyectando una línea horizontal extremadamente sutil entre ellas
-    return '<hr class="linea-sutil">'.join(frases)
+    return "<br>".join(re.split(r'(?<=[.!?])\s+', texto.strip()))
 
 # ── LOGICA DE LLAMADAS API SUPABASE ──
 def obtener_todas_tarjetas_isla(isla):
@@ -522,6 +511,7 @@ with col_encabezado_estrella:
 col_nav_sol, col_nav_ant, col_nav_sig = st.columns([0.34, 0.33, 0.33])
 
 with col_nav_sol:
+    # Dibujamos un botón HTML interactivo con un diseño idéntico al de Streamlit
     st.markdown('''
         <button id="boton-solucion-html" style="
             width: 100%; 
@@ -565,10 +555,11 @@ st.markdown(f'<div class="tira-historial" style="background-color: {bg_tira}; co
 
 prefijo_estrella = "⭐ " if es_importante else ""
 
+# Control de sincronización entre el botón del ratón y el teclado
 disp_castellano = "none" if st.session_state.ver_solucion else "block"
 disp_solucion = "block" if st.session_state.ver_solucion else "none"
 
-# Bloque del Castellano con separación de líneas finas
+# Bloque del Castellano
 st.markdown(f'''
 <div id="bloque-castellano" class="bloque-azul" style="display: {disp_castellano};">
     <div class="texto-isla">
@@ -578,7 +569,7 @@ st.markdown(f'''
 </div>
 ''', unsafe_allow_html=True)
 
-# Bloque de la Solución en Alemán con separación de líneas finas
+# Bloque de la Solución en Alemán
 st.markdown(f'''
 <div id="bloque-solucion" class="bloque-verde" style="display: {disp_solucion};">
     <div class="texto-isla">
@@ -697,6 +688,7 @@ html_teclas = """
 <script>
 const doc = window.parent.document;
 
+// Función centralizada para intercambiar bloques al instante sin recargar la página
 function conmutarSolucion() {
     const cas = doc.getElementById('bloque-castellano');
     const sol = doc.getElementById('bloque-solucion');
@@ -716,6 +708,7 @@ function conmutarSolucion() {
     }
 }
 
+// 1. Escuchar la tecla 'A'
 doc.addEventListener('keydown', function(e) {
     if (doc.activeElement.tagName === 'TEXTAREA' || doc.activeElement.tagName === 'INPUT') {
         return;
@@ -755,9 +748,11 @@ doc.addEventListener('keydown', function(e) {
     }
 });
 
+// 2. Vincular el clic del ratón del nuevo botón HTML (Esperamos un instante a que se renderice)
 setTimeout(() => {
     const btnHtml = doc.getElementById('boton-solucion-html');
     if (btnHtml) {
+        // Clonamos para evitar duplicar eventos si el script se vuelve a ejecutar
         const btnClon = btnHtml.cloneNode(true);
         btnHtml.parentNode.replaceChild(btnClon, btnHtml);
         
