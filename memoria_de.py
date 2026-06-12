@@ -399,7 +399,7 @@ abrir_modal_cola = st.sidebar.button("⏳ Ver Frases en Cola", use_container_wid
 if abrir_modal_jubiladas:
     @st.dialog("📦 Almacén de Frases Jubiladas")
     def mostrar_popup_jubiladas():
-        st.write("Estas son tus frases guardadas en azul. Puedes repasarlas y devolverlas a la rueda activa:")
+        st.write("Estas son tus frases guardadas in azul. Puedes repasarlas y devolverlas a la rueda activa:")
         st.write("---")
         for _, row in df_jubiladas_muestra.iterrows():
             col_txt, col_btn = st.columns([0.75, 0.25])
@@ -456,6 +456,9 @@ estado_actual    = int(fila_actual['Estado'])
 audio_id         = str(fila_actual['Audio_ID']).strip()
 situacion_texto  = str(fila_actual['Situacion']).strip() if pd.notna(fila_actual['Situacion']) else ""
 es_importante    = bool(fila_actual.get('importante', False))
+
+# 🔍 ESCANEO AUTOMÁTICO DE LA COLUMNA TRADUCCION_LITERAL EN SUPABASE
+literal_texto    = str(fila_actual['Traduccion_Literal']).strip() if 'Traduccion_Literal' in fila_actual and pd.notna(fila_actual['Traduccion_Literal']) else ""[cite: 1]
 
 fecha_entrada_raw = fila_actual.get('fecha_entrada_rueda')
 segundos_banco_raw = fila_actual.get('segundos_acumulados_banco', 0)
@@ -582,6 +585,11 @@ st.markdown(f'''
     </div>
 </div>
 ''', unsafe_allow_html=True)
+
+# 🔥 DESPLEGABLE INTERACTIVO DE STREAMLIT PARA LA TRADUCCIÓN LITERAL PALABRA POR PALABRA
+if st.session_state.ver_solucion and literal_texto and literal_texto != "None":[cite: 1]
+    with st.expander("🧟‍♂️ Ver traducción literal (Palabra por palabra)"):[cite: 1]
+        st.markdown(f'<p style="font-size: 1.15rem; line-height: 1.6; color: #f5a623; font-style: italic; font-weight: 500; margin: 0;">{literal_texto}</p>', unsafe_allow_html=True)[cite: 1]
 
 
 # ── DETONANTE: ASIGNACIÓN DE COLOR Y ACTUALIZACIÓN DE FECHAS ──
