@@ -85,16 +85,6 @@ st.markdown("""
         box-shadow: 0 2px 12px rgba(34,166,110,0.07);
     }
 
-    /* 🔥 ESTILO REFORZADO PARA LA LÍNEA INTERNA SUTIL */
-    .linea-sutil {
-        display: block !important;
-        border: none !important;
-        height: 1px !important;
-        background: rgba(255, 255, 255, 0.12) !important;
-        margin: 12px 0 !important;
-        padding: 0 !important;
-    }
-
     .info-tiempos {
         display: flex; gap: 14px; background: rgba(255,255,255,0.03); 
         padding: 6px 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.05);
@@ -192,15 +182,12 @@ def comparar_palabras(texto_usuario, texto_original):
     return ' '.join(html_u), ' '.join(html_o)
 
 def formatear_lineas(texto):
-    # 1. Recuperamos tu formato original: corta automáticamente en cada frase tras un punto, exclamación o interrogación
+    # 1. Separamos por frases respetando puntos finales (. ! ?) para saltar renglón cómodamente
     frases = re.split(r'(?<=[.!?])\s+', texto.strip())
+    texto_con_renglones = '<br>'.join(frases)
     
-    # 2. Las unimos inyectando la línea divisoria sutil para cambiar de renglón con elegancia
-    texto_con_lineas = '<div class="linea-sutil"></div>'.join(frases)
-    
-    # 3. Procesamos el truco de las barras |texto| para transformarlo en negrita real
-    texto_final = re.sub(r'\|([^|]+)\|', r'<strong>\1</strong>', texto_con_lineas)
-    
+    # 2. Convertimos el formato de barras |palabra| en etiquetas HTML reales de negrita
+    texto_final = re.sub(r'\|([^|]+)\|', r'<strong>\1</strong>', texto_con_renglones)
     return texto_final
 
 # ── LOGICA DE LLAMADAS API SUPABASE ──
@@ -530,7 +517,6 @@ with col_encabezado_estrella:
 col_nav_sol, col_nav_ant, col_nav_sig = st.columns([0.34, 0.33, 0.33])
 
 with col_nav_sol:
-    # Dibujamos un botón HTML interactivo con un diseño idéntico al de Streamlit
     st.markdown('''
         <button id="boton-solucion-html" style="
             width: 100%; 
@@ -574,36 +560,25 @@ st.markdown(f'<div class="tira-historial" style="background-color: {bg_tira}; co
 
 prefijo_estrella = "⭐ " if es_importante else ""
 
-# Control de sincronización entre el botón del ratón y el teclado
 disp_castellano = "none" if st.session_state.ver_solucion else "block"
 disp_solucion = "block" if st.session_state.ver_solucion else "none"
 
-# Bloque del Castellano
+# Bloque del Castellano con renglones limpios y negritas funcionando
 st.markdown(f'''
 <div id="bloque-castellano" class="bloque-azul" style="display: {disp_castellano};">
     <div class="texto-isla">
         <b>{prefijo_estrella}Castellano (Lee y piensa):</b><br><br>
-        {formatear_lineas(castellano_texto)}
+        <span id="contenido-castellano">{formatear_lineas(castellano_texto)}</span>
     </div>
 </div>
 ''', unsafe_allow_html=True)
 
-# Bloque de la Solución en Alemán
+# Bloque de la Solución en Alemán con renglones limpios y negritas funcionando
 st.markdown(f'''
 <div id="bloque-solucion" class="bloque-verde" style="display: {disp_solucion};">
     <div class="texto-isla">
         <b>{prefijo_estrella}Solución en Alemán:</b><br><br>
-        {formatear_lineas(aleman_texto)}
-    </div>
-</div>
-''', unsafe_allow_html=True)
-
-# Bloque de la Solución en Alemán
-st.markdown(f'''
-<div id="bloque-solucion" class="bloque-verde" style="display: {disp_solucion};">
-    <div class="texto-isla">
-        <b>{prefijo_estrella}Solución en Alemán:</b><br><br>
-        {formatear_lineas(aleman_texto)}
+        <span id="contenido-aleman">{formatear_lineas(aleman_texto)}</span>
     </div>
 </div>
 ''', unsafe_allow_html=True)
@@ -712,12 +687,11 @@ if st.button("💾 Guardar Anotaciones", use_container_width=True):
     st.toast("✅ Anotaciones sincronizadas en Supabase")
 
 
-# ── SCRIPT INVISIBLE: CONTROL TOTAL ULTRA-RÁPIDO (TECLADO + RATÓN) ──
+# ── SCRIPT INVISIBLE: CONTROL TOTAL ULTRA-RÁPIDO CON SOPORTE DE NEGRITAS INTEGRADO ──
 html_teclas = """
 <script>
 const doc = window.parent.document;
 
-// Función centralizada para intercambiar bloques al instante sin recargar la página
 function conmutarSolucion() {
     const cas = doc.getElementById('bloque-castellano');
     const sol = doc.getElementById('bloque-solucion');
@@ -737,7 +711,7 @@ function conmutarSolucion() {
     }
 }
 
-// 1. Escuchar la tecla 'A'
+// Escuchador de teclado físico avanzado
 doc.addEventListener('keydown', function(e) {
     if (doc.activeElement.tagName === 'TEXTAREA' || doc.activeElement.tagName === 'INPUT') {
         return;
@@ -781,7 +755,6 @@ doc.addEventListener('keydown', function(e) {
 setTimeout(() => {
     const btnHtml = doc.getElementById('boton-solucion-html');
     if (btnHtml) {
-        // Clonamos para evitar duplicar eventos si el script se vuelve a ejecutar
         const btnClon = btnHtml.cloneNode(true);
         btnHtml.parentNode.replaceChild(btnClon, btnHtml);
         
@@ -790,6 +763,16 @@ setTimeout(() => {
             conmutarSolucion();
         });
     }
+    
+    // 🔥 CORRECCIÓN CRÍTICA DE NEGRITAS: Obligar a JavaScript a interpretar las barras |texto| si el DOM cambia en caliente
+    const procesarBarrasEnNavegador = (idElemento) => {
+        const el = doc.getElementById(idElemento);
+        if (el && el.innerHTML.includes('|')) {
+            el.innerHTML = el.innerHTML.replace(/\|([^|]+)\|/g, '<strong>$1</strong>');
+        }
+    };
+    procesarBarrasEnNavegador('contenido-castellano');
+    procesarBarrasEnNavegador('contenido-aleman');
 }, 250);
 </script>
 """
