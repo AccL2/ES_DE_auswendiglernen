@@ -7,22 +7,20 @@ import requests
 from datetime import datetime, timezone
 from difflib import SequenceMatcher
 
-try:
-    from german_nouns.lookup import Nouns as GermanNouns
-    @st.cache_resource
-    def cargar_diccionario_aleman():
+@st.cache_resource
+def cargar_diccionario_aleman():
+    try:
+        from german_nouns.lookup import Nouns as GermanNouns
         return GermanNouns()
-    _diccionario_aleman = cargar_diccionario_aleman()
-    _generos_disponibles = True
-except Exception:
-    _diccionario_aleman = None
-    _generos_disponibles = False
+    except Exception:
+        return None
 
 def genero_sustantivo(palabra):
-    if not _generos_disponibles or not _diccionario_aleman:
+    diccionario = cargar_diccionario_aleman()
+    if not diccionario:
         return None
     try:
-        entradas = _diccionario_aleman[palabra]
+        entradas = diccionario[palabra]
         if entradas:
             return entradas[0].get('genus')
     except Exception:
@@ -208,7 +206,7 @@ _COLOR_GENERO = {'m': '#3b7dd8', 'f': '#e05454', 'n': '#22a66e'}
 
 def colorear_sustantivos(texto):
     """Envuelve sustantivos alemanes en <span> de color según género."""
-    if not _generos_disponibles:
+    if cargar_diccionario_aleman() is None:
         return texto
 
     def reemplazar(match):
