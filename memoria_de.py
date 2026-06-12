@@ -699,14 +699,35 @@ function buscarBoton(textos) {
     return null;
 }
 
+// Cambio DOM instantáneo (visual) + sincronización Streamlit en segundo plano
+function conmutarSolucionRapido() {
+    const cas = doc.getElementById('bloque-castellano');
+    const sol = doc.getElementById('bloque-solucion');
+    if (cas && sol) {
+        // Cambio visual instantáneo
+        const mostrando_aleman = sol.style.display !== 'none';
+        if (mostrando_aleman) {
+            sol.style.display = 'none';
+            cas.style.display = 'block';
+        } else {
+            sol.style.display = 'block';
+            cas.style.display = 'none';
+        }
+    }
+    // Sincronizar Streamlit en segundo plano (sin esperar la respuesta)
+    const btnStreamlit = buscarBoton(['Solución', 'Ocultar Frase']);
+    if (btnStreamlit) btnStreamlit.click();
+}
+
 doc.addEventListener('keydown', function(e) {
     if (doc.activeElement.tagName === 'TEXTAREA' || doc.activeElement.tagName === 'INPUT') return;
 
     let btn = null;
 
     if (e.key.toLowerCase() === 'a') {
-        // Pulsa el botón Streamlit real de solución — él actualiza session_state
-        btn = buscarBoton(['Solución', 'Ocultar Frase']);
+        e.preventDefault();
+        conmutarSolucionRapido();
+        return;
     } else if (e.key === 'ArrowRight') {
         btn = buscarBoton(['Siguiente']);
     } else if (e.key === 'ArrowLeft') {
@@ -727,15 +748,21 @@ doc.addEventListener('keydown', function(e) {
     }
 });
 
-// Corrección de negritas |texto| al cargar
+// Al cargar cada tarjeta: restaurar estado desde servidor + corregir negritas
 setTimeout(() => {
+    // 1. Restaurar display desde data-server-display (garantiza castellano en tarjeta nueva)
+    ['bloque-castellano', 'bloque-solucion'].forEach(id => {
+        const el = doc.getElementById(id);
+        if (el && el.dataset.serverDisplay) el.style.display = el.dataset.serverDisplay;
+    });
+    // 2. Corregir negritas |texto|
     ['contenido-castellano', 'contenido-aleman'].forEach(id => {
         const el = doc.getElementById(id);
         if (el && el.innerHTML.includes('|')) {
-            el.innerHTML = el.innerHTML.replace(/\|([^|]+)\|/g, '<strong>$1</strong>');
+            el.innerHTML = el.innerHTML.replace(/\\|([^|]+)\\|/g, '<strong>$1</strong>');
         }
     });
-}, 250);
+}, 100);
 </script>
 """
 st.components.v1.html(html_teclas, height=0, width=0)
