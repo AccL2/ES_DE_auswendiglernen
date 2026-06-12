@@ -192,17 +192,13 @@ def comparar_palabras(texto_usuario, texto_original):
     return ' '.join(html_u), ' '.join(html_o)
 
 def formatear_lineas(texto):
-    # 1. Normalizamos saltos de línea invisibles (\r\n) a limpios (\n)
-    texto_limpio = texto.replace('\r\n', '\n').replace('\r', '\n')
+    # 1. Recuperamos tu formato original: corta automáticamente en cada frase tras un punto, exclamación o interrogación
+    frases = re.split(r'(?<=[.!?])\s+', texto.strip())
     
-    # 2. Separamos por saltos de línea reales omitiendo huecos vacíos
-    parrafos = [p.strip() for p in texto_limpio.split('\n') if p.strip()]
+    # 2. Las unimos inyectando la línea divisoria sutil para cambiar de renglón con elegancia
+    texto_con_lineas = '<div class="linea-sutil"></div>'.join(frases)
     
-    # 3. Unimos los párrafos inyectando la línea divisoria sutil
-    texto_con_lineas = '<div class="linea-sutil"></div>'.join(parrafos)
-    
-    # 4. Convertimos el truco de las barras |texto| en negritas HTML reales
-    #    Ejemplo: "Das ist |wichtig|" -> "Das ist <strong>wichtig</strong>"
+    # 3. Procesamos el truco de las barras |texto| para transformarlo en negrita real
     texto_final = re.sub(r'\|([^|]+)\|', r'<strong>\1</strong>', texto_con_lineas)
     
     return texto_final
@@ -588,6 +584,16 @@ st.markdown(f'''
     <div class="texto-isla">
         <b>{prefijo_estrella}Castellano (Lee y piensa):</b><br><br>
         {formatear_lineas(castellano_texto)}
+    </div>
+</div>
+''', unsafe_allow_html=True)
+
+# Bloque de la Solución en Alemán
+st.markdown(f'''
+<div id="bloque-solucion" class="bloque-verde" style="display: {disp_solucion};">
+    <div class="texto-isla">
+        <b>{prefijo_estrella}Solución en Alemán:</b><br><br>
+        {formatear_lineas(aleman_texto)}
     </div>
 </div>
 ''', unsafe_allow_html=True)
