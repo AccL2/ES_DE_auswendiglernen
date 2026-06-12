@@ -7,6 +7,28 @@ import requests
 from datetime import datetime, timezone
 from difflib import SequenceMatcher
 
+try:
+    from german_nouns.lookup import Nouns as GermanNouns
+    @st.cache_resource
+    def cargar_diccionario_aleman():
+        return GermanNouns()
+    _diccionario_aleman = cargar_diccionario_aleman()
+    _generos_disponibles = True
+except Exception:
+    _diccionario_aleman = None
+    _generos_disponibles = False
+
+def genero_sustantivo(palabra):
+    if not _generos_disponibles or not _diccionario_aleman:
+        return None
+    try:
+        entradas = _diccionario_aleman[palabra]
+        if entradas:
+            return entradas[0].get('genus')
+    except Exception:
+        pass
+    return None
+
 # ── CONFIGURACIÓN DE LA PÁGINA ──
 st.set_page_config(page_title="Entrenador de Idiomas por Islas", page_icon="🇩🇪", layout="centered")
 
@@ -181,13 +203,41 @@ def comparar_palabras(texto_usuario, texto_original):
             html_o.extend([f'<span class="palabra-mal">▢ {w}</span>' for w in p_orig[j1:j2]])
     return ' '.join(html_u), ' '.join(html_o)
 
-def formatear_lineas(texto):
+# Colores por género gramatical alemán
+_COLOR_GENERO = {'m': '#3b7dd8', 'f': '#e05454', 'n': '#22a66e'}
+
+def colorear_sustantivos(texto):
+    """Envuelve sustantivos alemanes en <span> de color según género."""
+    if not _generos_disponibles:
+        return texto
+
+    def reemplazar(match):
+        palabra = match.group(0)
+        # Ignorar si es todo mayúsculas (sigla) o muy corta
+        if len(palabra) < 3 or palabra.isupper():
+            return palabra
+        genero = genero_sustantivo(palabra)
+        if genero and genero in _COLOR_GENERO:
+            color = _COLOR_GENERO[genero]
+            return f'<span style="color:{color};font-weight:600">{palabra}</span>'
+        return palabra
+
+    # Busca palabras que empiecen en mayúscula pero NO sean la primera de la frase
+    # (precedidas por espacio, coma, paréntesis... no por inicio de línea o tras punto)
+    return re.sub(r'(?<=\s)[A-ZÄÖÜ][a-zäöüß]+', reemplazar, texto)
+
+def formatear_lineas(texto, colorear=False):
     # 1. Separamos por frases respetando puntos finales (. ! ?) para saltar renglón cómodamente
     frases = re.split(r'(?<=[.!?])\s+', texto.strip())
     texto_con_renglones = '<br>'.join(frases)
     
     # 2. Convertimos el formato de barras |palabra| en etiquetas HTML reales de negrita
     texto_final = re.sub(r'\|([^|]+)\|', r'<strong>\1</strong>', texto_con_renglones)
+    
+    # 3. Colorear sustantivos alemanes si se solicita
+    if colorear:
+        texto_final = colorear_sustantivos(texto_final)
+    
     return texto_final
 
 # ── LOGICA DE LLAMADAS API SUPABASE ──
@@ -566,7 +616,7 @@ st.markdown(f'''
 <div id="bloque-solucion" class="bloque-verde" style="display: {disp_solucion};" data-server-display="{disp_solucion}">
     <div class="texto-isla">
         <b>{prefijo_estrella}Solución en Alemán:</b><br><br>
-        <span id="contenido-aleman">{formatear_lineas(aleman_texto)}</span>
+        <span id="contenido-aleman">{formatear_lineas(aleman_texto, colorear=True)}</span>
     </div>
 </div>
 ''', unsafe_allow_html=True)
