@@ -85,6 +85,16 @@ st.markdown("""
         box-shadow: 0 2px 12px rgba(34,166,110,0.07);
     }
 
+    /* 🔥 ESTILO REFORZADO PARA LA LÍNEA INTERNA SUTIL */
+    .linea-sutil {
+        display: block !important;
+        border: none !important;
+        height: 1px !important;
+        background: rgba(255, 255, 255, 0.12) !important;
+        margin: 12px 0 !important;
+        padding: 0 !important;
+    }
+
     .info-tiempos {
         display: flex; gap: 14px; background: rgba(255,255,255,0.03); 
         padding: 6px 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.05);
