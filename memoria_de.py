@@ -182,8 +182,11 @@ def comparar_palabras(texto_usuario, texto_original):
     return ' '.join(html_u), ' '.join(html_o)
 
 def formatear_lineas(texto):
+    # 1. Separamos por frases respetando puntos finales (. ! ?) para saltar renglón cómodamente
     frases = re.split(r'(?<=[.!?])\s+', texto.strip())
     texto_con_renglones = '<br>'.join(frases)
+    
+    # 2. Convertimos el formato de barras |palabra| en etiquetas HTML reales de negrita
     texto_final = re.sub(r'\|([^|]+)\|', r'<strong>\1</strong>', texto_con_renglones)
     return texto_final
 
@@ -376,7 +379,7 @@ st.sidebar.markdown(f"""
     <div style="display: flex; flex-direction: column; gap: 8px;">
         <div style="display:flex; align-items:center; gap:10px; font-size:0.9rem;"><span style="width:10px;height:10px;border-radius:50%;background:#e05454;display:inline-block;"></span><span style="color:#e8ecf2;">{n_rojos} &nbsp;<span style="color:#8a9ab5;font-size:0.8rem;">Nuevas / Malas</span></span></div>
         <div style="display:flex; align-items:center; gap:10px; font-size:0.9rem;"><span style="width:10px;height:10px;border-radius:50%;background:#f5a623;display:inline-block;"></span><span style="color:#e8ecf2;">{n_naranjas} &nbsp;<span style="color:#8a9ab5;font-size:0.8rem;">A medias</span></span></div>
-        <div style="display:flex; align-items:center; gap:10px; font-size:0.9rem;"><span style="width:10px;height:10px;border-radius:50%;background:#22a66e;display:inline-block;"></span><span style="color:#22a66e;">{n_verdes} &nbsp;<span style="color:#8a9ab5;font-size:0.8rem;">Casi listas</span></span></div>
+        <div style="display:flex; align-items:center; gap:10px; font-size:0.9rem;"><span style="width:10px;height:10px;border-radius:50%;background:#22a66e;display:inline-block;"></span><span style="color:#e8ecf2;">{n_verdes} &nbsp;<span style="color:#8a9ab5;font-size:0.8rem;">Casi listas</span></span></div>
     </div>
     <div style="margin: 14px 0 0 0; padding-top: 12px; border-top: 1px solid rgba(255,255,255,0.08); display:flex; align-items:center; justify-content:space-between;">
         <span style="color:#8a9ab5; font-size:0.8rem;">🔵 Aprendidas</span>
@@ -396,7 +399,7 @@ abrir_modal_cola = st.sidebar.button("⏳ Ver Frases en Cola", use_container_wid
 if abrir_modal_jubiladas:
     @st.dialog("📦 Almacén de Frases Jubiladas")
     def mostrar_popup_jubiladas():
-        st.write("Estas son tus frases guardadas in azul. Puedes repasarlas y devolverlas a la rueda activa:")
+        st.write("Estas son tus frases guardadas en azul. Puedes repasarlas y devolverlas a la rueda activa:")
         st.write("---")
         for _, row in df_jubiladas_muestra.iterrows():
             col_txt, col_btn = st.columns([0.75, 0.25])
@@ -446,16 +449,14 @@ if abrir_modal_cola:
 st.title("🇩🇪 Método de Chunks & Islas")
 
 fila_actual = df_rueda.iloc[st.session_state.indice_actual]
-id_tarjeta       = int(fila_actual['id'])
-castellano_texto = str(fila_actual['Español'])
-aleman_texto     = str(fila_actual['Aleman'])
-estado_actual    = int(fila_actual['Estado'])
-audio_id         = str(fila_actual['Audio_ID']).strip()
-situacion_texto  = str(fila_actual['Situacion']).strip() if pd.notna(fila_actual['Situacion']) else ""
-es_importante    = bool(fila_actual.get('importante', False))
-
-# 🔍 ESCANEO AUTOMÁTICO DE LA COLUMNA TRADUCCION_LITERAL EN SUPABASE
-literal_texto    = str(fila_actual['Traduccion_Literal']).strip() if 'Traduccion_Literal' in fila_actual and pd.notna(fila_actual['Traduccion_Literal']) else ""
+id_tarjeta            = int(fila_actual['id'])
+castellano_texto      = str(fila_actual['Español'])
+aleman_texto          = str(fila_actual['Aleman'])
+estado_actual         = int(fila_actual['Estado'])
+audio_id              = str(fila_actual['Audio_ID']).strip()
+situacion_texto       = str(fila_actual['Situacion']).strip() if pd.notna(fila_actual['Situacion']) else ""
+es_importante         = bool(fila_actual.get('importante', False))
+traduccion_literal    = str(fila_actual['Traduccion_Literal']).strip() if 'Traduccion_Literal' in fila_actual and pd.notna(fila_actual.get('Traduccion_Literal')) and str(fila_actual.get('Traduccion_Literal')).strip() not in ('', 'None', 'nan') else ""
 
 fecha_entrada_raw = fila_actual.get('fecha_entrada_rueda')
 segundos_banco_raw = fila_actual.get('segundos_acumulados_banco', 0)
@@ -573,32 +574,24 @@ st.markdown(f'''
 </div>
 ''', unsafe_allow_html=True)
 
-# ── BLOQUE DE LA SOLUCIÓN EN ALEMÁN CON DESPLEGABLE LITERAL INCORPORADO EN HTML ──
-html_literal_interior = ""
-if literal_texto and literal_texto != "None" and literal_texto != "":
-    html_literal_interior = f"""
-    <div style="margin-top: 18px; border-top: 1px solid rgba(255,255,255,0.08); padding-top: 14px;">
-        <details style="cursor: pointer;">
-            <summary style="font-size: 0.85rem; font-weight: 500; color: #f5a623; user-select: none;">
-                🧟‍♂️ Ver traducción literal (Palabra por palabra)
-            </summary>
-            <p style="font-size: 1.15rem; line-height: 1.6; color: #f5a623; font-style: italic; font-weight: 500; margin: 8px 0 0 0;">
-                {literal_texto}
-            </p>
-        </details>
-    </div>
-    """
-
+# Bloque de la Solución en Alemán con renglones limpios y negritas funcionando
 st.markdown(f'''
 <div id="bloque-solucion" class="bloque-verde" style="display: {disp_solucion};">
     <div class="texto-isla">
         <b>{prefijo_estrella}Solución en Alemán:</b><br><br>
         <span id="contenido-aleman">{formatear_lineas(aleman_texto)}</span>
-        {html_literal_interior}
     </div>
 </div>
 ''', unsafe_allow_html=True)
 
+
+# ── TRADUCCIÓN LITERAL (EXPANDER OPCIONAL) ──
+if traduccion_literal:
+    with st.expander("📖 Texto literal"):
+        st.markdown(
+            f'<div class="texto-isla" style="padding: 0.4rem 0.2rem;">{formatear_lineas(traduccion_literal)}</div>',
+            unsafe_allow_html=True
+        )
 
 # ── DETONANTE: ASIGNACIÓN DE COLOR Y ACTUALIZACIÓN DE FECHAS ──
 col_c1, col_c2, col_c3, col_c4 = st.columns(4)
@@ -767,7 +760,7 @@ doc.addEventListener('keydown', function(e) {
     }
 });
 
-// Vincular el clic del ratón del nuevo botón HTML
+// 2. Vincular el clic del ratón del nuevo botón HTML (Esperamos un instante a que se renderice)
 setTimeout(() => {
     const btnHtml = doc.getElementById('boton-solucion-html');
     if (btnHtml) {
@@ -780,10 +773,11 @@ setTimeout(() => {
         });
     }
     
+    // 🔥 CORRECCIÓN CRÍTICA DE NEGRITAS: Obligar a JavaScript a interpretar las barras |texto| si el DOM cambia en caliente
     const procesarBarrasEnNavegador = (idElemento) => {
         const el = doc.getElementById(idElemento);
         if (el && el.innerHTML.includes('|')) {
-            el.innerHTML = el.innerHTML.replace(/\\|([^|]+)\\|/g, '<strong>$1</strong>');
+            el.innerHTML = el.innerHTML.replace(/\|([^|]+)\|/g, '<strong>$1</strong>');
         }
     };
     procesarBarrasEnNavegador('contenido-castellano');
