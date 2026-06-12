@@ -14,11 +14,23 @@ def cargar_diccionario_aleman():
         url = "https://raw.githubusercontent.com/gambolputty/german-nouns/master/german_nouns/nouns.csv"
         df = pd.read_csv(url, usecols=['lemma', 'genus'], dtype=str)
         df = df.dropna(subset=['lemma', 'genus'])
+        # Quedarse con la primera entrada por palabra (evita duplicados con género incorrecto)
+        df = df.drop_duplicates(subset=['lemma'], keep='first')
         return dict(zip(df['lemma'], df['genus']))
     except Exception:
         return {}
 
+# ── CORRECCIONES MANUALES (tienen prioridad sobre el diccionario) ──
+_CORRECCIONES_GENERO = {
+    'Kaffee': 'm', 'Tee': 'm', 'Restaurant': 'n',
+    'Computer': 'm', 'Hotel': 'n', 'Cafe': 'n',
+    'Auto': 'n', 'Radio': 'n', 'Taxi': 'n',
+    'Baby': 'n', 'Sofa': 'n', 'Thema': 'n',
+}
+
 def genero_sustantivo(palabra):
+    if palabra in _CORRECCIONES_GENERO:
+        return _CORRECCIONES_GENERO[palabra]
     diccionario = cargar_diccionario_aleman()
     return diccionario.get(palabra)
 
