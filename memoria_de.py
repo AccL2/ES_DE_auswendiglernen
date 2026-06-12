@@ -192,7 +192,20 @@ def comparar_palabras(texto_usuario, texto_original):
     return ' '.join(html_u), ' '.join(html_o)
 
 def formatear_lineas(texto):
-    return "<br>".join(re.split(r'(?<=[.!?])\s+', texto.strip()))
+    # 1. Normalizamos saltos de línea invisibles (\r\n) a limpios (\n)
+    texto_limpio = texto.replace('\r\n', '\n').replace('\r', '\n')
+    
+    # 2. Separamos por saltos de línea reales omitiendo huecos vacíos
+    parrafos = [p.strip() for p in texto_limpio.split('\n') if p.strip()]
+    
+    # 3. Unimos los párrafos inyectando la línea divisoria sutil
+    texto_con_lineas = '<div class="linea-sutil"></div>'.join(parrafos)
+    
+    # 4. Convertimos el truco de las barras |texto| en negritas HTML reales
+    #    Ejemplo: "Das ist |wichtig|" -> "Das ist <strong>wichtig</strong>"
+    texto_final = re.sub(r'\|([^|]+)\|', r'<strong>\1</strong>', texto_con_lineas)
+    
+    return texto_final
 
 # ── LOGICA DE LLAMADAS API SUPABASE ──
 def obtener_todas_tarjetas_isla(isla):
