@@ -472,7 +472,7 @@ nueva_pos_seleccionada = st.slider(
     "Saltar a frase:", 
     min_value=1, 
     max_value=total_rueda_actual, 
-    value=pos_pantarma = pos_pantalla,
+    value=pos_pantalla,
     label_visibility="collapsed"
 )
 
@@ -574,7 +574,6 @@ st.markdown(f'''
 ''', unsafe_allow_html=True)
 
 # ── BLOQUE DE LA SOLUCIÓN EN ALEMÁN CON DESPLEGABLE LITERAL INCORPORADO EN HTML ──
-# De esta manera, JavaScript controla la visibilidad de la solución y del literal al mismo tiempo sin romper Python
 html_literal_interior = ""
 if literal_texto and literal_texto != "None" and literal_texto != "":
     html_literal_interior = f"""
