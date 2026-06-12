@@ -1,1 +1,2 @@
 openpyxl
+pip install german-nouns
