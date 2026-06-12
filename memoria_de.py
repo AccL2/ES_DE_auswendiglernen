@@ -566,7 +566,7 @@ disp_solucion = "block" if st.session_state.ver_solucion else "none"
 
 # Bloque del Castellano con renglones limpios y negritas funcionando
 st.markdown(f'''
-<div id="bloque-castellano" class="bloque-azul" style="display: {disp_castellano};">
+<div id="bloque-castellano" class="bloque-azul" style="display: {disp_castellano};" data-server-display="{disp_castellano}">
     <div class="texto-isla">
         <b>{prefijo_estrella}Castellano (Lee y piensa):</b><br><br>
         <span id="contenido-castellano">{formatear_lineas(castellano_texto)}</span>
@@ -576,7 +576,7 @@ st.markdown(f'''
 
 # Bloque de la Solución en Alemán con renglones limpios y negritas funcionando
 st.markdown(f'''
-<div id="bloque-solucion" class="bloque-verde" style="display: {disp_solucion};">
+<div id="bloque-solucion" class="bloque-verde" style="display: {disp_solucion};" data-server-display="{disp_solucion}">
     <div class="texto-isla">
         <b>{prefijo_estrella}Solución en Alemán:</b><br><br>
         <span id="contenido-aleman">{formatear_lineas(aleman_texto)}</span>
@@ -771,6 +771,18 @@ setTimeout(() => {
             e.preventDefault();
             conmutarSolucion();
         });
+    }
+    
+    // 🔑 CORRECCIÓN DE ESTADO: restaurar display desde el servidor (evita que la tarjeta
+    // nueva aparezca en el idioma que dejó el JS en la tarjeta anterior)
+    const cas = doc.getElementById('bloque-castellano');
+    const sol = doc.getElementById('bloque-solucion');
+    if (cas && cas.dataset.serverDisplay) cas.style.display = cas.dataset.serverDisplay;
+    if (sol && sol.dataset.serverDisplay) sol.style.display = sol.dataset.serverDisplay;
+    // Ajustar también el texto del botón según el estado real del servidor
+    const btnSol = doc.getElementById('boton-solucion-html') || doc.querySelector('[id^="boton-solucion"]');
+    if (btnSol && sol) {
+        btnSol.innerHTML = sol.style.display === 'none' ? "👁️ Solución / Ocultar" : "🔄 Ocultar Frase";
     }
     
     // 🔥 CORRECCIÓN CRÍTICA DE NEGRITAS: Obligar a JavaScript a interpretar las barras |texto| si el DOM cambia en caliente
