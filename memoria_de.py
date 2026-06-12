@@ -518,23 +518,10 @@ with col_encabezado_estrella:
 col_nav_sol, col_nav_ant, col_nav_sig = st.columns([0.34, 0.33, 0.33])
 
 with col_nav_sol:
-    st.markdown('''
-        <button id="boton-solucion-html" style="
-            width: 100%; 
-            border-radius: 8px; 
-            font-weight: 600; 
-            font-size: 0.82rem; 
-            padding: 0.52rem 0.9rem; 
-            border: 1px solid rgba(255,255,255,0.08);
-            background-color: rgba(255, 255, 255, 0.05);
-            color: #e8ecf2;
-            cursor: pointer;
-            font-family: 'Montserrat', sans-serif;
-            transition: background-color 0.2s;
-        " onmouseover="this.style.backgroundColor='rgba(255,255,255,0.1)'" onmouseout="this.style.backgroundColor='rgba(255,255,255,0.05)'">
-            👁️ Solución / Ocultar
-        </button>
-    ''', unsafe_allow_html=True)
+    label_solucion = "🔄 Ocultar Frase" if st.session_state.ver_solucion else "👁️ Solución / Ocultar"
+    if st.button(label_solucion, key="btn_solucion", use_container_width=True):
+        st.session_state.ver_solucion = not st.session_state.ver_solucion
+        st.rerun()
 
 with col_nav_ant:
     if st.button("⬅️ Anterior", key="btn_anterior", use_container_width=True):
@@ -696,104 +683,58 @@ if st.button("💾 Guardar Anotaciones", use_container_width=True):
     st.toast("✅ Anotaciones sincronizadas en Supabase")
 
 
-# ── SCRIPT INVISIBLE: CONTROL TOTAL ULTRA-RÁPIDO CON SOPORTE DE NEGRITAS INTEGRADO ──
+# ── SCRIPT INVISIBLE: CONTROL TOTAL POR TECLADO ──
 html_teclas = """
 <script>
 const doc = window.parent.document;
 
-function conmutarSolucion() {
-    const cas = doc.getElementById('bloque-castellano');
-    const sol = doc.getElementById('bloque-solucion');
-    const btnText = doc.getElementById('boton-solucion-html');
-    
-    if (cas && sol) {
-        if (sol.style.display === 'none') {
-            sol.style.display = 'block';
-            cas.style.display = 'none';
-            if (btnText) btnText.innerHTML = "🔄 Ocultar Frase";
-            sol.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-        } else {
-            sol.style.display = 'none';
-            cas.style.display = 'block';
-            if (btnText) btnText.innerHTML = "👁️ Solución / Ocultar";
+function buscarBoton(textos) {
+    const buttons = doc.querySelectorAll('button');
+    for (let btn of buttons) {
+        const txt = btn.innerText.trim();
+        for (let t of textos) {
+            if (txt.includes(t)) return btn;
         }
     }
+    return null;
 }
 
-// Escuchador de teclado físico avanzado
 doc.addEventListener('keydown', function(e) {
-    if (doc.activeElement.tagName === 'TEXTAREA' || doc.activeElement.tagName === 'INPUT') {
-        return;
-    }
-    
-    let clickTarget = null;
-    
+    if (doc.activeElement.tagName === 'TEXTAREA' || doc.activeElement.tagName === 'INPUT') return;
+
+    let btn = null;
+
     if (e.key.toLowerCase() === 'a') {
-        e.preventDefault();
-        conmutarSolucion();
-        return;
-    }
-    
-    if (e.key === 'ArrowRight') {
-        const buttons = doc.querySelectorAll('button');
-        for (let btn of buttons) { if (btn.innerText.includes('Siguiente')) { clickTarget = btn; break; } }
+        // Pulsa el botón Streamlit real de solución — él actualiza session_state
+        btn = buscarBoton(['Solución', 'Ocultar Frase']);
+    } else if (e.key === 'ArrowRight') {
+        btn = buscarBoton(['Siguiente']);
     } else if (e.key === 'ArrowLeft') {
-        const buttons = doc.querySelectorAll('button');
-        for (let btn of buttons) { if (btn.innerText.includes('Anterior')) { clickTarget = btn; break; } }
+        btn = buscarBoton(['Anterior']);
     } else if (e.key === '1') {
-        const buttons = doc.querySelectorAll('button');
-        for (let btn of buttons) { if (btn.innerText === '🔴') { clickTarget = btn; break; } }
+        btn = buscarBoton(['🔴']);
     } else if (e.key === '2') {
-        const buttons = doc.querySelectorAll('button');
-        for (let btn of buttons) { if (btn.innerText === '🟠') { clickTarget = btn; break; } }
+        btn = buscarBoton(['🟠']);
     } else if (e.key === '3') {
-        const buttons = doc.querySelectorAll('button');
-        for (let btn of buttons) { if (btn.innerText === '🟢') { clickTarget = btn; break; } }
+        btn = buscarBoton(['🟢']);
     } else if (e.key === '4') {
-        const buttons = doc.querySelectorAll('button');
-        for (let btn of buttons) { if (btn.innerText === '🔵') { clickTarget = btn; break; } }
+        btn = buscarBoton(['🔵']);
     }
-    
-    if (clickTarget) {
+
+    if (btn) {
         e.preventDefault();
-        clickTarget.click();
+        btn.click();
     }
 });
 
-// 2. Vincular el clic del ratón del nuevo botón HTML (Esperamos un instante a que se renderice)
+// Corrección de negritas |texto| al cargar
 setTimeout(() => {
-    const btnHtml = doc.getElementById('boton-solucion-html');
-    if (btnHtml) {
-        const btnClon = btnHtml.cloneNode(true);
-        btnHtml.parentNode.replaceChild(btnClon, btnHtml);
-        
-        btnClon.addEventListener('click', function(e) {
-            e.preventDefault();
-            conmutarSolucion();
-        });
-    }
-    
-    // 🔑 CORRECCIÓN DE ESTADO: restaurar display desde el servidor (evita que la tarjeta
-    // nueva aparezca en el idioma que dejó el JS en la tarjeta anterior)
-    const cas = doc.getElementById('bloque-castellano');
-    const sol = doc.getElementById('bloque-solucion');
-    if (cas && cas.dataset.serverDisplay) cas.style.display = cas.dataset.serverDisplay;
-    if (sol && sol.dataset.serverDisplay) sol.style.display = sol.dataset.serverDisplay;
-    // Ajustar también el texto del botón según el estado real del servidor
-    const btnSol = doc.getElementById('boton-solucion-html') || doc.querySelector('[id^="boton-solucion"]');
-    if (btnSol && sol) {
-        btnSol.innerHTML = sol.style.display === 'none' ? "👁️ Solución / Ocultar" : "🔄 Ocultar Frase";
-    }
-    
-    // 🔥 CORRECCIÓN CRÍTICA DE NEGRITAS: Obligar a JavaScript a interpretar las barras |texto| si el DOM cambia en caliente
-    const procesarBarrasEnNavegador = (idElemento) => {
-        const el = doc.getElementById(idElemento);
+    ['contenido-castellano', 'contenido-aleman'].forEach(id => {
+        const el = doc.getElementById(id);
         if (el && el.innerHTML.includes('|')) {
             el.innerHTML = el.innerHTML.replace(/\|([^|]+)\|/g, '<strong>$1</strong>');
         }
-    };
-    procesarBarrasEnNavegador('contenido-castellano');
-    procesarBarrasEnNavegador('contenido-aleman');
+    });
 }, 250);
 </script>
 """
