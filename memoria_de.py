@@ -7,25 +7,20 @@ import requests
 from datetime import datetime, timezone
 from difflib import SequenceMatcher
 
-@st.cache_resource
+@st.cache_data
 def cargar_diccionario_aleman():
+    """Carga el diccionario de géneros alemanes desde GitHub como dict {palabra: género}."""
     try:
-        from german_nouns.lookup import Nouns as GermanNouns
-        return GermanNouns()
+        url = "https://raw.githubusercontent.com/gambolputty/german-nouns/master/german_nouns/nouns.csv"
+        df = pd.read_csv(url, usecols=['lemma', 'genus'], dtype=str)
+        df = df.dropna(subset=['lemma', 'genus'])
+        return dict(zip(df['lemma'], df['genus']))
     except Exception:
-        return None
+        return {}
 
 def genero_sustantivo(palabra):
     diccionario = cargar_diccionario_aleman()
-    if not diccionario:
-        return None
-    try:
-        entradas = diccionario[palabra]
-        if entradas:
-            return entradas[0].get('genus')
-    except Exception:
-        pass
-    return None
+    return diccionario.get(palabra)
 
 # ── CONFIGURACIÓN DE LA PÁGINA ──
 st.set_page_config(page_title="Entrenador de Idiomas por Islas", page_icon="🇩🇪", layout="centered")
@@ -206,7 +201,7 @@ _COLOR_GENERO = {'m': '#3b7dd8', 'f': '#e05454', 'n': '#22a66e'}
 
 def colorear_sustantivos(texto):
     """Envuelve sustantivos alemanes en <span> de color según género."""
-    if cargar_diccionario_aleman() is None:
+    if not cargar_diccionario_aleman():
         return texto
 
     def reemplazar(match):
