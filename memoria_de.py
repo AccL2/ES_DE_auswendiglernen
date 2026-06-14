@@ -900,7 +900,7 @@ html_crono = """
     const wrap = doc.createElement('div');
     wrap.id = 'crono-wrap';
     wrap.style.cssText = `
-        position: fixed; top: 10px; right: 10px; z-index: 9999;
+        position: fixed; top: 55px; right: 10px; z-index: 9999;
         background: rgba(20,24,36,0.92); border: 1px solid rgba(255,255,255,0.1);
         border-radius: 12px; padding: 10px 16px; display: flex; align-items: center;
         gap: 10px; font-family: Montserrat, sans-serif; backdrop-filter: blur(8px);
