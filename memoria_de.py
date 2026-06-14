@@ -387,35 +387,6 @@ if isla_guardada_db and isla_guardada_db in islas:
 isla_seleccionada = st.sidebar.selectbox("🏝️ Selecciona la Isla:", islas, index=indice_defecto)
 
 filtrar_favoritas_sidebar = st.sidebar.checkbox("⭐ Ver solo VIPs en el Almacén")
-# ── CRONÓMETRO EN SIDEBAR ──
-st.sidebar.write("---")
-st.sidebar.markdown("""
-<div id="crono-sidebar" style="text-align:center; padding: 6px 0;">
-    <div id="crono-display-sb" style="font-size:1.6rem; font-weight:700; letter-spacing:3px; margin-bottom:8px;">00:00</div>
-    <div style="display:flex; gap:8px; justify-content:center;">
-        <button id="crono-btn-sb" onclick="cronoToggleSB()" style="padding:6px 18px; border-radius:8px; border:none; cursor:pointer; background:#3b7dd8; color:white; font-weight:600; font-size:0.85rem;">▶ Start</button>
-        <button onclick="cronoResetSB()" style="padding:6px 12px; border-radius:8px; border:1px solid #555; background:transparent; color:#aaa; font-weight:600; font-size:0.85rem; cursor:pointer;">↺</button>
-    </div>
-</div>
-<script>
-var _cActivo=false,_cInicio=null,_cAcum=0,_cInt=null;
-function cronoToggleSB(){
-    var btn=document.getElementById('crono-btn-sb');
-    if(!_cActivo){_cInicio=Date.now();_cInt=setInterval(_cTick,500);_cActivo=true;btn.innerHTML='⏸ Stop';btn.style.background='#e05454';}
-    else{_cAcum+=Date.now()-_cInicio;clearInterval(_cInt);_cActivo=false;btn.innerHTML='▶ Start';btn.style.background='#3b7dd8';}
-}
-function cronoResetSB(){
-    clearInterval(_cInt);_cActivo=false;_cInicio=null;_cAcum=0;
-    document.getElementById('crono-display-sb').innerText='00:00';
-    document.getElementById('crono-btn-sb').innerHTML='▶ Start';
-    document.getElementById('crono-btn-sb').style.background='#3b7dd8';
-}
-function _cTick(){
-    var t=Math.floor((_cAcum+(Date.now()-_cInicio))/1000);
-    document.getElementById('crono-display-sb').innerText=String(Math.floor(t/60)).padStart(2,'0')+':'+String(t%60).padStart(2,'0');
-}
-</script>
-""", unsafe_allow_html=True)
 
 
 df_universo = obtener_todas_tarjetas_isla(isla_seleccionada)
