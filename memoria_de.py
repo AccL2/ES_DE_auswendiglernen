@@ -460,10 +460,6 @@ if not ids_validos_rueda:
         st.rerun()
     st.stop()
 
-if pos_db >= len(ids_validos_rueda):
-    pos_db = 0
-    guardar_estado_puntero_db(0, ids_validos_rueda, nombre_isla=isla_seleccionada)
-
 st.session_state.indice_actual = pos_db
 if 'ver_solucion' not in st.session_state:
     st.session_state.ver_solucion = False
@@ -473,6 +469,10 @@ ids_rueda_completa = ids_validos_rueda.copy()
 if id_jubilada_repaso:
     ids_rueda_completa.append(id_jubilada_repaso)
 df_rueda = pd.DataFrame({'id': ids_rueda_completa}).merge(df_universo, on='id', how='left')
+
+if pos_db >= len(ids_rueda_completa):
+    pos_db = 0
+    guardar_estado_puntero_db(0, ids_validos_rueda, nombre_isla=isla_seleccionada)
 total_rueda_actual = len(df_rueda)
 
 df_cola = df_activas_universo[~df_activas_universo['id'].isin(ids_validos_rueda)].copy()
