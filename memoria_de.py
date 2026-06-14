@@ -34,6 +34,9 @@ def genero_sustantivo(palabra):
     diccionario = cargar_diccionario_aleman()
     return diccionario.get(palabra)
 
+# ── TAMAÑO DE LA RUEDA ──
+TAMANYO_RUEDA = 5  # Cambia este número para ajustar el tamaño de la rueda activa
+
 # ── CONFIGURACIÓN DE LA PÁGINA ──
 st.set_page_config(page_title="Entrenador de Idiomas por Islas", page_icon="🇩🇪", layout="centered")
 
@@ -46,6 +49,43 @@ headers = {
     "Authorization": f"Bearer {SUPABASE_KEY}",
     "Content-Type": "application/json"
 }
+
+# ── REPASO ESPACIADO: FUNCIONES ──
+def obtener_jubilada_repaso(ids_en_rueda):
+    """Obtiene la jubilada cuya fecha_repaso <= hoy, con id más bajo. Si tiene fecha_repaso=null la incluye también."""
+    try:
+        hoy = datetime.now(timezone.utc).isoformat()
+        url = f"{SUPABASE_URL}/rest/v1/tarjetas?Isla=eq.{isla_seleccionada}&Estado=eq.4&or=(fecha_repaso.lte.{hoy},fecha_repaso.is.null)&order=id.asc&limit=1"
+        r = requests.get(url, headers=headers)
+        datos = r.json()
+        if datos:
+            tid = int(datos[0]['id'])
+            if tid not in ids_en_rueda:
+                return datos[0]
+    except Exception:
+        pass
+    return None
+
+def actualizar_repaso_espaciado(id_tarjeta, intervalo_actual):
+    """Cuando se vuelve a jubilar una tarjeta de repaso, duplica el intervalo y programa la próxima fecha."""
+    try:
+        nuevo_intervalo = max(1, int(intervalo_actual or 1)) * 2
+        from datetime import timedelta
+        proxima = (datetime.now(timezone.utc) + timedelta(days=nuevo_intervalo)).isoformat()
+        url = f"{SUPABASE_URL}/rest/v1/tarjetas?id=eq.{id_tarjeta}"
+        requests.patch(url, headers=headers, json={"fecha_repaso": proxima, "intervalo_repaso": nuevo_intervalo})
+    except Exception:
+        pass
+
+def inicializar_repaso(id_tarjeta):
+    """Primera vez que se jubila una tarjeta: intervalo=1, fecha_repaso=ahora."""
+    try:
+        from datetime import timedelta
+        proxima = (datetime.now(timezone.utc) + timedelta(days=3)).isoformat()
+        url = f"{SUPABASE_URL}/rest/v1/tarjetas?id=eq.{id_tarjeta}"
+        requests.patch(url, headers=headers, json={"fecha_repaso": proxima, "intervalo_repaso": 1})
+    except Exception:
+        pass
 
 # ── INYECTAR TIPOGRAFÍAS Y ESTILOS PREMIUM ──
 st.markdown("""
@@ -366,11 +406,11 @@ if ids_rueda_db and isla_seleccionada == isla_guardada_db:
         if tid in df_activas_universo['id'].values:
             ids_validos_rueda.append(tid)
 
-if len(ids_validos_rueda) > 15:
-    ids_validos_rueda = ids_validos_rueda[:15]
+if len(ids_validos_rueda) > TAMANYO_RUEDA:
+    ids_validos_rueda = ids_validos_rueda[:TAMANYO_RUEDA]
 
 tarjetas_inyectadas = []
-while len(ids_validos_rueda) < 15:
+while len(ids_validos_rueda) < TAMANYO_RUEDA:
     tarjetas_candidatas = [tid for tid in df_activas_universo['id'].values if tid not in ids_validos_rueda]
     if not tarjetas_candidatas:
         break
@@ -378,13 +418,17 @@ while len(ids_validos_rueda) < 15:
     ids_validos_rueda.append(nueva_id)
     tarjetas_inyectadas.append(nueva_id)
 
-if len(ids_validos_rueda) > 15:
-    ids_validos_rueda = ids_validos_rueda[:15]
+if len(ids_validos_rueda) > TAMANYO_RUEDA:
+    ids_validos_rueda = ids_validos_rueda[:TAMANYO_RUEDA]
 
 for tid in tarjetas_inyectadas:
     fila_raw = df_universo[df_universo['id'] == tid].iloc[0]
     if pd.isna(fila_raw.get('fecha_entrada_rueda')) or fila_raw.get('fecha_entrada_rueda') is None:
         inicializar_fecha_entrada_rueda(tid)
+
+# ── TARJETA JUBILADA DE REPASO (slot extra) ──
+fila_jubilada_repaso = obtener_jubilada_repaso(ids_validos_rueda)
+id_jubilada_repaso = int(fila_jubilada_repaso['id']) if fila_jubilada_repaso else None
 
 if ids_validos_rueda != ids_rueda_db or isla_seleccionada != isla_guardada_db:
     if isla_seleccionada != isla_guardada_db:
@@ -412,7 +456,11 @@ st.session_state.indice_actual = pos_db
 if 'ver_solucion' not in st.session_state:
     st.session_state.ver_solucion = False
 
-df_rueda = pd.DataFrame({'id': ids_validos_rueda}).merge(df_universo, on='id', how='left')
+# Construir rueda incluyendo jubilada de repaso al final si existe
+ids_rueda_completa = ids_validos_rueda.copy()
+if id_jubilada_repaso:
+    ids_rueda_completa.append(id_jubilada_repaso)
+df_rueda = pd.DataFrame({'id': ids_rueda_completa}).merge(df_universo, on='id', how='left')
 total_rueda_actual = len(df_rueda)
 
 df_cola = df_activas_universo[~df_activas_universo['id'].isin(ids_validos_rueda)].copy()
@@ -504,6 +552,7 @@ if abrir_modal_cola:
 st.title("🇩🇪 Método de Chunks & Islas")
 
 fila_actual = df_rueda.iloc[st.session_state.indice_actual]
+es_tarjeta_repaso = (int(fila_actual['id']) == id_jubilada_repaso) if id_jubilada_repaso else False
 id_tarjeta            = int(fila_actual['id'])
 castellano_texto      = str(fila_actual['Español'])
 aleman_texto          = str(fila_actual['Aleman'])
@@ -606,6 +655,14 @@ prefijo_estrella = "⭐ " if es_importante else ""
 disp_castellano = "none" if st.session_state.ver_solucion else "block"
 disp_solucion = "block" if st.session_state.ver_solucion else "none"
 
+# Badge de repaso espaciado
+if es_tarjeta_repaso:
+    intervalo_actual = fila_actual.get('intervalo_repaso', 1)
+    st.markdown(
+        f'<div style="text-align:center;margin-bottom:8px;padding:4px 12px;background:rgba(59,125,216,0.15);border:1px solid rgba(59,125,216,0.3);border-radius:8px;font-size:0.8rem;color:#3b7dd8;">🔁 Tarjeta de repaso · intervalo actual: {intervalo_actual} días</div>',
+        unsafe_allow_html=True
+    )
+
 # Bloque del Castellano con renglones limpios y negritas funcionando
 st.markdown(f'''
 <div id="bloque-castellano" class="bloque-azul" style="display: {disp_castellano};" data-server-display="{disp_castellano}">
@@ -653,11 +710,26 @@ if nuevo_estado_num is not None:
     actualizar_estado_tarjeta(id_tarjeta, nuevo_estado_num, estampar_click=estampar)
     st.toast(f"Estado sincronizado")
     
+    es_jubilada_repaso = (id_tarjeta == id_jubilada_repaso)
+
     if nuevo_estado_num == 4:
+        if es_jubilada_repaso:
+            # Ya era jubilada — actualizar intervalo espaciado
+            intervalo_actual = fila_actual.get('intervalo_repaso', 1)
+            actualizar_repaso_espaciado(id_tarjeta, intervalo_actual)
+        else:
+            # Primera vez que se jubila — inicializar repaso
+            inicializar_repaso(id_tarjeta)
+            if id_tarjeta in ids_validos_rueda:
+                ids_validos_rueda.remove(id_tarjeta)
         nuevo_indice_puntero = st.session_state.indice_actual
-        if id_tarjeta in ids_validos_rueda:
-            ids_validos_rueda.remove(id_tarjeta)
     else:
+        # Si era jubilada de repaso y la bajan de color → vuelve al pool activo
+        if es_jubilada_repaso:
+            from datetime import timedelta
+            proxima = (datetime.now(timezone.utc) + timedelta(days=1)).isoformat()
+            url_reset = f"{SUPABASE_URL}/rest/v1/tarjetas?id=eq.{id_tarjeta}"
+            requests.patch(url_reset, headers=headers, json={"fecha_repaso": proxima, "intervalo_repaso": 1})
         nuevo_indice_puntero = st.session_state.indice_actual + 1 if st.session_state.indice_actual < total_rueda_actual - 1 else 0
 
     guardar_estado_puntero_db(nuevo_indice_puntero, ids_validos_rueda, nombre_isla=isla_seleccionada)
