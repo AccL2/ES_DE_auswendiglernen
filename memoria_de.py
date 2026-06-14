@@ -485,11 +485,46 @@ n_naranjas = estados_lista.count(2)
 n_verdes = estados_lista.count(3)
 porcentaje_isla = round((total_aprendidos / total_frases_isla * 100)) if total_frases_isla > 0 else 0
 
+# ── CRONÓMETRO DE SESIÓN ──
+if 'crono_activo' not in st.session_state:
+    st.session_state.crono_activo = False
+if 'crono_inicio' not in st.session_state:
+    st.session_state.crono_inicio = None
+if 'crono_acumulado' not in st.session_state:
+    st.session_state.crono_acumulado = 0
+
+ahora = datetime.now(timezone.utc).timestamp()
+if st.session_state.crono_activo and st.session_state.crono_inicio:
+    segundos_totales = st.session_state.crono_acumulado + (ahora - st.session_state.crono_inicio)
+else:
+    segundos_totales = st.session_state.crono_acumulado
+
+minutos = int(segundos_totales // 60)
+segundos = int(segundos_totales % 60)
+
+st.sidebar.markdown(f"### ⏱ {minutos:02d}:{segundos:02d}")
+col_start, col_reset = st.sidebar.columns(2)
+with col_start:
+    if st.session_state.crono_activo:
+        if st.button("⏸ Stop", use_container_width=True, key="btn_crono_stop"):
+            st.session_state.crono_acumulado = segundos_totales
+            st.session_state.crono_activo = False
+            st.session_state.crono_inicio = None
+    else:
+        if st.button("▶ Start", use_container_width=True, key="btn_crono_start"):
+            st.session_state.crono_inicio = ahora
+            st.session_state.crono_activo = True
+with col_reset:
+    if st.button("↺ Reset", use_container_width=True, key="btn_crono_reset"):
+        st.session_state.crono_activo = False
+        st.session_state.crono_inicio = None
+        st.session_state.crono_acumulado = 0
+
 st.sidebar.write("---")
 st.sidebar.markdown("### 📊 Estado de la Isla")
 st.sidebar.markdown(f"""
 <div style="background: rgba(255,255,255,0.04); padding: 16px 18px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.09);">
-    <p style="margin: 0 0 4px 0; font-size: 0.7rem; color: #8a9ab5; font-weight: 500; text-transform: uppercase; letter-spacing: 2px;">🔄 En rueda activa &nbsp;·&nbsp; {total_rueda_actual} / 6</p>
+    <p style="margin: 0 0 4px 0; font-size: 0.7rem; color: #8a9ab5; font-weight: 500; text-transform: uppercase; letter-spacing: 2px;">🔄 En rueda activa &nbsp;·&nbsp; {total_rueda_actual} / 15</p>
     <p style="margin: 0 0 12px 0; font-size: 0.65rem; color: #6b7c96; font-style: italic;">Pendientes en cola: {len(df_cola)}</p>
     <div style="display: flex; flex-direction: column; gap: 8px;">
         <div style="display:flex; align-items:center; gap:10px; font-size:0.9rem;"><span style="width:10px;height:10px;border-radius:50%;background:#e05454;display:inline-block;"></span><span style="color:#e8ecf2;">{n_rojos} &nbsp;<span style="color:#8a9ab5;font-size:0.8rem;">Nuevas / Malas</span></span></div>
