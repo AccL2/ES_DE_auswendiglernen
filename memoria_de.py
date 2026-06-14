@@ -485,41 +485,6 @@ n_naranjas = estados_lista.count(2)
 n_verdes = estados_lista.count(3)
 porcentaje_isla = round((total_aprendidos / total_frases_isla * 100)) if total_frases_isla > 0 else 0
 
-# ── CRONÓMETRO DE SESIÓN ──
-if 'crono_activo' not in st.session_state:
-    st.session_state.crono_activo = False
-if 'crono_inicio' not in st.session_state:
-    st.session_state.crono_inicio = None
-if 'crono_acumulado' not in st.session_state:
-    st.session_state.crono_acumulado = 0
-
-ahora = datetime.now(timezone.utc).timestamp()
-if st.session_state.crono_activo and st.session_state.crono_inicio:
-    segundos_totales = st.session_state.crono_acumulado + (ahora - st.session_state.crono_inicio)
-else:
-    segundos_totales = st.session_state.crono_acumulado
-
-minutos = int(segundos_totales // 60)
-segundos = int(segundos_totales % 60)
-
-st.sidebar.markdown(f"### ⏱ {minutos:02d}:{segundos:02d}")
-col_start, col_reset = st.sidebar.columns(2)
-with col_start:
-    if st.session_state.crono_activo:
-        if st.button("⏸ Stop", use_container_width=True, key="btn_crono_stop"):
-            st.session_state.crono_acumulado = segundos_totales
-            st.session_state.crono_activo = False
-            st.session_state.crono_inicio = None
-    else:
-        if st.button("▶ Start", use_container_width=True, key="btn_crono_start"):
-            st.session_state.crono_inicio = ahora
-            st.session_state.crono_activo = True
-with col_reset:
-    if st.button("↺ Reset", use_container_width=True, key="btn_crono_reset"):
-        st.session_state.crono_activo = False
-        st.session_state.crono_inicio = None
-        st.session_state.crono_acumulado = 0
-
 st.sidebar.write("---")
 st.sidebar.markdown("### 📊 Estado de la Isla")
 st.sidebar.markdown(f"""
@@ -552,33 +517,12 @@ if abrir_modal_jubiladas:
         st.write("Estas son tus frases guardadas en azul. Puedes repasarlas y devolverlas a la rueda activa:")
         st.write("---")
         for _, row in df_jubiladas_muestra.iterrows():
-            col_txt, col_btn = st.columns([0.75, 0.25])
+            col_txt = st.container()
             with col_txt:
                 marca_vip = "⭐ " if row.get('importante') else ""
                 st.markdown(f"**{marca_vip}ES:** {row['Español']}")
                 st.markdown(f"*DE:* {row['Aleman']}")
-            with col_btn:
-                if st.button("♻️ Traer", key=f"popup_rec_{row['id']}", use_container_width=True):
-                    actualizar_estado_tarjeta(int(row['id']), 1)
-                    inicializar_fecha_entrada_rueda(int(row['id']))
-                    _, actuales_ids, _ = obtener_datos_puntero_db()
-                    
-                    if len(actuales_ids) >= TAMANYO_RUEDA:
-                        id_expulsada = actuales_ids[-1]
-                        fila_expulsada = df_universo[df_universo['id'] == id_expulsada].iloc[0]
-                        congelar_temporizador_banquillo(
-                            id_expulsada, 
-                            fila_expulsada.get('fecha_entrada_rueda'), 
-                            fila_expulsada.get('segundos_acumulados_banco', 0)
-                        )
-                        actuales_ids = actuales_ids[:TAMANYO_RUEDA - 1]
 
-                    if int(row['id']) not in actuales_ids:
-                        actuales_ids.insert(0, int(row['id']))
-                        
-                    guardar_estado_puntero_db(0, actuales_ids, nombre_isla=isla_seleccionada)
-                    st.toast("¡Tarjeta recuperada desde cero! La última se congeló.")
-                    st.rerun()
             st.write("---")
     mostrar_popup_jubiladas()
 
@@ -773,10 +717,15 @@ if nuevo_estado_num is not None:
     else:
         # Si era jubilada de repaso y la bajan de color → vuelve al pool activo
         if es_jubilada_repaso:
-            from datetime import timedelta
-            proxima = (datetime.now(timezone.utc) + timedelta(days=1)).isoformat()
+            # Limpiar fecha_repaso para que no vuelva a aparecer como repaso inmediatamente
             url_reset = f"{SUPABASE_URL}/rest/v1/tarjetas?id=eq.{id_tarjeta}"
-            requests.patch(url_reset, headers=headers, json={"fecha_repaso": proxima, "intervalo_repaso": 1})
+            requests.patch(url_reset, headers=headers, json={"fecha_repaso": None, "intervalo_repaso": 1})
+            # Insertarla al principio de la rueda activa (su id es bajo, entrará primero)
+            if id_tarjeta not in ids_validos_rueda:
+                ids_validos_rueda.insert(0, id_tarjeta)
+                # Si supera el tamaño, expulsar la última
+                if len(ids_validos_rueda) > TAMANYO_RUEDA:
+                    ids_validos_rueda = ids_validos_rueda[:TAMANYO_RUEDA]
         nuevo_indice_puntero = st.session_state.indice_actual + 1 if st.session_state.indice_actual < total_rueda_actual - 1 else 0
 
     guardar_estado_puntero_db(nuevo_indice_puntero, ids_validos_rueda, nombre_isla=isla_seleccionada)
@@ -940,3 +889,65 @@ setTimeout(() => {
 </script>
 """
 st.components.v1.html(html_teclas, height=0, width=0)
+
+# ── CRONÓMETRO JS (corre en el navegador, independiente de Streamlit) ──
+html_crono = """
+<div id="crono-wrap" style="
+    position: fixed; bottom: 18px; right: 18px; z-index: 9999;
+    background: rgba(20,24,36,0.92); border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 12px; padding: 10px 16px; display: flex; align-items: center;
+    gap: 10px; font-family: 'Montserrat', sans-serif; backdrop-filter: blur(8px);
+    box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+">
+    <span id="crono-display" style="font-size:1.3rem; font-weight:700; color:#e8ecf2; letter-spacing:2px; min-width:58px;">00:00</span>
+    <button id="crono-btn" onclick="cronoToggle()" style="
+        padding: 5px 12px; border-radius: 7px; border: none; cursor: pointer;
+        background: #3b7dd8; color: white; font-weight: 600; font-size: 0.8rem;
+    ">▶</button>
+    <button onclick="cronoReset()" style="
+        padding: 5px 10px; border-radius: 7px; border: 1px solid rgba(255,255,255,0.15);
+        background: transparent; color: #8a9ab5; font-weight: 600; font-size: 0.8rem; cursor: pointer;
+    ">↺</button>
+</div>
+<script>
+let cronoActivo = false;
+let cronoInicio = null;
+let cronoAcumulado = 0;
+let cronoInterval = null;
+
+function cronoToggle() {
+    const btn = document.getElementById('crono-btn');
+    if (!cronoActivo) {
+        cronoInicio = Date.now();
+        cronoInterval = setInterval(cronoTick, 500);
+        cronoActivo = true;
+        btn.innerHTML = '⏸';
+        btn.style.background = '#e05454';
+    } else {
+        cronoAcumulado += Date.now() - cronoInicio;
+        clearInterval(cronoInterval);
+        cronoActivo = false;
+        btn.innerHTML = '▶';
+        btn.style.background = '#3b7dd8';
+    }
+}
+
+function cronoReset() {
+    clearInterval(cronoInterval);
+    cronoActivo = false;
+    cronoInicio = null;
+    cronoAcumulado = 0;
+    document.getElementById('crono-display').innerText = '00:00';
+    document.getElementById('crono-btn').innerHTML = '▶';
+    document.getElementById('crono-btn').style.background = '#3b7dd8';
+}
+
+function cronoTick() {
+    const total = Math.floor((cronoAcumulado + (Date.now() - cronoInicio)) / 1000);
+    const m = String(Math.floor(total / 60)).padStart(2, '0');
+    const s = String(total % 60).padStart(2, '0');
+    document.getElementById('crono-display').innerText = m + ':' + s;
+}
+</script>
+"""
+st.components.v1.html(html_crono, height=0, width=0)
