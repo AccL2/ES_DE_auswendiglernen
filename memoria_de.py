@@ -52,16 +52,28 @@ headers = {
 
 # ── REPASO ESPACIADO: FUNCIONES ──
 def obtener_jubilada_repaso(ids_en_rueda, isla):
-    """Obtiene la jubilada cuya fecha_repaso <= hoy, con id más bajo."""
+    """Obtiene la jubilada de repaso: coge todas las jubiladas y filtra en Python."""
     try:
-        hoy = datetime.now(timezone.utc).isoformat()
-        url = f"{SUPABASE_URL}/rest/v1/tarjetas?Isla=eq.{isla}&Estado=eq.4&or=(fecha_repaso.lte.{hoy},fecha_repaso.is.null)&order=id.asc&limit=1"
+        hoy = datetime.now(timezone.utc)
+        url = f"{SUPABASE_URL}/rest/v1/tarjetas?Isla=eq.{isla}&Estado=eq.4&order=id.asc"
         r = requests.get(url, headers=headers)
         datos = r.json()
-        if isinstance(datos, list) and datos:
-            tid = int(datos[0]['id'])
-            if tid not in ids_en_rueda:
-                return datos[0]
+        if not isinstance(datos, list):
+            return None
+        for fila in datos:
+            tid = int(fila['id'])
+            if tid in ids_en_rueda:
+                continue
+            fecha_repaso = fila.get('fecha_repaso')
+            if fecha_repaso is None:
+                return fila  # sin fecha = mostrar ya
+            try:
+                from datetime import timezone as tz
+                fecha_dt = datetime.fromisoformat(fecha_repaso.replace('Z', '+00:00'))
+                if fecha_dt <= hoy.replace(tzinfo=tz.utc):
+                    return fila
+            except Exception:
+                return fila  # si no se puede parsear, mostrar
     except Exception:
         pass
     return None
