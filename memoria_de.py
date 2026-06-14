@@ -890,64 +890,62 @@ setTimeout(() => {
 """
 st.components.v1.html(html_teclas, height=0, width=0)
 
-# ── CRONÓMETRO JS (corre en el navegador, independiente de Streamlit) ──
+# ── CRONÓMETRO JS inyectado en el DOM padre ──
 html_crono = """
-<div id="crono-wrap" style="
-    position: fixed; bottom: 18px; right: 18px; z-index: 9999;
-    background: rgba(20,24,36,0.92); border: 1px solid rgba(255,255,255,0.1);
-    border-radius: 12px; padding: 10px 16px; display: flex; align-items: center;
-    gap: 10px; font-family: 'Montserrat', sans-serif; backdrop-filter: blur(8px);
-    box-shadow: 0 4px 20px rgba(0,0,0,0.4);
-">
-    <span id="crono-display" style="font-size:1.3rem; font-weight:700; color:#e8ecf2; letter-spacing:2px; min-width:58px;">00:00</span>
-    <button id="crono-btn" onclick="cronoToggle()" style="
-        padding: 5px 12px; border-radius: 7px; border: none; cursor: pointer;
-        background: #3b7dd8; color: white; font-weight: 600; font-size: 0.8rem;
-    ">▶</button>
-    <button onclick="cronoReset()" style="
-        padding: 5px 10px; border-radius: 7px; border: 1px solid rgba(255,255,255,0.15);
-        background: transparent; color: #8a9ab5; font-weight: 600; font-size: 0.8rem; cursor: pointer;
-    ">↺</button>
-</div>
 <script>
-let cronoActivo = false;
-let cronoInicio = null;
-let cronoAcumulado = 0;
-let cronoInterval = null;
+(function() {
+    const doc = window.parent.document;
+    if (doc.getElementById('crono-wrap')) return; // ya existe, no duplicar
 
-function cronoToggle() {
-    const btn = document.getElementById('crono-btn');
-    if (!cronoActivo) {
-        cronoInicio = Date.now();
-        cronoInterval = setInterval(cronoTick, 500);
-        cronoActivo = true;
-        btn.innerHTML = '⏸';
-        btn.style.background = '#e05454';
-    } else {
-        cronoAcumulado += Date.now() - cronoInicio;
-        clearInterval(cronoInterval);
-        cronoActivo = false;
-        btn.innerHTML = '▶';
-        btn.style.background = '#3b7dd8';
+    const wrap = doc.createElement('div');
+    wrap.id = 'crono-wrap';
+    wrap.style.cssText = `
+        position: fixed; bottom: 18px; right: 18px; z-index: 9999;
+        background: rgba(20,24,36,0.92); border: 1px solid rgba(255,255,255,0.1);
+        border-radius: 12px; padding: 10px 16px; display: flex; align-items: center;
+        gap: 10px; font-family: Montserrat, sans-serif; backdrop-filter: blur(8px);
+        box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+    `;
+    wrap.innerHTML = `
+        <span id="crono-display" style="font-size:1.3rem;font-weight:700;color:#e8ecf2;letter-spacing:2px;min-width:58px;">00:00</span>
+        <button id="crono-btn" style="padding:5px 12px;border-radius:7px;border:none;cursor:pointer;background:#3b7dd8;color:white;font-weight:600;font-size:0.8rem;">▶</button>
+        <button id="crono-reset" style="padding:5px 10px;border-radius:7px;border:1px solid rgba(255,255,255,0.15);background:transparent;color:#8a9ab5;font-weight:600;font-size:0.8rem;cursor:pointer;">↺</button>
+    `;
+    doc.body.appendChild(wrap);
+
+    let activo = false, inicio = null, acumulado = 0, intervalo = null;
+
+    function tick() {
+        const total = Math.floor((acumulado + (Date.now() - inicio)) / 1000);
+        const m = String(Math.floor(total / 60)).padStart(2, '0');
+        const s = String(total % 60).padStart(2, '0');
+        doc.getElementById('crono-display').innerText = m + ':' + s;
     }
-}
 
-function cronoReset() {
-    clearInterval(cronoInterval);
-    cronoActivo = false;
-    cronoInicio = null;
-    cronoAcumulado = 0;
-    document.getElementById('crono-display').innerText = '00:00';
-    document.getElementById('crono-btn').innerHTML = '▶';
-    document.getElementById('crono-btn').style.background = '#3b7dd8';
-}
+    doc.getElementById('crono-btn').addEventListener('click', function() {
+        if (!activo) {
+            inicio = Date.now();
+            intervalo = setInterval(tick, 500);
+            activo = true;
+            this.innerHTML = '⏸';
+            this.style.background = '#e05454';
+        } else {
+            acumulado += Date.now() - inicio;
+            clearInterval(intervalo);
+            activo = false;
+            this.innerHTML = '▶';
+            this.style.background = '#3b7dd8';
+        }
+    });
 
-function cronoTick() {
-    const total = Math.floor((cronoAcumulado + (Date.now() - cronoInicio)) / 1000);
-    const m = String(Math.floor(total / 60)).padStart(2, '0');
-    const s = String(total % 60).padStart(2, '0');
-    document.getElementById('crono-display').innerText = m + ':' + s;
-}
+    doc.getElementById('crono-reset').addEventListener('click', function() {
+        clearInterval(intervalo);
+        activo = false; inicio = null; acumulado = 0;
+        doc.getElementById('crono-display').innerText = '00:00';
+        doc.getElementById('crono-btn').innerHTML = '▶';
+        doc.getElementById('crono-btn').style.background = '#3b7dd8';
+    });
+})();
 </script>
 """
 st.components.v1.html(html_crono, height=0, width=0)
