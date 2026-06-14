@@ -489,7 +489,7 @@ st.sidebar.write("---")
 st.sidebar.markdown("### 📊 Estado de la Isla")
 st.sidebar.markdown(f"""
 <div style="background: rgba(255,255,255,0.04); padding: 16px 18px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.09);">
-    <p style="margin: 0 0 4px 0; font-size: 0.7rem; color: #8a9ab5; font-weight: 500; text-transform: uppercase; letter-spacing: 2px;">🔄 En rueda activa &nbsp;·&nbsp; {total_rueda_actual} / 15</p>
+    <p style="margin: 0 0 4px 0; font-size: 0.7rem; color: #8a9ab5; font-weight: 500; text-transform: uppercase; letter-spacing: 2px;">🔄 En rueda activa &nbsp;·&nbsp; {total_rueda_actual} / 6</p>
     <p style="margin: 0 0 12px 0; font-size: 0.65rem; color: #6b7c96; font-style: italic;">Pendientes en cola: {len(df_cola)}</p>
     <div style="display: flex; flex-direction: column; gap: 8px;">
         <div style="display:flex; align-items:center; gap:10px; font-size:0.9rem;"><span style="width:10px;height:10px;border-radius:50%;background:#e05454;display:inline-block;"></span><span style="color:#e8ecf2;">{n_rojos} &nbsp;<span style="color:#8a9ab5;font-size:0.8rem;">Nuevas / Malas</span></span></div>
