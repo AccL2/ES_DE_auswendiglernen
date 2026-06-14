@@ -51,14 +51,14 @@ headers = {
 }
 
 # ── REPASO ESPACIADO: FUNCIONES ──
-def obtener_jubilada_repaso(ids_en_rueda):
-    """Obtiene la jubilada cuya fecha_repaso <= hoy, con id más bajo. Si tiene fecha_repaso=null la incluye también."""
+def obtener_jubilada_repaso(ids_en_rueda, isla):
+    """Obtiene la jubilada cuya fecha_repaso <= hoy, con id más bajo."""
     try:
         hoy = datetime.now(timezone.utc).isoformat()
-        url = f"{SUPABASE_URL}/rest/v1/tarjetas?Isla=eq.{isla_seleccionada}&Estado=eq.4&or=(fecha_repaso.lte.{hoy},fecha_repaso.is.null)&order=id.asc&limit=1"
+        url = f"{SUPABASE_URL}/rest/v1/tarjetas?Isla=eq.{isla}&Estado=eq.4&or=(fecha_repaso.lte.{hoy},fecha_repaso.is.null)&order=id.asc&limit=1"
         r = requests.get(url, headers=headers)
         datos = r.json()
-        if datos:
+        if isinstance(datos, list) and datos:
             tid = int(datos[0]['id'])
             if tid not in ids_en_rueda:
                 return datos[0]
@@ -427,7 +427,7 @@ for tid in tarjetas_inyectadas:
         inicializar_fecha_entrada_rueda(tid)
 
 # ── TARJETA JUBILADA DE REPASO (slot extra) ──
-fila_jubilada_repaso = obtener_jubilada_repaso(ids_validos_rueda)
+fila_jubilada_repaso = obtener_jubilada_repaso(ids_validos_rueda, isla_seleccionada)
 id_jubilada_repaso = int(fila_jubilada_repaso['id']) if fila_jubilada_repaso else None
 
 if ids_validos_rueda != ids_rueda_db or isla_seleccionada != isla_guardada_db:
