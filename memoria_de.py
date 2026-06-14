@@ -387,6 +387,36 @@ if isla_guardada_db and isla_guardada_db in islas:
 isla_seleccionada = st.sidebar.selectbox("🏝️ Selecciona la Isla:", islas, index=indice_defecto)
 
 filtrar_favoritas_sidebar = st.sidebar.checkbox("⭐ Ver solo VIPs en el Almacén")
+# ── CRONÓMETRO EN SIDEBAR ──
+st.sidebar.write("---")
+st.sidebar.markdown("""
+<div id="crono-sidebar" style="text-align:center; padding: 6px 0;">
+    <div id="crono-display-sb" style="font-size:1.6rem; font-weight:700; letter-spacing:3px; margin-bottom:8px;">00:00</div>
+    <div style="display:flex; gap:8px; justify-content:center;">
+        <button id="crono-btn-sb" onclick="cronoToggleSB()" style="padding:6px 18px; border-radius:8px; border:none; cursor:pointer; background:#3b7dd8; color:white; font-weight:600; font-size:0.85rem;">▶ Start</button>
+        <button onclick="cronoResetSB()" style="padding:6px 12px; border-radius:8px; border:1px solid #555; background:transparent; color:#aaa; font-weight:600; font-size:0.85rem; cursor:pointer;">↺</button>
+    </div>
+</div>
+<script>
+var _cActivo=false,_cInicio=null,_cAcum=0,_cInt=null;
+function cronoToggleSB(){
+    var btn=document.getElementById('crono-btn-sb');
+    if(!_cActivo){_cInicio=Date.now();_cInt=setInterval(_cTick,500);_cActivo=true;btn.innerHTML='⏸ Stop';btn.style.background='#e05454';}
+    else{_cAcum+=Date.now()-_cInicio;clearInterval(_cInt);_cActivo=false;btn.innerHTML='▶ Start';btn.style.background='#3b7dd8';}
+}
+function cronoResetSB(){
+    clearInterval(_cInt);_cActivo=false;_cInicio=null;_cAcum=0;
+    document.getElementById('crono-display-sb').innerText='00:00';
+    document.getElementById('crono-btn-sb').innerHTML='▶ Start';
+    document.getElementById('crono-btn-sb').style.background='#3b7dd8';
+}
+function _cTick(){
+    var t=Math.floor((_cAcum+(Date.now()-_cInicio))/1000);
+    document.getElementById('crono-display-sb').innerText=String(Math.floor(t/60)).padStart(2,'0')+':'+String(t%60).padStart(2,'0');
+}
+</script>
+""", unsafe_allow_html=True)
+
 
 df_universo = obtener_todas_tarjetas_isla(isla_seleccionada)
 
@@ -889,63 +919,3 @@ setTimeout(() => {
 </script>
 """
 st.components.v1.html(html_teclas, height=0, width=0)
-
-# ── CRONÓMETRO JS inyectado en el DOM padre ──
-html_crono = """
-<script>
-(function() {
-    const doc = window.parent.document;
-    if (doc.getElementById('crono-wrap')) return; // ya existe, no duplicar
-
-    const wrap = doc.createElement('div');
-    wrap.id = 'crono-wrap';
-    wrap.style.cssText = `
-        position: fixed; top: 55px; right: 10px; z-index: 9999;
-        background: rgba(20,24,36,0.92); border: 1px solid rgba(255,255,255,0.1);
-        border-radius: 12px; padding: 10px 16px; display: flex; align-items: center;
-        gap: 10px; font-family: Montserrat, sans-serif; backdrop-filter: blur(8px);
-        box-shadow: 0 4px 20px rgba(0,0,0,0.4);
-    `;
-    wrap.innerHTML = `
-        <span id="crono-display" style="font-size:1.3rem;font-weight:700;color:#e8ecf2;letter-spacing:2px;min-width:58px;">00:00</span>
-        <button id="crono-btn" style="padding:5px 12px;border-radius:7px;border:none;cursor:pointer;background:#3b7dd8;color:white;font-weight:600;font-size:0.8rem;">▶</button>
-        <button id="crono-reset" style="padding:5px 10px;border-radius:7px;border:1px solid rgba(255,255,255,0.15);background:transparent;color:#8a9ab5;font-weight:600;font-size:0.8rem;cursor:pointer;">↺</button>
-    `;
-    doc.body.appendChild(wrap);
-
-    let activo = false, inicio = null, acumulado = 0, intervalo = null;
-
-    function tick() {
-        const total = Math.floor((acumulado + (Date.now() - inicio)) / 1000);
-        const m = String(Math.floor(total / 60)).padStart(2, '0');
-        const s = String(total % 60).padStart(2, '0');
-        doc.getElementById('crono-display').innerText = m + ':' + s;
-    }
-
-    doc.getElementById('crono-btn').addEventListener('click', function() {
-        if (!activo) {
-            inicio = Date.now();
-            intervalo = setInterval(tick, 500);
-            activo = true;
-            this.innerHTML = '⏸';
-            this.style.background = '#e05454';
-        } else {
-            acumulado += Date.now() - inicio;
-            clearInterval(intervalo);
-            activo = false;
-            this.innerHTML = '▶';
-            this.style.background = '#3b7dd8';
-        }
-    });
-
-    doc.getElementById('crono-reset').addEventListener('click', function() {
-        clearInterval(intervalo);
-        activo = false; inicio = null; acumulado = 0;
-        doc.getElementById('crono-display').innerText = '00:00';
-        doc.getElementById('crono-btn').innerHTML = '▶';
-        doc.getElementById('crono-btn').style.background = '#3b7dd8';
-    });
-})();
-</script>
-"""
-st.components.v1.html(html_crono, height=0, width=0)
