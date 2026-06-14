@@ -312,8 +312,8 @@ def obtener_datos_puntero_db():
     return 0, [], None
 
 def guardar_estado_puntero_db(pos, lista_ids, nombre_isla=None):
-    if len(lista_ids) > 15:
-        lista_ids = lista_ids[:15]
+    if len(lista_ids) > TAMANYO_RUEDA:
+        lista_ids = lista_ids[:TAMANYO_RUEDA]
     url = f"{SUPABASE_URL}/rest/v1/puntero?id=eq.1"
     rueda_str = ",".join(map(str, lista_ids))
     body = {"posicion_actual": pos, "rueda_ids": rueda_str}
@@ -516,7 +516,7 @@ if abrir_modal_jubiladas:
                     inicializar_fecha_entrada_rueda(int(row['id']))
                     _, actuales_ids, _ = obtener_datos_puntero_db()
                     
-                    if len(actuales_ids) >= 15:
+                    if len(actuales_ids) >= TAMANYO_RUEDA:
                         id_expulsada = actuales_ids[-1]
                         fila_expulsada = df_universo[df_universo['id'] == id_expulsada].iloc[0]
                         congelar_temporizador_banquillo(
@@ -524,7 +524,7 @@ if abrir_modal_jubiladas:
                             fila_expulsada.get('fecha_entrada_rueda'), 
                             fila_expulsada.get('segundos_acumulados_banco', 0)
                         )
-                        actuales_ids = actuales_ids[:14]
+                        actuales_ids = actuales_ids[:TAMANYO_RUEDA - 1]
 
                     if int(row['id']) not in actuales_ids:
                         actuales_ids.insert(0, int(row['id']))
