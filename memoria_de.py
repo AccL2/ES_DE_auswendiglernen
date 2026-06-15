@@ -219,8 +219,8 @@ st.markdown(
 )
 
 # ── Audio ─────────────────────────────────────────────────────────────────────
-ruta_audio = f"audios/{int(audio_id)}.mp3"
-if os.path.exists(ruta_audio):
+ruta_audio = f"audios/{int(audio_id)}.mp3" if pd.notna(audio_id) else None
+if ruta_audio and os.path.exists(ruta_audio):
     st.markdown("🎧 **Shadowing** — escucha antes de revelar la solución")
     st.audio(ruta_audio, format="audio/mp3")
 else:
