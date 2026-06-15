@@ -283,27 +283,32 @@ def colorear_sustantivos(texto):
     # (precedidas por espacio, coma, paréntesis... no por inicio de línea o tras punto)
     return re.sub(r'(?<=\s)[A-ZÄÖÜ][a-zäöüß]+', reemplazar, texto)
 
-def formatear_lineas(texto, colorear=False):
-    # 1. Separamos por frases respetando puntos finales (. ! ?) para saltar renglón cómodamente
+def colorear_sustantivos_safe(texto):
+    """Colorea sustantivos pero respeta lo que ya esta dentro de <strong>."""
+    partes = re.split(r'(<strong>.*?</strong>)', texto)
+    return ''.join(
+        parte if parte.startswith('<strong>') else colorear_sustantivos(parte)
+        for parte in partes
+    )
+
+def formatear_lineas(texto, colorear=False, chunks_raw=""):
+    # 1. Separamos por frases
     frases = re.split(r'(?<=[.!?])\s+', texto.strip())
     texto_con_renglones = '<br>'.join(frases)
-    
-    # 2. Convertimos el formato de barras |palabra| en etiquetas HTML reales de negrita
-    texto_final = re.sub(r'\|([^|]+)\|', r'<strong>\1</strong>', texto_con_renglones)
-    
-    # 3. Colorear sustantivos alemanes si se solicita
-    if colorear:
-        texto_final = colorear_sustantivos(texto_final)
-    
-    return texto_final
 
-def resaltar_chunks(texto: str, chunks_raw: str) -> str:
-    """Resalta en negrita cada chunk (separados por |) dentro del texto HTML."""
-    if not chunks_raw:
-        return texto
-    for chunk in [c.strip() for c in chunks_raw.split("|") if c.strip()]:
-        texto = texto.replace(chunk, f"<strong>{chunk}</strong>")
-    return texto
+    # 2. Convertimos |palabra| en negrita
+    texto_final = re.sub(r'\|([^|]+)\|', r'<strong>\1</strong>', texto_con_renglones)
+
+    # 3. Resaltar chunks ANTES de colorear sustantivos
+    if chunks_raw:
+        for chunk in [c.strip() for c in chunks_raw.split("|") if c.strip()]:
+            texto_final = texto_final.replace(chunk, f"<strong>{chunk}</strong>")
+
+    # 4. Colorear sustantivos sin romper los <strong> ya puestos
+    if colorear:
+        texto_final = colorear_sustantivos_safe(texto_final)
+
+    return texto_final
 
 # ── LOGICA DE LLAMADAS API SUPABASE ──
 def obtener_todas_tarjetas_isla(isla):
@@ -679,7 +684,7 @@ st.markdown(f'''
 <div id="bloque-solucion" class="bloque-verde" style="display: {disp_solucion};" data-server-display="{disp_solucion}">
     <div class="texto-isla">
         <b>{prefijo_estrella}Solución en Alemán:</b><br><br>
-        <span id="contenido-aleman">{resaltar_chunks(formatear_lineas(aleman_texto, colorear=True), chunk_clave_raw)}</span>
+        <span id="contenido-aleman">{formatear_lineas(aleman_texto, colorear=True, chunks_raw=chunk_clave_raw)}</span>
     </div>
 </div>
 ''', unsafe_allow_html=True)
