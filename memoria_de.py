@@ -568,6 +568,10 @@ es_importante         = bool(fila_actual.get('importante', False))
 traduccion_literal    = str(fila_actual['Traduccion_Literal']).strip() if 'Traduccion_Literal' in fila_actual and pd.notna(fila_actual.get('Traduccion_Literal')) and str(fila_actual.get('Traduccion_Literal')).strip() not in ('', 'None', 'nan') else ""
 chunk_clave_raw       = str(fila_actual['Chunk_Clave']).strip() if 'Chunk_Clave' in fila_actual and pd.notna(fila_actual.get('Chunk_Clave')) and str(fila_actual.get('Chunk_Clave')).strip() not in ('', 'None', 'nan') else ""
 
+# DEBUG TEMPORAL
+st.sidebar.write("🔍 Chunk_Clave en BD:", repr(fila_actual.get('Chunk_Clave', 'COLUMNA NO EXISTE')))
+st.sidebar.write("🔍 chunk_clave_raw procesado:", repr(chunk_clave_raw))
+
 fecha_entrada_raw = fila_actual.get('fecha_entrada_rueda')
 segundos_banco_raw = fila_actual.get('segundos_acumulados_banco', 0)
 fecha_click_raw = fila_actual.get('fecha_ultimo_click')
