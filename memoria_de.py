@@ -283,33 +283,19 @@ def colorear_sustantivos(texto):
     # (precedidas por espacio, coma, paréntesis... no por inicio de línea o tras punto)
     return re.sub(r'(?<=\s)[A-ZÄÖÜ][a-zäöüß]+', reemplazar, texto)
 
-def colorear_sustantivos_safe(texto):
-    """Colorea sustantivos pero respeta lo que ya esta dentro de <strong>."""
-    partes = re.split(r'(<strong>.*?</strong>)', texto)
-    return ''.join(
-        parte if parte.startswith('<strong>') else colorear_sustantivos(parte)
-        for parte in partes
-    )
-
-def formatear_lineas(texto, colorear=False, chunks_raw=""):
-    # 1. Separamos por frases
+def formatear_lineas(texto, colorear=False):
+    # 1. Separamos por frases respetando puntos finales (. ! ?) para saltar renglón cómodamente
     frases = re.split(r'(?<=[.!?])\s+', texto.strip())
     texto_con_renglones = '<br>'.join(frases)
-
-    # 2. Convertimos |palabra| en negrita
+    
+    # 2. Convertimos el formato de barras |palabra| en etiquetas HTML reales de negrita
     texto_final = re.sub(r'\|([^|]+)\|', r'<strong>\1</strong>', texto_con_renglones)
-
-    # 3. Resaltar chunks ANTES de colorear sustantivos
-    if chunks_raw:
-        for chunk in [c.strip() for c in chunks_raw.split("|") if c.strip()]:
-            texto_final = texto_final.replace(chunk, f"<strong>{chunk}</strong>")
-
-    # 4. Colorear sustantivos sin romper los <strong> ya puestos
+    
+    # 3. Colorear sustantivos alemanes si se solicita
     if colorear:
-        texto_final = colorear_sustantivos_safe(texto_final)
-
+        texto_final = colorear_sustantivos(texto_final)
+    
     return texto_final
-
 # ── LOGICA DE LLAMADAS API SUPABASE ──
 def obtener_todas_tarjetas_isla(isla):
     url = f"{SUPABASE_URL}/rest/v1/tarjetas?Isla=ilike.{isla}&order=id.asc"
@@ -566,11 +552,7 @@ audio_id              = str(fila_actual['Audio_ID']).strip()
 situacion_texto       = str(fila_actual['Situacion']).strip() if pd.notna(fila_actual['Situacion']) else ""
 es_importante         = bool(fila_actual.get('importante', False))
 traduccion_literal    = str(fila_actual['Traduccion_Literal']).strip() if 'Traduccion_Literal' in fila_actual and pd.notna(fila_actual.get('Traduccion_Literal')) and str(fila_actual.get('Traduccion_Literal')).strip() not in ('', 'None', 'nan') else ""
-chunk_clave_raw       = str(fila_actual['Chunk_Clave']).strip() if 'Chunk_Clave' in fila_actual and pd.notna(fila_actual.get('Chunk_Clave')) and str(fila_actual.get('Chunk_Clave')).strip() not in ('', 'None', 'nan') else ""
 
-# DEBUG TEMPORAL
-st.sidebar.write("🔍 Chunk_Clave en BD:", repr(fila_actual.get('Chunk_Clave', 'COLUMNA NO EXISTE')))
-st.sidebar.write("🔍 chunk_clave_raw procesado:", repr(chunk_clave_raw))
 
 fecha_entrada_raw = fila_actual.get('fecha_entrada_rueda')
 segundos_banco_raw = fila_actual.get('segundos_acumulados_banco', 0)
@@ -688,7 +670,7 @@ st.markdown(f'''
 <div id="bloque-solucion" class="bloque-verde" style="display: {disp_solucion};" data-server-display="{disp_solucion}">
     <div class="texto-isla">
         <b>{prefijo_estrella}Solución en Alemán:</b><br><br>
-        <span id="contenido-aleman">{formatear_lineas(aleman_texto, colorear=True, chunks_raw=chunk_clave_raw)}</span>
+        <span id="contenido-aleman">{formatear_lineas(aleman_texto, colorear=True)}</span>
     </div>
 </div>
 ''', unsafe_allow_html=True)
