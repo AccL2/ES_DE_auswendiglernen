@@ -449,7 +449,7 @@ if ids_validos_rueda != ids_rueda_db or isla_seleccionada != isla_guardada_db:
     st.rerun()
 
 if not ids_validos_rueda:
-    st.title("🇩🇪 Método de Chunks & Islas")
+    st.title("🏝️ Método de Chunks & Islas")
     st.balloons()
     st.success(f"🎉 ¡ESPECTACULAR! Has completado la isla '{isla_seleccionada}' al 100%.")
     st.write("")
@@ -540,7 +540,7 @@ if abrir_modal_cola:
 
 
 # ── CONTENIDO PRINCIPAL DE LA APP ──
-st.title("🇩🇪 Método de Chunks & Islas")
+st.title("🏝️ Método de Chunks & Islas")
 
 fila_actual = df_rueda.iloc[st.session_state.indice_actual]
 es_tarjeta_repaso = (int(fila_actual['id']) == id_jubilada_repaso) if id_jubilada_repaso else False
