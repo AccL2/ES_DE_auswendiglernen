@@ -38,7 +38,7 @@ def genero_sustantivo(palabra):
 TAMANYO_RUEDA = 5  # Cambia este número para ajustar el tamaño de la rueda activa
 
 # ── CONFIGURACIÓN DE LA PÁGINA ──
-st.set_page_config(page_title="Entrenador de Idiomas por Islas", page_icon="🇩🇪", layout="centered")
+st.set_page_config(page_title="Entrenador de Idiomas por Islas", page_icon="🏝️", layout="centered")
 
 # ── CONEXIÓN DIRECTA CON SUPABASE ──
 SUPABASE_URL = "https://rmmkngictdwrkmnlefad.supabase.co"
